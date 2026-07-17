@@ -14,8 +14,8 @@ example of what an agentic build looks like, not a one-off demo.
 ## What's real today (Phase 1)
 
 - The full Input Card: trip, flight preferences, ranked optimization
-  priority, credit cards, 13 airline loyalty programs, 7 hotel programs,
-  airport flexibility.
+  priority, credit cards, 13 airline loyalty programs, airport flexibility.
+  (Hotel loyalty programs were removed for now — see roadmap.html.)
 - A deterministic scoring engine (`app.js`) — six dimensions (Cost,
   Comfort, Upgrade Potential, Award Value, Flexibility, Risk), weighted by
   your priority ranking, computed entirely in the browser.

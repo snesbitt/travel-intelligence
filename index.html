@@ -164,19 +164,6 @@
         </div>
       </section>
 
-      <section class="block card">
-        <h2 class="card-title">Hotel programs</h2>
-        <div class="check-grid">
-          <label class="check-row"><input type="checkbox" class="hotel-check" value="Hyatt"> World of Hyatt</label>
-          <label class="check-row"><input type="checkbox" class="hotel-check" value="Marriott"> Marriott Bonvoy</label>
-          <label class="check-row"><input type="checkbox" class="hotel-check" value="Hilton"> Hilton Honors</label>
-          <label class="check-row"><input type="checkbox" class="hotel-check" value="IHG"> IHG One Rewards</label>
-          <label class="check-row"><input type="checkbox" class="hotel-check" value="Accor"> Accor Live Limitless</label>
-          <label class="check-row"><input type="checkbox" class="hotel-check" value="Choice"> Choice Privileges</label>
-          <label class="check-row"><input type="checkbox" class="hotel-check" value="Wyndham"> Wyndham Rewards</label>
-        </div>
-      </section>
-
       <button type="submit" class="run-btn">Run the optimization</button>
     </form>
 
@@ -251,7 +238,6 @@
       .map((el) => ({ program: el.dataset.program, balance: parseInt(el.value, 10) || 0 }))
       .filter((p) => p.balance > 0);
     const creditCards = Array.from(document.querySelectorAll(".cc-check:checked")).map((el) => el.value);
-    const hotelPrograms = Array.from(document.querySelectorAll(".hotel-check:checked")).map((el) => el.value);
     const preferredAlliances = Array.from(document.querySelectorAll(".alliance-check:checked")).map((el) => el.value);
 
     return {
@@ -275,7 +261,6 @@
       preferredArrivalTime: document.getElementById("preferredArrivalTime").value,
       priorityRanks,
       creditCards,
-      hotelPrograms,
       programBalances,
     };
   }
