@@ -1,0 +1,417 @@
+<!DOCTYPE html>
+<html lang="en"><head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Travel Scout — Personal Travel Optimization Agent</title>
+<meta name="description" content="Optimizes every decision in a trip — not just the airfare — balancing cost, comfort, upgrade potential, and award value.">
+<link rel="manifest" href="manifest.json">
+<link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
+<link rel="icon" href="icons/favicon-32.png" sizes="32x32">
+<meta name="theme-color" content="#efe8db">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="Travel Scout">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin="">
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,wght@0,400;0,500;0,600;1,400;1,500;1,600&amp;display=swap" rel="stylesheet">
+<link rel="stylesheet" href="style.css">
+</head><body>
+
+<header class="site-nav">
+  <div class="nav-inner">
+    <a class="brand" href="/"><span class="dot">•</span><span class="word">Travel Scout</span></a>
+    <nav class="links">
+      <a class="active" href="/#optimize">Optimize</a>
+      <a href="/#results">Results</a>
+      <a href="/guide">Guide</a>
+      <a href="/roadmap">Roadmap</a>
+      <a href="/about">About</a>
+    </nav>
+  </div>
+</header>
+
+<main>
+  <div class="wrap">
+    <p class="eyebrow">Personal Travel Optimization Agent</p>
+    <h1 class="page-title">Every travel decision, optimized — not just the airfare.</h1>
+    <p class="lede">Balances cost, comfort, upgrade potential, award value, flexibility, and risk against each other, weighted by what you actually care about on this trip. Tell it the trip and what's in your wallet — miles, points, and cards — and it explains exactly what it would do in your position, and why.</p>
+
+    <div class="sync-banner">
+      <span class="sync-dot"></span>
+      <span><strong>Demo mode.</strong> This runs a documented scoring model on hand-maintained reference ranges — not a live fare or award search yet. See <a href="/guide" style="text-decoration:underline;">the guide</a> for exactly what's computed vs. planned. No data leaves your browser.</span>
+    </div>
+
+    <form id="trip-form">
+      <section class="block card" id="optimize">
+        <h2 class="card-title">Trip</h2>
+        <div class="form-grid">
+          <div class="form-field"><label for="origin">Origin</label><input type="text" id="origin" placeholder="e.g. San Francisco" value="San Francisco"></div>
+          <div class="form-field"><label for="destination">Destination</label><input type="text" id="destination" placeholder="e.g. Tokyo" value="Tokyo"></div>
+          <div class="form-field"><label for="preferredAirport">Preferred departure airport</label><input type="text" id="preferredAirport" placeholder="e.g. SFO" value="SFO"></div>
+          <div class="form-field"><label for="airportFlexibility">Nearby airports you'd consider</label><input type="text" id="airportFlexibility" placeholder="e.g. SFO, SJC, OAK" value="SFO, SJC, OAK"></div>
+          <div class="form-field"><label for="departDate">Departure date</label><input type="date" id="departDate"></div>
+          <div class="form-field"><label for="returnDate">Return date</label><input type="date" id="returnDate"></div>
+        </div>
+        <div class="form-field" style="margin-top:10px;">
+          <label>Date flexibility</label>
+          <div class="pill-toggle" data-group="dateFlexibility">
+            <button type="button" data-val="Exact" class="sel">Exact</button>
+            <button type="button" data-val="±1 day">± 1 day</button>
+            <button type="button" data-val="±3 days">± 3 days</button>
+            <button type="button" data-val="±7 days">± 7 days</button>
+          </div>
+        </div>
+        <div class="form-field" style="margin-top:10px;">
+          <label>Trip purpose</label>
+          <div class="pill-toggle" data-group="tripPurpose">
+            <button type="button" data-val="Vacation" class="sel">Vacation</button>
+            <button type="button" data-val="Business">Business</button>
+            <button type="button" data-val="Family">Family</button>
+            <button type="button" data-val="Adventure">Adventure</button>
+            <button type="button" data-val="Flexible">Flexible</button>
+          </div>
+        </div>
+      </section>
+
+      <section class="block card">
+        <h2 class="card-title">Flight preferences</h2>
+        <div class="form-field">
+          <label>Cabin</label>
+          <div class="pill-toggle" data-group="cabin">
+            <button type="button" data-val="Economy">Economy</button>
+            <button type="button" data-val="Premium Economy">Premium Economy</button>
+            <button type="button" data-val="Business" class="sel">Business</button>
+            <button type="button" data-val="First">First</button>
+            <button type="button" data-val="Best Value">Best Value</button>
+          </div>
+        </div>
+        <div class="form-grid" style="margin-top:12px;">
+          <div class="form-field"><label for="maxBudget">Maximum budget (round-trip, USD)</label><input type="number" id="maxBudget" value="4500" min="100" step="50"></div>
+          <div class="form-field">
+            <label for="maxStops">Maximum stops</label>
+            <select id="maxStops"><option value="0">Nonstop only</option><option value="1" selected>1 stop</option><option value="2">2 stops</option><option value="3">No preference</option></select>
+          </div>
+          <div class="form-field"><label for="checkedBags">Checked bags needed</label><input type="number" id="checkedBags" value="0" min="0" max="5"></div>
+          <div class="form-field" style="justify-content:center;">
+            <label class="check-row" style="margin-top:16px;"><input type="checkbox" id="carryOnOnly"> Carry-on only</label>
+          </div>
+          <div class="form-field"><label for="preferredAirlines">Preferred airlines (comma-separated, optional)</label><input type="text" id="preferredAirlines" placeholder="e.g. United, ANA"></div>
+          <div class="form-field"><label for="avoidAirlines">Airlines to avoid (comma-separated, optional)</label><input type="text" id="avoidAirlines" placeholder="e.g. Spirit"></div>
+          <div class="form-field"><label for="preferredDepartTime">Preferred departure time</label>
+            <select id="preferredDepartTime"><option>No preference</option><option>Early morning</option><option>Morning</option><option>Afternoon</option><option>Evening</option><option>Red-eye</option></select>
+          </div>
+          <div class="form-field"><label for="preferredArrivalTime">Preferred arrival time</label>
+            <select id="preferredArrivalTime"><option>No preference</option><option>Early morning</option><option>Morning</option><option>Afternoon</option><option>Evening</option><option>Late night</option></select>
+          </div>
+        </div>
+        <div class="form-field" style="margin-top:12px;">
+          <label>Preferred alliances (optional — leave all unselected to consider every carrier)</label>
+          <div class="check-grid">
+            <label class="check-row"><input type="checkbox" class="alliance-check" value="Star Alliance"> Star Alliance <span class="form-hint">(United, Air Canada, Lufthansa, Singapore, ANA, Turkish)</span></label>
+            <label class="check-row"><input type="checkbox" class="alliance-check" value="Oneworld"> Oneworld <span class="form-hint">(American, British Airways, Qatar, Cathay Pacific, Qantas)</span></label>
+            <label class="check-row"><input type="checkbox" class="alliance-check" value="SkyTeam"> SkyTeam <span class="form-hint">(Delta, Air France, KLM, Korean Air)</span></label>
+            <label class="check-row"><input type="checkbox" class="alliance-check" value="Unaligned"> Unaligned <span class="form-hint">(Alaska, Emirates, JetBlue)</span></label>
+          </div>
+        </div>
+      </section>
+
+      <section class="block card">
+        <h2 class="card-title">Optimization priority</h2>
+        <p class="form-hint" style="margin-bottom:10px;">Rank 1 (most important) through 7 (least). This is the weighting the engine explains its recommendation against — see the score breakdown in your results.</p>
+        <ul class="rank-list" id="rank-list">
+          <li><span class="rank-num">—</span><span style="flex:1;">Cheapest</span><input type="number" min="1" max="7" value="2" data-priority="Cheapest" style="width:52px;"></li>
+          <li><span class="rank-num">—</span><span style="flex:1;">Best Value</span><input type="number" min="1" max="7" value="1" data-priority="Best Value" style="width:52px;"></li>
+          <li><span class="rank-num">—</span><span style="flex:1;">Fastest</span><input type="number" min="1" max="7" value="7" data-priority="Fastest" style="width:52px;"></li>
+          <li><span class="rank-num">—</span><span style="flex:1;">Most Comfortable</span><input type="number" min="1" max="7" value="4" data-priority="Most Comfortable" style="width:52px;"></li>
+          <li><span class="rank-num">—</span><span style="flex:1;">Best Upgrade Opportunity</span><input type="number" min="1" max="7" value="5" data-priority="Best Upgrade Opportunity" style="width:52px;"></li>
+          <li><span class="rank-num">—</span><span style="flex:1;">Best Use of Miles</span><input type="number" min="1" max="7" value="6" data-priority="Best Use of Miles" style="width:52px;"></li>
+          <li><span class="rank-num">—</span><span style="flex:1;">Best Overall Experience</span><input type="number" min="1" max="7" value="3" data-priority="Best Overall Experience" style="width:52px;"></li>
+        </ul>
+      </section>
+
+      <section class="block card">
+        <h2 class="card-title">Credit cards</h2>
+        <div class="check-grid">
+          <label class="check-row"><input type="checkbox" class="cc-check" value="American Express Membership Rewards"> American Express Membership Rewards</label>
+          <label class="check-row"><input type="checkbox" class="cc-check" value="Chase Ultimate Rewards"> Chase Ultimate Rewards</label>
+          <label class="check-row"><input type="checkbox" class="cc-check" value="Capital One"> Capital One</label>
+          <label class="check-row"><input type="checkbox" class="cc-check" value="Citi ThankYou"> Citi ThankYou</label>
+          <label class="check-row"><input type="checkbox" class="cc-check" value="Bilt Rewards"> Bilt Rewards</label>
+          <label class="check-row"><input type="checkbox" class="cc-check" value="Wells Fargo"> Wells Fargo</label>
+          <label class="check-row"><input type="checkbox" class="cc-check" value="Marriott Bonvoy"> Marriott Bonvoy</label>
+        </div>
+      </section>
+
+      <section class="block card">
+        <h2 class="card-title">Airline loyalty balances (optional)</h2>
+        <div class="grid2">
+          <div>
+            <div class="balance-row"><label>United MileagePlus</label><input type="number" min="0" step="1000" class="prog-bal" data-program="United MileagePlus" value="0"></div>
+            <div class="balance-row"><label>Alaska Mileage Plan</label><input type="number" min="0" step="1000" class="prog-bal" data-program="Alaska Mileage Plan" value="0"></div>
+            <div class="balance-row"><label>American AAdvantage</label><input type="number" min="0" step="1000" class="prog-bal" data-program="American AAdvantage" value="0"></div>
+            <div class="balance-row"><label>Delta SkyMiles</label><input type="number" min="0" step="1000" class="prog-bal" data-program="Delta SkyMiles" value="0"></div>
+            <div class="balance-row"><label>Air Canada Aeroplan</label><input type="number" min="0" step="1000" class="prog-bal" data-program="Air Canada Aeroplan" value="0"></div>
+            <div class="balance-row"><label>Flying Blue (Air France/KLM)</label><input type="number" min="0" step="1000" class="prog-bal" data-program="Flying Blue" value="0"></div>
+            <div class="balance-row"><label>Virgin Atlantic Flying Club</label><input type="number" min="0" step="1000" class="prog-bal" data-program="Virgin Atlantic Flying Club" value="0"></div>
+          </div>
+          <div>
+            <div class="balance-row"><label>British Airways Executive Club</label><input type="number" min="0" step="1000" class="prog-bal" data-program="British Airways Executive Club" value="0"></div>
+            <div class="balance-row"><label>Singapore KrisFlyer</label><input type="number" min="0" step="1000" class="prog-bal" data-program="Singapore KrisFlyer" value="0"></div>
+            <div class="balance-row"><label>Qatar Privilege Club</label><input type="number" min="0" step="1000" class="prog-bal" data-program="Qatar Privilege Club" value="0"></div>
+            <div class="balance-row"><label>Etihad Guest</label><input type="number" min="0" step="1000" class="prog-bal" data-program="Etihad Guest" value="0"></div>
+            <div class="balance-row"><label>Emirates Skywards</label><input type="number" min="0" step="1000" class="prog-bal" data-program="Emirates Skywards" value="0"></div>
+            <div class="balance-row"><label>Lufthansa Miles &amp; More</label><input type="number" min="0" step="1000" class="prog-bal" data-program="Lufthansa Miles & More" value="0"></div>
+          </div>
+        </div>
+      </section>
+
+      <section class="block card">
+        <h2 class="card-title">Hotel programs</h2>
+        <div class="check-grid">
+          <label class="check-row"><input type="checkbox" class="hotel-check" value="Hyatt"> World of Hyatt</label>
+          <label class="check-row"><input type="checkbox" class="hotel-check" value="Marriott"> Marriott Bonvoy</label>
+          <label class="check-row"><input type="checkbox" class="hotel-check" value="Hilton"> Hilton Honors</label>
+          <label class="check-row"><input type="checkbox" class="hotel-check" value="IHG"> IHG One Rewards</label>
+          <label class="check-row"><input type="checkbox" class="hotel-check" value="Accor"> Accor Live Limitless</label>
+          <label class="check-row"><input type="checkbox" class="hotel-check" value="Choice"> Choice Privileges</label>
+          <label class="check-row"><input type="checkbox" class="hotel-check" value="Wyndham"> Wyndham Rewards</label>
+        </div>
+      </section>
+
+      <button type="submit" class="run-btn">Run the optimization</button>
+    </form>
+
+    <section class="block" id="results" style="margin-top:2rem;">
+      <div class="empty-state">
+        <div class="es-icon">✈</div>
+        <p>Fill in your trip and run the optimization to see the executive summary, best recommendation, and the five alternatives it was weighed against.</p>
+      </div>
+    </section>
+
+  </div>
+</main>
+
+<footer class="site-footer">
+  <div class="wrap">© 2026</div>
+</footer>
+
+<script src="app.js"></script>
+<script>
+(function () {
+  const form = document.getElementById("trip-form");
+  const resultsEl = document.getElementById("results");
+
+  // pill toggles (single-select within a group)
+  document.querySelectorAll(".pill-toggle").forEach((group) => {
+    group.addEventListener("click", (e) => {
+      const btn = e.target.closest("button");
+      if (!btn) return;
+      group.querySelectorAll("button").forEach((b) => b.classList.remove("sel"));
+      btn.classList.add("sel");
+    });
+  });
+
+  // rank-list live numbering hint
+  function refreshRankNums() {
+    document.querySelectorAll("#rank-list li").forEach((li) => {
+      const input = li.querySelector("input");
+      li.querySelector(".rank-num").textContent = input.value || "—";
+    });
+  }
+  document.querySelectorAll("#rank-list input").forEach((inp) => inp.addEventListener("input", refreshRankNums));
+  refreshRankNums();
+
+  // default dates: 10 weeks out, 10-day trip
+  const departEl = document.getElementById("departDate");
+  const returnEl = document.getElementById("returnDate");
+  const d1 = new Date(); d1.setDate(d1.getDate() + 70);
+  const d2 = new Date(d1); d2.setDate(d2.getDate() + 10);
+  departEl.value = d1.toISOString().slice(0, 10);
+  returnEl.value = d2.toISOString().slice(0, 10);
+
+  function pillVal(group) {
+    const sel = document.querySelector(`.pill-toggle[data-group="${group}"] button.sel`);
+    return sel ? sel.dataset.val : null;
+  }
+  function listVal(sel) {
+    const el = document.querySelector(sel);
+    if (!el || !el.value.trim()) return [];
+    return el.value.split(",").map((s) => s.trim()).filter(Boolean);
+  }
+  function matchCarrierNames(raw, allCarriers) {
+    return raw.map((r) => allCarriers.find((c) => c.toLowerCase().includes(r.toLowerCase())) || r);
+  }
+
+  function collectInputs() {
+    const T = window.TravelScout;
+    const priorityRanks = {};
+    document.querySelectorAll("#rank-list input").forEach((inp) => {
+      priorityRanks[inp.dataset.priority] = parseInt(inp.value, 10) || 4;
+    });
+    const programBalances = Array.from(document.querySelectorAll(".prog-bal"))
+      .map((el) => ({ program: el.dataset.program, balance: parseInt(el.value, 10) || 0 }))
+      .filter((p) => p.balance > 0);
+    const creditCards = Array.from(document.querySelectorAll(".cc-check:checked")).map((el) => el.value);
+    const hotelPrograms = Array.from(document.querySelectorAll(".hotel-check:checked")).map((el) => el.value);
+    const preferredAlliances = Array.from(document.querySelectorAll(".alliance-check:checked")).map((el) => el.value);
+
+    return {
+      origin: document.getElementById("origin").value || "Origin",
+      destination: document.getElementById("destination").value || "Destination",
+      preferredAirport: document.getElementById("preferredAirport").value,
+      airportFlexibility: document.getElementById("airportFlexibility").value,
+      departDate: departEl.value,
+      returnDate: returnEl.value,
+      dateFlexibility: pillVal("dateFlexibility") || "Exact",
+      tripPurpose: pillVal("tripPurpose") || "Flexible",
+      cabin: pillVal("cabin") || "Best Value",
+      maxBudget: parseInt(document.getElementById("maxBudget").value, 10) || 1000,
+      maxStops: parseInt(document.getElementById("maxStops").value, 10),
+      checkedBags: parseInt(document.getElementById("checkedBags").value, 10) || 0,
+      carryOnOnly: document.getElementById("carryOnOnly").checked,
+      preferredAirlines: matchCarrierNames(listVal("#preferredAirlines"), T.ALL_CARRIERS),
+      avoidAirlines: matchCarrierNames(listVal("#avoidAirlines"), T.ALL_CARRIERS),
+      preferredAlliances,
+      preferredDepartTime: document.getElementById("preferredDepartTime").value,
+      preferredArrivalTime: document.getElementById("preferredArrivalTime").value,
+      priorityRanks,
+      creditCards,
+      hotelPrograms,
+      programBalances,
+    };
+  }
+
+  form.addEventListener("submit", (e) => {
+    e.preventDefault();
+    const inputs = collectInputs();
+    const T = window.TravelScout;
+    const result = T.runOptimization(inputs);
+    renderResults(inputs, result);
+    document.getElementById("results").scrollIntoView({ behavior: "smooth", block: "start" });
+  });
+
+  function scoreBar(dim, score, weight) {
+    const T = window.TravelScout;
+    const pct = Math.round(score);
+    const cls = pct >= 66 ? "" : pct >= 40 ? "mid" : "bad";
+    return `<div class="score-row">
+      <span class="score-label">${T.DIM_LABEL[dim]} <span class="form-hint">(${Math.round(weight * 100)}% weight)</span></span>
+      <div class="score-track"><div class="score-fill ${cls}" style="width:${pct}%"></div></div>
+      <span class="score-val">${pct}</span>
+    </div>`;
+  }
+
+  function timingBadge(timing) {
+    const map = { buy: ["buy", "Buy now"], wait: ["wait", "Wait"], monitor: ["monitor", "Monitor"] };
+    const [cls, label] = map[timing.verdict] || map.monitor;
+    return `<span class="timing-badge ${cls}">${label}</span>`;
+  }
+
+  function renderResults(inputs, result) {
+    const T = window.TravelScout;
+    const best = result.best;
+    const alts = result.alternatives;
+    const w = result.weights;
+    const award = result.award;
+    const timing = result.timing;
+
+    const execSummary = `If this were my own trip, I'd book the ${best.cabin} fare on ${best.carrier}` +
+      `${best.stops === 0 ? " nonstop" : ` with ${best.stops} stop${best.stops > 1 ? "s" : ""}`} for ${T.fmtUSD(best.price)} — ` +
+      `it comes out ahead on the priorities you ranked highest, not just on price. ` +
+      (timing.verdict === "buy" ? `Purchase timing favors booking now rather than waiting. ` : timing.verdict === "wait" ? `Purchase timing favors waiting and watching for a better window before locking it in. ` : `It's early enough that I'd set a fare watch rather than transact today. `) +
+      (award.strong ? `Your miles balance is a genuinely strong redemption here (${award.cpp.toFixed(2)}¢/mile) — worth booking with points instead of cash.` : `Paying cash beats redeeming miles here (${award.cpp.toFixed(2)}¢/mile) — save the balance for a stronger redemption.`);
+
+    const altRows = alts.map((c, i) => `
+      <tr class="${i === 0 ? "best-row" : ""}">
+        <td class="rank-cell">${i + 1}</td>
+        <td><strong>${c.carrier}</strong><br><span class="form-hint">${c.alliance}</span></td>
+        <td>${c.cabin}</td>
+        <td>${c.stops === 0 ? "Nonstop" : c.stops + " stop" + (c.stops > 1 ? "s" : "")}</td>
+        <td>${Math.floor(c.travelMinutes / 60)}h ${c.travelMinutes % 60}m</td>
+        <td>${c.fareTier}</td>
+        <td>${T.fmtUSD(c.price)}</td>
+        <td>${c.weighted.toFixed(0)}</td>
+      </tr>`).join("");
+
+    const insightItems = result.insights.map((text, i) => `
+      <li class="insight-item"><span class="in-num">${String(i + 1).padStart(2, "0")}</span><p>${text}</p></li>`).join("");
+
+    const upgradeLikely = best.scores.Upgrade >= 66 ? "High" : best.scores.Upgrade >= 40 ? "Moderate" : "Low";
+    const upgradeCostGuess = { Economy: "$150–500 to Premium Economy", "Premium Economy": "$400–1,200 to Business", Business: "$1,500–4,000 to First", First: "already top cabin", "Best Value": "$150–1,200 depending on cabin landed in" }[best.cabin];
+
+    resultsEl.innerHTML = `
+      <p class="eyebrow" id="exec">Executive summary</p>
+      <div class="exec-summary"><p>${execSummary}</p></div>
+
+      <p class="eyebrow">Best recommendation</p>
+      <div class="rec-hero">
+        <div class="rec-hero-top">
+          <div>
+            <div class="rec-route">${inputs.origin} → ${inputs.destination}</div>
+            <div class="rec-airline">${best.carrier} · ${best.alliance} · ${best.aircraft}</div>
+          </div>
+          <div class="rec-price-block">
+            <div class="rec-price">${T.fmtUSD(best.price)}</div>
+            <div class="rec-price-sub">round-trip, ${best.cabin}</div>
+          </div>
+        </div>
+        <div class="rec-detail-grid">
+          <div class="rec-detail"><div class="rd-label">Stops</div><div class="rd-val">${best.stops === 0 ? "Nonstop" : best.stops}</div></div>
+          <div class="rec-detail"><div class="rd-label">Flight time</div><div class="rd-val">${Math.floor(best.travelMinutes / 60)}h ${best.travelMinutes % 60}m</div></div>
+          <div class="rec-detail"><div class="rd-label">Fare type</div><div class="rd-val">${best.fareTier}</div></div>
+          <div class="rec-detail"><div class="rd-label">Aircraft</div><div class="rd-val">${best.aircraft}</div></div>
+        </div>
+        <div class="rec-why"><strong>Why it wins:</strong> highest weighted score (${best.weighted.toFixed(0)}/100) against the priorities you ranked — see the breakdown below for exactly how each dimension was weighted.</div>
+      </div>
+
+      <p class="eyebrow">Decision framework</p>
+      <div class="card block">
+        <div class="score-grid">
+          ${["Cost","Comfort","Upgrade","Award","Flexibility","Risk"].map((d) => scoreBar(d, best.scores[d], w[d])).join("")}
+        </div>
+        <p class="form-hint" style="margin-top:10px;">Weights come directly from the priority ranking you set: higher-ranked priorities pull more weight onto the dimensions they care about most. Nothing here is optimized for a single variable.</p>
+      </div>
+
+      <p class="eyebrow">Top five alternatives</p>
+      <div class="card block alt-table-wrap">
+        <table class="alt-table">
+          <thead><tr><th>#</th><th>Carrier</th><th>Cabin</th><th>Stops</th><th>Time</th><th>Fare</th><th>Price</th><th>Score</th></tr></thead>
+          <tbody>${altRows}</tbody>
+        </table>
+      </div>
+
+      <p class="eyebrow">Upgrade strategy</p>
+      <div class="card block">
+        <div class="strategy-block">
+          <h4>Complimentary / mileage upgrade likelihood <span class="tag" style="background:${upgradeLikely === "High" ? "var(--good-dim)" : upgradeLikely === "Moderate" ? "var(--mid-dim)" : "var(--bad-dim)"};color:${upgradeLikely === "High" ? "var(--good)" : upgradeLikely === "Moderate" ? "var(--mid)" : "var(--bad)"};">${upgradeLikely}</span></h4>
+          <p>${best.carrier} scores ${Math.round(best.scores.Upgrade)}/100 on upgrade friendliness in this model, based on its general reputation for complimentary and mileage upgrades — not a live seat-map check. Typical buy-up cost from ${best.cabin}: ${upgradeCostGuess}.</p>
+        </div>
+        <div class="strategy-block">
+          <h4>Best cabin to purchase first</h4>
+          <p>${best.cabin === "First" ? "You're already booking top cabin — no upgrade path above it." : `Booking ${best.cabin === "Economy" ? "a higher Economy fare bucket" : best.cabin} and buying up tends to beat booking the target cabin outright, especially on ${best.alliance} carriers with generous upgrade fare rules.`}</p>
+        </div>
+      </div>
+
+      <p class="eyebrow">Award strategy</p>
+      <div class="card block">
+        <div class="strategy-block">
+          <h4>Redemption value <span class="tag" style="background:${award.strong ? "var(--good-dim)" : "var(--bad-dim)"};color:${award.strong ? "var(--good)" : "var(--bad)"};">${award.strong ? "Genuinely strong" : "Not recommended"}</span></h4>
+          <p>Typical ${award.cabin} redemption on ${award.alliance} carriers runs ${award.milesLow.toLocaleString()}–${award.milesHigh.toLocaleString()} miles round-trip plus roughly ${T.fmtUSD(award.feesMid)} in taxes/fees. Against this itinerary's ${T.fmtUSD(best.price)} cash price, that's about <strong>${award.cpp.toFixed(2)}¢ per mile</strong>. ${award.strong ? "That clears the bar for a genuinely good redemption — worth using miles here." : "That's below the roughly 1.6¢/mile bar for a genuinely good redemption — cash is the better call, and the miles are worth more saved for a stronger use."}</p>
+        </div>
+        ${award.relevantPrograms.length ? `<div class="strategy-block"><h4>Your balances in play</h4><p>${award.relevantPrograms.map((p) => `${p.program}: ${p.balance.toLocaleString()} miles`).join(" · ")}</p></div>` : `<div class="strategy-block"><h4>No balance entered for a ${award.alliance} program</h4><p>Add a balance above if you hold miles in a program that flies this alliance, or check the transfer-partner note below if your points live on a transferable card.</p></div>`}
+        ${inputs.creditCards.length ? `<div class="strategy-block"><h4>Transfer path from your cards</h4><p>${inputs.creditCards.map((cc) => T.TRANSFER_PARTNERS[cc] ? `<strong>${cc}</strong> (${T.TRANSFER_PARTNERS[cc].ratio}): ${T.TRANSFER_PARTNERS[cc].note}.` : "").filter(Boolean).join(" ")}</p></div>` : ""}
+      </div>
+
+      <p class="eyebrow">Purchase strategy</p>
+      <div class="card block">
+        <div style="margin-bottom:8px;">${timingBadge(timing)}</div>
+        <p style="font-size:12.5px;">${timing.reason}</p>
+      </div>
+
+      <p class="eyebrow">Travel advisor insights</p>
+      <ul class="insight-list block">${insightItems}</ul>
+    `;
+  }
+})();
+</script>
+
+</body></html>

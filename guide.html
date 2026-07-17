@@ -1,0 +1,209 @@
+<!DOCTYPE html>
+<html lang="en"><head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Guide · Travel Scout</title>
+<link rel="manifest" href="manifest.json">
+<link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
+<link rel="icon" href="icons/favicon-32.png" sizes="32x32">
+<meta name="theme-color" content="#efe8db">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="Travel Scout">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin="">
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,wght@0,400;0,500;0,600;1,400;1,500;1,600&amp;display=swap" rel="stylesheet">
+<link rel="stylesheet" href="style.css">
+</head><body>
+
+<header class="site-nav">
+  <div class="nav-inner">
+    <a class="brand" href="/"><span class="dot">•</span><span class="word">Travel Scout</span></a>
+    <nav class="links">
+      <a href="/#optimize">Optimize</a>
+      <a href="/roadmap">Roadmap</a>
+      <a class="active" href="/guide">Guide</a>
+      <a href="/about">About</a>
+    </nav>
+  </div>
+</header>
+
+<main>
+  <div class="wrap">
+    <p class="eyebrow">Guide</p>
+    <h1 class="page-title">A scoring engine, built and run by an AI agent</h1>
+    <p class="lede">Six steps, in sequence. Each stands on its own — accountability doesn't depend on finishing the rest. Built to be read by anyone, technical or not: every box below is a real part of the system, not an illustration of an idealized one.</p>
+
+    <nav class="pill-nav">
+      <a href="#tools"><b>01</b>Tools</a>
+      <a href="#data"><b>02</b>Data</a>
+      <a href="#scoring"><b>03</b>Scoring</a>
+      <a href="#snapshot"><b>04</b>Snapshot</a>
+      <a href="#deploy"><b>05</b>Deploy</a>
+      <a href="#manual"><b>06</b>Manual</a>
+    </nav>
+
+    <div class="field-note">
+      <p class="eyebrow">Field note</p>
+      <p>An early version of the pricing model priced every Business class round-trip near the same figure regardless of route or carrier — a rounding floor was silently overriding the seeded variation underneath it. Step 03 exists because a recommendation is only as trustworthy as the numbers feeding it, and that only surfaced by actually running the engine end-to-end and reading the raw output, not by reasoning about the code in the abstract.</p>
+    </div>
+
+    <div class="step" id="tools">
+      <div><span class="step-num">01</span><span class="step-title">Tools &amp; mode</span></div>
+      <p class="step-body">Built entirely in Cowork — no terminal, by design. The Input Card, scoring engine, and every output section run as plain JavaScript in your browser; nothing you type is sent anywhere. Trust in a system starts with what it refuses to collect.</p>
+
+      <div class="mode-grid">
+        <div class="mode-card tint-a">
+          <div class="mode-name">Chat</div>
+          <div class="mode-role">decide</div>
+          <ul><li>weighting model for the 7 priorities</li><li>reference-range values (fares, miles)</li><li>what "genuinely strong" means for a redemption</li></ul>
+        </div>
+        <div class="mode-card tint-b">
+          <div class="mode-name">Cowork</div>
+          <div class="mode-role">build &amp; maintain</div>
+          <ul><li>the scoring engine (app.js)</li><li>every static page, end to end</li><li>Netlify deploy</li></ul>
+        </div>
+        <div class="mode-card tint-c">
+          <div class="mode-name">Your browser</div>
+          <div class="mode-role">run the model</div>
+          <ul><li>reads your Input Card</li><li>computes scores locally</li><li>nothing transmitted</li></ul>
+        </div>
+        <div class="mode-card tint-d">
+          <div class="mode-name">Phase 2 (planned)</div>
+          <div class="mode-role">live data</div>
+          <ul><li>real fare search</li><li>real award availability</li><li>see Roadmap, phase 06</li></ul>
+        </div>
+      </div>
+
+      <figure class="diagram">
+        <svg viewBox="0 0 720 176" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Four boxes: Chat decides the model, Cowork builds and maintains, your browser runs the model locally, and a planned Phase 2 adds live data, connected left to right">
+          <defs>
+            <marker id="tiArr" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto">
+              <path d="M0,0 L10,5 L0,10 z" fill="#a8a597"/>
+            </marker>
+          </defs>
+          <g font-family="-apple-system, Helvetica, sans-serif">
+            <rect x="8" y="14" width="158" height="118" rx="8" fill="#e2e8de" stroke="#3f6b4f"/>
+            <text x="87" y="38" text-anchor="middle" font-size="13" font-weight="600" fill="#24262b">Chat</text>
+            <text x="87" y="55" text-anchor="middle" font-size="10.5" font-style="italic" fill="#3f6b4f">decide</text>
+            <text x="87" y="78" text-anchor="middle" font-size="10.5" fill="#2b3d31">weighting model</text>
+            <text x="87" y="94" text-anchor="middle" font-size="10.5" fill="#2b3d31">reference ranges</text>
+            <text x="87" y="110" text-anchor="middle" font-size="10.5" fill="#2b3d31">redemption bar</text>
+
+            <rect x="190" y="14" width="158" height="118" rx="8" fill="#f0e6cd" stroke="#9c7a35"/>
+            <text x="269" y="38" text-anchor="middle" font-size="13" font-weight="600" fill="#24262b">Cowork</text>
+            <text x="269" y="55" text-anchor="middle" font-size="10.5" font-style="italic" fill="#8a6a2e">build &amp; maintain</text>
+            <text x="269" y="78" text-anchor="middle" font-size="10.5" fill="#5c4c22">scoring engine</text>
+            <text x="269" y="94" text-anchor="middle" font-size="10.5" fill="#5c4c22">every static page</text>
+            <text x="269" y="110" text-anchor="middle" font-size="10.5" fill="#5c4c22">Netlify deploy</text>
+
+            <rect x="372" y="14" width="158" height="118" rx="8" fill="#dde3ea" stroke="#1f3a5f"/>
+            <text x="451" y="38" text-anchor="middle" font-size="13" font-weight="600" fill="#24262b">Your browser</text>
+            <text x="451" y="55" text-anchor="middle" font-size="10.5" font-style="italic" fill="#1f3a5f">run the model</text>
+            <text x="451" y="78" text-anchor="middle" font-size="10.5" fill="#182c47">reads Input Card</text>
+            <text x="451" y="94" text-anchor="middle" font-size="10.5" fill="#182c47">computes locally</text>
+            <text x="451" y="110" text-anchor="middle" font-size="10.5" fill="#182c47">nothing transmitted</text>
+
+            <rect x="554" y="14" width="158" height="118" rx="8" fill="#f0e4c8" stroke="#a97b2f"/>
+            <text x="633" y="38" text-anchor="middle" font-size="13" font-weight="600" fill="#24262b">Phase 2</text>
+            <text x="633" y="55" text-anchor="middle" font-size="10.5" font-style="italic" fill="#8a611f">live data (planned)</text>
+            <text x="633" y="78" text-anchor="middle" font-size="10.5" fill="#5c4419">real fare search</text>
+            <text x="633" y="94" text-anchor="middle" font-size="10.5" fill="#5c4419">real award data</text>
+            <text x="633" y="110" text-anchor="middle" font-size="10.5" fill="#5c4419">Roadmap, phase 06</text>
+
+            <line x1="166" y1="73" x2="188" y2="73" stroke="#a8a597" stroke-width="1.5" marker-end="url(#tiArr)"/>
+            <line x1="348" y1="73" x2="370" y2="73" stroke="#a8a597" stroke-width="1.5" marker-end="url(#tiArr)"/>
+            <line x1="530" y1="73" x2="552" y2="73" stroke="#a8a597" stroke-width="1.5" marker-end="url(#tiArr)"/>
+
+            <text x="360" y="162" text-anchor="middle" font-size="10.5" font-style="italic" fill="#82869a">no terminal in this stack — Cowork carries the build role, the browser carries the run role</text>
+          </g>
+        </svg>
+        <figcaption>Which mode carries which responsibility.</figcaption>
+      </figure>
+    </div>
+
+    <div class="step" id="data">
+      <div><span class="step-num">02</span><span class="step-title">Reference ranges, not a live search — and labeled as such</span></div>
+      <p class="step-body">Every fare shown is generated from a per-cabin base price plus seeded variation for stops, fare tier, and date flexibility — a planning model, not a fetched quote. Every mileage figure comes from hand-maintained round-trip ranges by cabin (e.g. Business: roughly 115,000–320,000 miles plus taxes/fees), the same kind of commonly-cited planning range a knowledgeable advisor would quote from memory before pulling up live availability. Upgrade-friendliness scores are a general reputation judgment per carrier, not a live seat-map read. Nothing here is presented as a live quote — the sync banner on the homepage says so directly, and this page says exactly which numbers are computed vs. referenced.</p>
+    </div>
+
+    <div class="step" id="scoring">
+      <div><span class="step-num">03</span><span class="step-title">Six dimensions, weighted by your ranking — never a single variable</span></div>
+      <p class="step-body">Every candidate itinerary is scored 0–100 on Cost, Comfort, Upgrade Potential, Award Value, Flexibility, and Risk. Your ranked priority list (Cheapest through Best Overall Experience) maps onto those six dimensions with a fixed weighting table, and a rank-1 priority pulls more weight than a rank-7 one. The final weighted score is a straightforward dot product — shown on the results page as an explicit percentage per dimension, so the trade-off behind the recommendation is never hidden behind a single black-box number.</p>
+
+      <div class="callout-row">
+        <div class="callout good">
+          <p class="callout-kicker">Always shown</p>
+          <p>The exact weight (as a %) each of the six dimensions received, computed live from your priority ranking — not a fixed default.</p>
+        </div>
+        <div class="callout bad">
+          <p class="callout-kicker">Never done</p>
+          <p>Optimizing for price alone. A cheaper itinerary that scores meaningfully worse on your higher-ranked priorities will not out-score the better-rounded one.</p>
+        </div>
+      </div>
+    </div>
+
+    <div class="step" id="snapshot">
+      <div><span class="step-num">04</span><span class="step-title">A model, not a live connection</span></div>
+      <p class="step-body">As with the other two systems in this portfolio, this one is explicit about what's real. It doesn't connect to Google Flights, ITA Matrix, seats.aero, or any airline system — every number is either computed from your inputs in real time or drawn from a hand-maintained reference range. Re-running the same inputs reproduces the same result, the same way a tested pure function would: this is deterministic by design, not random.</p>
+    </div>
+
+    <div class="step" id="deploy">
+      <div><span class="step-num">05</span><span class="step-title">Static deploy today, GitHub + Netlify Functions next</span></div>
+      <p class="step-body">This build ships as static HTML/CSS/JS to Netlify — no backend required for a scoring engine that runs entirely in the browser. A GitHub repo mirrors the other two sites' governance model (push to main, Netlify auto-deploys), and is the on-ramp to Phase 2's live data functions once those are approved and built.</p>
+
+      <figure class="diagram">
+        <svg viewBox="0 0 720 150" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Claude and Cowork build the static site and push to GitHub, Netlify auto-deploys, and the live site runs the scoring engine entirely in the visitor's browser">
+          <defs>
+            <marker id="tiArr2" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto">
+              <path d="M0,0 L10,5 L0,10 z" fill="#a8a597"/>
+            </marker>
+          </defs>
+          <g font-family="-apple-system, Helvetica, sans-serif">
+            <rect x="8" y="20" width="160" height="62" rx="8" fill="#f0e6cd" stroke="#9c7a35"/>
+            <text x="88" y="45" text-anchor="middle" font-size="12.5" font-weight="600" fill="#24262b">Claude / Cowork</text>
+            <text x="88" y="62" text-anchor="middle" font-size="10" fill="#5c4c22">builds &amp; pushes to GitHub</text>
+
+            <rect x="198" y="20" width="150" height="62" rx="8" fill="#e2e8de" stroke="#3f6b4f"/>
+            <text x="273" y="45" text-anchor="middle" font-size="12.5" font-weight="600" fill="#24262b">GitHub</text>
+            <text x="273" y="62" text-anchor="middle" font-size="10" fill="#2b3d31">repo, main branch</text>
+
+            <rect x="378" y="20" width="150" height="62" rx="8" fill="#dde3ea" stroke="#1f3a5f"/>
+            <text x="453" y="45" text-anchor="middle" font-size="12.5" font-weight="600" fill="#24262b">Netlify</text>
+            <text x="453" y="62" text-anchor="middle" font-size="10" fill="#182c47">auto-deploy on push</text>
+
+            <rect x="558" y="20" width="154" height="62" rx="8" fill="#f0e4c8" stroke="#a97b2f"/>
+            <text x="635" y="45" text-anchor="middle" font-size="12.5" font-weight="600" fill="#24262b">Your browser</text>
+            <text x="635" y="62" text-anchor="middle" font-size="10" fill="#5c4419">runs the engine locally</text>
+
+            <line x1="168" y1="51" x2="196" y2="51" stroke="#a8a597" stroke-width="1.5" marker-end="url(#tiArr2)"/>
+            <line x1="348" y1="51" x2="376" y2="51" stroke="#a8a597" stroke-width="1.5" marker-end="url(#tiArr2)"/>
+            <line x1="528" y1="51" x2="556" y2="51" stroke="#a8a597" stroke-width="1.5" marker-end="url(#tiArr2)"/>
+
+            <text x="360" y="122" text-anchor="middle" font-size="10.5" font-style="italic" fill="#82869a">no server round-trip once the page loads — the scoring engine ships as part of the static bundle</text>
+          </g>
+        </svg>
+        <figcaption>The real deploy path today.</figcaption>
+      </figure>
+    </div>
+
+    <div class="step" id="manual">
+      <div><span class="step-num">06</span><span class="step-title">What's still manual — and what's still missing</span></div>
+      <p class="step-body">Live fare and award data is the biggest gap: everything you see today is a documented model, not a search result, and that gap is the whole of Phase 2. Domain registration (matching vinylscout.org / thefitnesslog.org / streamingscout.org) hasn't happened — authorization precedes any expenditure, so that step waits on Susan's explicit go-ahead the same way it did for the other two sites. There's also no saved-preference memory yet: every session starts from the same defaults rather than remembering a prior trip's inputs.</p>
+    </div>
+
+    <div class="step-divider"></div>
+
+    <div class="field-note" style="margin-top: 0;">
+      <p class="eyebrow">What this took to learn</p>
+      <p style="margin-bottom:10px;">A recommendation is only as honest as the labels on its numbers — presenting a reference range as if it were a live quote would be worse than not building the feature at all.</p>
+      <p>Authorization precedes any expenditure. A domain name, a paid API key, or any real spend is a decision left to Susan, never delegated.</p>
+    </div>
+
+  </div>
+</main>
+
+<footer class="site-footer">
+  <div class="wrap">© 2026</div>
+</footer>
+
+</body></html>

@@ -1,0 +1,128 @@
+<!DOCTYPE html>
+<html lang="en"><head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>About · Travel Scout</title>
+<link rel="manifest" href="manifest.json">
+<link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
+<link rel="icon" href="icons/favicon-32.png" sizes="32x32">
+<meta name="theme-color" content="#efe8db">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="Travel Scout">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin="">
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,wght@0,400;0,500;0,600;1,400;1,500;1,600&amp;display=swap" rel="stylesheet">
+<link rel="stylesheet" href="style.css">
+</head><body>
+
+<header class="site-nav">
+  <div class="nav-inner">
+    <a class="brand" href="/"><span class="dot">•</span><span class="word">Travel Scout</span></a>
+    <nav class="links">
+      <a href="/#optimize">Optimize</a>
+      <a href="/roadmap">Roadmap</a>
+      <a href="/guide">Guide</a>
+      <a class="active" href="/about">About</a>
+    </nav>
+  </div>
+</header>
+
+<main>
+  <div class="wrap">
+    <p class="eyebrow">About · how to read this agent</p>
+    <h1 class="page-title">An executive travel strategist, not a fare search box.</h1>
+    <p class="lede">The mission isn't to find flights — it's to optimize the whole decision: cost, comfort, upgrade potential, award value, flexibility, and risk, weighted by what actually matters to you on this trip. Anyone with the link can read it; only Susan's Claude sessions update it.</p>
+
+    <div class="stat-strip">
+      <div class="stat-tile"><div class="stat-num">6</div><div class="stat-label">scored dimensions</div></div>
+      <div class="stat-tile"><div class="stat-num">7</div><div class="stat-label">weighted priorities</div></div>
+      <div class="stat-tile"><div class="stat-num">0</div><div class="stat-label">accounts or logins</div></div>
+      <div class="stat-tile"><div class="stat-num">v1</div><div class="stat-label">demo scoring model</div></div>
+    </div>
+
+    <nav class="pill-nav">
+      <a href="#what-it-is"><b>01</b>What it is</a>
+      <a href="#the-stack"><b>02</b>The stack</a>
+      <a href="#on-the-page"><b>03</b>On the page</a>
+      <a href="#roadmap-link"><b>04</b>Roadmap</a>
+      <a href="#wont-do"><b>05</b>Won't do</a>
+    </nav>
+
+    <div class="about-section" id="what-it-is">
+      <div class="about-section-head"><span class="about-num-badge">01</span><h3>what it is</h3></div>
+      <p>You give it a trip — origin, destination, dates, cabin, budget, loyalty balances, and a ranked list of what matters most to you (cheapest, most comfortable, best upgrade shot, best use of miles, and so on). It runs every candidate itinerary through the same six-dimension scoring framework — Cost, Comfort, Upgrade Potential, Award Value, Flexibility, Risk — weighted by your ranking, and explains exactly why the winner won, not just what it costs.</p>
+      <p>It never optimizes for a single variable. A itinerary that's $40 cheaper but meaningfully worse on the dimensions you ranked higher won't out-score the better-rounded option, and the page shows you the weight breakdown so that trade-off is never hidden.</p>
+    </div>
+
+    <div class="about-section" id="the-stack">
+      <div class="about-section-head"><span class="about-num-badge">02</span><h3>the stack</h3></div>
+      <p>Static HTML with a deterministic client-side scoring engine — no backend, no build step, nothing leaves your browser. That's a deliberate v1 choice, not a limitation discovered later: the scoring framework, weighting logic, and every output section (Executive Summary, Best Recommendation, Top Five Alternatives, Upgrade/Award/Purchase Strategy, Advisor Insights) are all real and computed from your inputs today. What's not real yet is the fare and award data underneath them — see the stack comparison below.</p>
+
+      <div class="stack-compare">
+        <div class="stack-col this-site">
+          <h4>This site, today</h4>
+          <ul>
+            <li>Static HTML, deterministic scoring engine, no build step</li>
+            <li>Reference ranges for fares/miles, hand-maintained, not fetched</li>
+            <li>No Netlify Functions yet — nothing to fetch live</li>
+            <li>Every run is reproducible: same inputs, same result</li>
+          </ul>
+        </div>
+        <div class="stack-col siblings">
+          <h4>Vinyl Scout &amp; The Fitness Log</h4>
+          <ul>
+            <li>Full Netlify Functions backend</li>
+            <li>Live data sources (WHOOP API, Discogs pricing)</li>
+            <li>Automated backups &amp; health checks</li>
+            <li>GitHub repo, auto-deploy on push</li>
+          </ul>
+        </div>
+      </div>
+
+      <p>Live flight and award search (Google Flights/ITA-style fare data, seats.aero-style award availability) is Phase 2 — see the roadmap. Until then, every price and mileage figure on this page is labeled as a planning range from a documented model, the same honesty standard the other two sites hold themselves to when a data source isn't real yet.</p>
+    </div>
+
+    <div class="about-section" id="on-the-page">
+      <div class="about-section-head"><span class="about-num-badge">03</span><h3>what's on the page</h3></div>
+      <div class="page-card-grid">
+        <div class="page-card">
+          <h4>Input Card</h4>
+          <p>Trip details, flight preferences, ranked priorities, credit cards, loyalty balances, and airport flexibility — everything the engine weighs.</p>
+        </div>
+        <div class="page-card">
+          <h4>Executive Summary &amp; Best Recommendation</h4>
+          <p>One paragraph on exactly what to book and why, plus the winning itinerary's full detail card.</p>
+        </div>
+        <div class="page-card">
+          <h4>Decision Framework</h4>
+          <p>The six scored dimensions with the exact weight your priority ranking assigned to each — the weighting is always shown, never hidden.</p>
+        </div>
+        <div class="page-card">
+          <h4>Strategy blocks</h4>
+          <p>Upgrade, Award, and Purchase Timing strategy, plus 5–8 advisor-style insights specific to your inputs.</p>
+        </div>
+      </div>
+    </div>
+
+    <div class="about-section" id="roadmap-link">
+      <div class="about-section-head"><span class="about-num-badge">04</span><h3>roadmap</h3></div>
+      <p>Built in phases, like the other two sites. The scoring framework and full page set are live; live fare/award data, a backend, and a real domain are next. See the full <a href="/roadmap" style="text-decoration:underline;">roadmap</a> and the <a href="/guide" style="text-decoration:underline;">guide</a> for exactly what's computed vs. planned.</p>
+    </div>
+
+    <div class="about-section" id="wont-do">
+      <div class="about-section-head"><span class="about-num-badge">05</span><h3>what it won't do</h3></div>
+      <ul class="wont-list">
+        <li>Won't present a reference-range price or mileage figure as a live quote — every number here is labeled for what it is.</li>
+        <li>Won't recommend redeeming miles unless the computed value clears a genuinely strong bar (~1.6¢/mile) — see the Award Strategy section's own recommendation logic.</li>
+        <li>Won't optimize for a single variable — price alone never wins if it costs too much on the dimensions you ranked higher.</li>
+        <li>No accounts, no passwords, no analytics or third-party tracking, nothing sent off your device.</li>
+      </ul>
+    </div>
+  </div>
+</main>
+
+<footer class="site-footer">
+  <div class="wrap">© 2026</div>
+</footer>
+
+</body></html>

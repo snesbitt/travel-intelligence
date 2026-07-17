@@ -1,0 +1,113 @@
+<!DOCTYPE html>
+<html lang="en"><head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Roadmap · Travel Scout</title>
+<link rel="manifest" href="manifest.json">
+<link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
+<link rel="icon" href="icons/favicon-32.png" sizes="32x32">
+<meta name="theme-color" content="#efe8db">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="Travel Scout">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin="">
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,wght@0,400;0,500;0,600;1,400;1,500;1,600&amp;display=swap" rel="stylesheet">
+<link rel="stylesheet" href="style.css">
+</head><body>
+
+<header class="site-nav">
+  <div class="nav-inner">
+    <a class="brand" href="/"><span class="dot">•</span><span class="word">Travel Scout</span></a>
+    <nav class="links">
+      <a href="/#optimize">Optimize</a>
+      <a class="active" href="/roadmap">Roadmap</a>
+      <a href="/guide">Guide</a>
+      <a href="/about">About</a>
+    </nav>
+  </div>
+</header>
+
+<main>
+  <div class="wrap">
+    <p class="eyebrow">Roadmap · built in deliberate phases</p>
+    <h1 class="page-title">Travel Scout is one build old.</h1>
+    <p class="lede">Phase 1 is live: the full input card, the six-dimension scoring engine, and every output page, deployed as a static site. What's next is listed honestly below — including the parts that require your explicit go-ahead before they happen.</p>
+
+    <div class="phase">
+      <div class="phase-head">
+        <span class="phase-num">01</span>
+        <span class="phase-title">the optimization engine</span>
+        <span class="phase-status live">Live</span>
+      </div>
+      <p class="phase-body">A deterministic, client-side scoring model: every candidate itinerary is scored 0–100 on Cost, Comfort, Upgrade Potential, Award Value, Flexibility, and Risk, weighted by your ranked priority list. Outputs an Executive Summary, Best Recommendation, Top Five Alternatives comparison table, Upgrade Strategy, Award Strategy (with a genuinely-strong redemption bar, not a blanket "use your miles"), Purchase Timing, and 5–8 input-specific Travel Advisor Insights.</p>
+      <p class="phase-value">Every recommendation explains its own weighting instead of hiding behind a single score.</p>
+      <ul class="phase-log">
+        <li><span class="lg-date">JUL 2026</span>Full Input Card built: trip, flight preferences, ranked optimization priority, credit cards, 13 airline loyalty programs, 7 hotel programs, and airport flexibility — matching the fields specified in the original agent brief.</li>
+        <li><span class="lg-date">JUL 2026</span>Pricing model reworked after an early version clustered nearly every Business-class result at the same floor price regardless of carrier or route — replaced with per-cabin base prices, seeded variation, and cabin-appropriate floors so the spread looks like a real fare set rather than a repeated number.</li>
+        <li><span class="lg-date">JUL 2026</span>House style adopted from the sibling portfolio: cream/serif shell, persistent nav, pill-nav, phase/step page patterns — matching thefitnesslog.org and streamingscout.org rather than a one-off look.</li>
+      </ul>
+    </div>
+
+    <div class="phase">
+      <div class="phase-head">
+        <span class="phase-num">02</span>
+        <span class="phase-title">the four-page site</span>
+        <span class="phase-status live">Live</span>
+      </div>
+      <p class="phase-body">Index (the optimizer itself), About, Guide, and this Roadmap — a static, no-build site, deployed to Netlify.</p>
+      <p class="phase-value">Something to open and run a real trip through, without opening a Cowork session first.</p>
+      <ul class="phase-log">
+        <li><span class="lg-date">JUL 2026</span>Deployed to a new Netlify site. Custom domain intentionally deferred — see phase 05.</li>
+      </ul>
+    </div>
+
+    <div class="phase">
+      <div class="phase-head">
+        <span class="phase-num">03</span>
+        <span class="phase-title">GitHub repo</span>
+        <span class="phase-status planned">Planned</span>
+      </div>
+      <p class="phase-body">A GitHub repository matching the other two sites' continuous-deployment governance model — push to main, Netlify auto-deploys. This build was handed off as files to push from your own machine rather than pushed directly from this cloud session, since no GitHub credential is available here.</p>
+      <p class="phase-value">Parity with the other two sites' deploy pipeline, and a real commit history for this project.</p>
+    </div>
+
+    <div class="phase">
+      <div class="phase-head">
+        <span class="phase-num">04</span>
+        <span class="phase-title">live fare &amp; award data</span>
+        <span class="phase-status planned">Planned</span>
+      </div>
+      <p class="phase-body">The single biggest gap today. Wiring in real data sources — Google Flights/ITA-style fare search, seats.aero-style award availability, live seat maps and upgrade fare rules — behind Netlify Functions, matching the backend pattern Vinyl Scout and The Fitness Log already run. This is what turns the reference-range planning model into an actual live search.</p>
+      <p class="phase-value">The recommendation stops being a documented estimate and becomes a real, bookable answer.</p>
+    </div>
+
+    <div class="phase">
+      <div class="phase-head">
+        <span class="phase-num">05</span>
+        <span class="phase-title">a real domain</span>
+        <span class="phase-status planned">Planned</span>
+      </div>
+      <p class="phase-body">A domain matching vinylscout.org, thefitnesslog.org, and streamingscout.org. Registering one requires entering payment, which — as with the other two sites — is a decision explicitly left to you, not something taken on your behalf.</p>
+      <p class="phase-value">One address to remember, not a netlify.app subdomain.</p>
+    </div>
+
+    <div class="phase">
+      <div class="phase-head">
+        <span class="phase-num">06</span>
+        <span class="phase-title">saved preferences &amp; trip memory</span>
+        <span class="phase-status planned">Planned</span>
+      </div>
+      <p class="phase-body">Remembering preferred airlines, seats, hotels, upgrade successes, disliked airports, connection tolerance, and typical travel style across sessions, so later recommendations get more personalized instead of starting from the same defaults every time — matching the North Star in the original agent brief.</p>
+      <p class="phase-value">The agent gets better at optimizing for you specifically, trip over trip.</p>
+    </div>
+
+    <p class="phase-value" style="margin-top:1.5rem;">Phases are sequential. A later phase isn't started early, and nothing gets added to an earlier phase just because it would be easy to slot in.</p>
+
+  </div>
+</main>
+
+<footer class="site-footer">
+  <div class="wrap">© 2026</div>
+</footer>
+
+</body></html>

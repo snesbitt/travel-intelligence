@@ -1,0 +1,9 @@
+{
+  "name": "travel-scout",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Personal Travel Optimization Agent — a deterministic client-side scoring engine that optimizes cost, comfort, upgrade potential, award value, flexibility, and risk together, not airfare alone.",
+  "scripts": {
+    "dev": "npx http-server -p 8888 -c-1 ."
+  }
+}
