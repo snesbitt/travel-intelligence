@@ -1,6 +1,12 @@
 [build]
   publish = "."
 
+[[redirects]]
+  from = "https://travel-intelligence-susan.netlify.app/*"
+  to = "https://travelintelligence.org/:splat"
+  status = 301
+  force = true
+
 [[headers]]
   for = "/*"
   [headers.values]
