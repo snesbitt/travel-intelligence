@@ -2,13 +2,13 @@
 <html lang="en"><head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Guide · Travel Scout</title>
+<title>Guide · Travel Intelligence</title>
 <link rel="manifest" href="manifest.json">
 <link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
 <link rel="icon" href="icons/favicon-32.png" sizes="32x32">
 <meta name="theme-color" content="#efe8db">
 <meta name="apple-mobile-web-app-capable" content="yes">
-<meta name="apple-mobile-web-app-title" content="Travel Scout">
+<meta name="apple-mobile-web-app-title" content="Travel Intelligence">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin="">
 <link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,wght@0,400;0,500;0,600;1,400;1,500;1,600&amp;display=swap" rel="stylesheet">
@@ -17,7 +17,7 @@
 
 <header class="site-nav">
   <div class="nav-inner">
-    <a class="brand" href="/"><span class="dot">•</span><span class="word">Travel Scout</span></a>
+    <a class="brand" href="/"><span class="dot">•</span><span class="word">Travel Intelligence</span></a>
     <nav class="links">
       <a href="/#optimize">Optimize</a>
       <a href="/roadmap">Roadmap</a>
@@ -29,9 +29,9 @@
 
 <main>
   <div class="wrap">
-    <p class="eyebrow">Guide</p>
+    <p class="eyebrow">How it's built · an agentic project ·<br>July 2026</p>
     <h1 class="page-title">A scoring engine, built and run by an AI agent</h1>
-    <p class="lede">Six steps, in sequence. Each stands on its own — accountability doesn't depend on finishing the rest. Built to be read by anyone, technical or not: every box below is a real part of the system, not an illustration of an idealized one.</p>
+    <p class="lede">Six steps, in order. Each stands on its own — the accountability does not depend on finishing the rest. Written for any reader, technical or not: every section below describes what the system actually does, not an idealized version of it.</p>
 
     <nav class="pill-nav">
       <a href="#tools"><b>01</b>Tools</a>
@@ -44,12 +44,12 @@
 
     <div class="field-note">
       <p class="eyebrow">Field note</p>
-      <p>An early version of the pricing model priced every Business class round-trip near the same figure regardless of route or carrier — a rounding floor was silently overriding the seeded variation underneath it. Step 03 exists because a recommendation is only as trustworthy as the numbers feeding it, and that only surfaced by actually running the engine end-to-end and reading the raw output, not by reasoning about the code in the abstract.</p>
+      <p>An early version of the pricing model priced nearly every Business class round-trip at the same figure, regardless of route or carrier: a rounding floor was overriding the variation built into the model. Step 03 exists because a recommendation is only as trustworthy as the numbers behind it. The error was found by running the engine end-to-end and reading the output, not by reviewing the code alone.</p>
     </div>
 
     <div class="step" id="tools">
       <div><span class="step-num">01</span><span class="step-title">Tools &amp; mode</span></div>
-      <p class="step-body">Built entirely in Cowork — no terminal, by design. The Input Card, scoring engine, and every output section run as plain JavaScript in your browser; nothing you type is sent anywhere. Trust in a system starts with what it refuses to collect.</p>
+      <p class="step-body">Built entirely in Cowork, with no terminal involved, by design. The Input Card, scoring engine, and every output section run as plain JavaScript in your browser. Nothing you type is sent anywhere — the system collects no data because it has nowhere to send it.</p>
 
       <div class="mode-grid">
         <div class="mode-card tint-a">
@@ -70,7 +70,7 @@
         <div class="mode-card tint-d">
           <div class="mode-name">Phase 2 (planned)</div>
           <div class="mode-role">live data</div>
-          <ul><li>real fare search</li><li>real award availability</li><li>see Roadmap, phase 06</li></ul>
+          <ul><li>real fare search</li><li>real award availability</li><li>see Roadmap, phase 05</li></ul>
         </div>
       </div>
 
@@ -108,7 +108,7 @@
             <text x="633" y="55" text-anchor="middle" font-size="10.5" font-style="italic" fill="#8a611f">live data (planned)</text>
             <text x="633" y="78" text-anchor="middle" font-size="10.5" fill="#5c4419">real fare search</text>
             <text x="633" y="94" text-anchor="middle" font-size="10.5" fill="#5c4419">real award data</text>
-            <text x="633" y="110" text-anchor="middle" font-size="10.5" fill="#5c4419">Roadmap, phase 06</text>
+            <text x="633" y="110" text-anchor="middle" font-size="10.5" fill="#5c4419">Roadmap, phase 05</text>
 
             <line x1="166" y1="73" x2="188" y2="73" stroke="#a8a597" stroke-width="1.5" marker-end="url(#tiArr)"/>
             <line x1="348" y1="73" x2="370" y2="73" stroke="#a8a597" stroke-width="1.5" marker-end="url(#tiArr)"/>
@@ -123,12 +123,12 @@
 
     <div class="step" id="data">
       <div><span class="step-num">02</span><span class="step-title">Reference ranges, not a live search — and labeled as such</span></div>
-      <p class="step-body">Every fare shown is generated from a per-cabin base price plus seeded variation for stops, fare tier, and date flexibility — a planning model, not a fetched quote. Every mileage figure comes from hand-maintained round-trip ranges by cabin (e.g. Business: roughly 115,000–320,000 miles plus taxes/fees), the same kind of commonly-cited planning range a knowledgeable advisor would quote from memory before pulling up live availability. Upgrade-friendliness scores are a general reputation judgment per carrier, not a live seat-map read. Nothing here is presented as a live quote — the sync banner on the homepage says so directly, and this page says exactly which numbers are computed vs. referenced.</p>
+      <p class="step-body">Every fare shown is generated from a per-cabin base price plus a variation for stops, fare tier, and date flexibility — a planning model, not a fetched quote. Every mileage figure comes from hand-maintained round-trip ranges by cabin (Business, for example, runs roughly 115,000 to 320,000 miles plus taxes and fees) — the kind of range a knowledgeable advisor would quote from memory before checking live availability. Upgrade-friendliness scores are a general reputation judgment per carrier, not a live seat map. Nothing here is presented as a live quote. The homepage banner says so directly, and this page states which numbers are computed versus referenced.</p>
     </div>
 
     <div class="step" id="scoring">
       <div><span class="step-num">03</span><span class="step-title">Six dimensions, weighted by your ranking — never a single variable</span></div>
-      <p class="step-body">Every candidate itinerary is scored 0–100 on Cost, Comfort, Upgrade Potential, Award Value, Flexibility, and Risk. Your ranked priority list (Cheapest through Best Overall Experience) maps onto those six dimensions with a fixed weighting table, and a rank-1 priority pulls more weight than a rank-7 one. The final weighted score is a straightforward dot product — shown on the results page as an explicit percentage per dimension, so the trade-off behind the recommendation is never hidden behind a single black-box number.</p>
+      <p class="step-body">Every candidate itinerary is scored 0 to 100 on Cost, Comfort, Upgrade Potential, Award Value, Flexibility, and Risk. Your ranked priority list, from Cheapest to Best Overall Experience, maps onto those six dimensions through a fixed weighting table: a rank-1 priority carries more weight than a rank-7 one. The final score is a weighted sum, shown on the results page as an explicit percentage per dimension, so the reasoning behind the recommendation is never reduced to a single number.</p>
 
       <div class="callout-row">
         <div class="callout good">
@@ -144,12 +144,12 @@
 
     <div class="step" id="snapshot">
       <div><span class="step-num">04</span><span class="step-title">A model, not a live connection</span></div>
-      <p class="step-body">As with the other two systems in this portfolio, this one is explicit about what's real. It doesn't connect to Google Flights, ITA Matrix, seats.aero, or any airline system — every number is either computed from your inputs in real time or drawn from a hand-maintained reference range. Re-running the same inputs reproduces the same result, the same way a tested pure function would: this is deterministic by design, not random.</p>
+      <p class="step-body">As with the other systems in this portfolio, this one states plainly what's real. It does not connect to Google Flights, ITA Matrix, seats.aero, or any airline system. Every number is either computed from your inputs in real time or drawn from a hand-maintained reference range. Running the same inputs twice produces the same result — the model is deterministic by design, not randomized.</p>
     </div>
 
     <div class="step" id="deploy">
       <div><span class="step-num">05</span><span class="step-title">Static deploy today, GitHub + Netlify Functions next</span></div>
-      <p class="step-body">This build ships as static HTML/CSS/JS to Netlify — no backend required for a scoring engine that runs entirely in the browser. A GitHub repo mirrors the other two sites' governance model (push to main, Netlify auto-deploys), and is the on-ramp to Phase 2's live data functions once those are approved and built.</p>
+      <p class="step-body">This build ships as static HTML, CSS, and JavaScript to Netlify. No backend is required for a scoring engine that runs entirely in the browser. A GitHub repository will mirror the other sites' deployment model — push to main, Netlify deploys automatically — and becomes the foundation for Phase 2's live data functions once those are approved and built.</p>
 
       <figure class="diagram">
         <svg viewBox="0 0 720 150" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Claude and Cowork build the static site and push to GitHub, Netlify auto-deploys, and the live site runs the scoring engine entirely in the visitor's browser">
@@ -188,14 +188,14 @@
 
     <div class="step" id="manual">
       <div><span class="step-num">06</span><span class="step-title">What's still manual — and what's still missing</span></div>
-      <p class="step-body">Live fare and award data is the biggest gap: everything you see today is a documented model, not a search result, and that gap is the whole of Phase 2. Domain registration (matching vinylscout.org / thefitnesslog.org / streamingscout.org) hasn't happened — authorization precedes any expenditure, so that step waits on Susan's explicit go-ahead the same way it did for the other two sites. There's also no saved-preference memory yet: every session starts from the same defaults rather than remembering a prior trip's inputs.</p>
+      <p class="step-body">Live fare and award data is the largest remaining gap — everything shown today is a documented model, not a search result, and closing that gap is the entirety of Phase 2. Any further real spend, such as paid API keys, still requires Susan's explicit approval first, the same rule the other two sites operate under. There is also no saved-preference memory yet, so every session starts from the same defaults instead of recalling a prior trip's inputs.</p>
     </div>
 
     <div class="step-divider"></div>
 
     <div class="field-note" style="margin-top: 0;">
       <p class="eyebrow">What this took to learn</p>
-      <p style="margin-bottom:10px;">A recommendation is only as honest as the labels on its numbers — presenting a reference range as if it were a live quote would be worse than not building the feature at all.</p>
+      <p style="margin-bottom:10px;">A recommendation is only as trustworthy as the labels on its numbers. Presenting a reference range as a live quote would be worse than not building the feature at all.</p>
       <p>Authorization precedes any expenditure. A domain name, a paid API key, or any real spend is a decision left to Susan, never delegated.</p>
     </div>
 

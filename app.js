@@ -1,4 +1,4 @@
-/* Travel Scout — optimization engine
+/* Travel Intelligence — optimization engine
  * Pure, deterministic, client-side. No live fare or award data yet (see
  * roadmap.html Phase 2) — this models the same scoring/weighting framework
  * real data will plug into later, using hand-maintained reference ranges
@@ -327,5 +327,5 @@ function runOptimization(inputs) {
 }
 
 if (typeof window !== "undefined") {
-  window.TravelScout = { runOptimization, computeWeights, ALLIANCES, ALL_CARRIERS, TRANSFER_PARTNERS, DIMENSIONS, DIM_LABEL, fmtUSD };
+  window.TravelIntel = { runOptimization, computeWeights, ALLIANCES, ALL_CARRIERS, TRANSFER_PARTNERS, DIMENSIONS, DIM_LABEL, fmtUSD };
 }

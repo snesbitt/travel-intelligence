@@ -2,14 +2,14 @@
 <html lang="en"><head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Travel Scout — Personal Travel Optimization Agent</title>
+<title>Travel Intelligence — Personal Travel Optimization Agent</title>
 <meta name="description" content="Optimizes every decision in a trip — not just the airfare — balancing cost, comfort, upgrade potential, and award value.">
 <link rel="manifest" href="manifest.json">
 <link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
 <link rel="icon" href="icons/favicon-32.png" sizes="32x32">
 <meta name="theme-color" content="#efe8db">
 <meta name="apple-mobile-web-app-capable" content="yes">
-<meta name="apple-mobile-web-app-title" content="Travel Scout">
+<meta name="apple-mobile-web-app-title" content="Travel Intelligence">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin="">
 <link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,wght@0,400;0,500;0,600;1,400;1,500;1,600&amp;display=swap" rel="stylesheet">
@@ -18,7 +18,7 @@
 
 <header class="site-nav">
   <div class="nav-inner">
-    <a class="brand" href="/"><span class="dot">•</span><span class="word">Travel Scout</span></a>
+    <a class="brand" href="/"><span class="dot">•</span><span class="word">Travel Intelligence</span></a>
     <nav class="links">
       <a class="active" href="/#optimize">Optimize</a>
       <a href="/#results">Results</a>
@@ -242,7 +242,7 @@
   }
 
   function collectInputs() {
-    const T = window.TravelScout;
+    const T = window.TravelIntel;
     const priorityRanks = {};
     document.querySelectorAll("#rank-list input").forEach((inp) => {
       priorityRanks[inp.dataset.priority] = parseInt(inp.value, 10) || 4;
@@ -283,14 +283,14 @@
   form.addEventListener("submit", (e) => {
     e.preventDefault();
     const inputs = collectInputs();
-    const T = window.TravelScout;
+    const T = window.TravelIntel;
     const result = T.runOptimization(inputs);
     renderResults(inputs, result);
     document.getElementById("results").scrollIntoView({ behavior: "smooth", block: "start" });
   });
 
   function scoreBar(dim, score, weight) {
-    const T = window.TravelScout;
+    const T = window.TravelIntel;
     const pct = Math.round(score);
     const cls = pct >= 66 ? "" : pct >= 40 ? "mid" : "bad";
     return `<div class="score-row">
@@ -307,7 +307,7 @@
   }
 
   function renderResults(inputs, result) {
-    const T = window.TravelScout;
+    const T = window.TravelIntel;
     const best = result.best;
     const alts = result.alternatives;
     const w = result.weights;

@@ -2,13 +2,13 @@
 <html lang="en"><head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Roadmap · Travel Scout</title>
+<title>Roadmap · Travel Intelligence</title>
 <link rel="manifest" href="manifest.json">
 <link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
 <link rel="icon" href="icons/favicon-32.png" sizes="32x32">
 <meta name="theme-color" content="#efe8db">
 <meta name="apple-mobile-web-app-capable" content="yes">
-<meta name="apple-mobile-web-app-title" content="Travel Scout">
+<meta name="apple-mobile-web-app-title" content="Travel Intelligence">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin="">
 <link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,wght@0,400;0,500;0,600;1,400;1,500;1,600&amp;display=swap" rel="stylesheet">
@@ -17,7 +17,7 @@
 
 <header class="site-nav">
   <div class="nav-inner">
-    <a class="brand" href="/"><span class="dot">•</span><span class="word">Travel Scout</span></a>
+    <a class="brand" href="/"><span class="dot">•</span><span class="word">Travel Intelligence</span></a>
     <nav class="links">
       <a href="/#optimize">Optimize</a>
       <a class="active" href="/roadmap">Roadmap</a>
@@ -30,7 +30,7 @@
 <main>
   <div class="wrap">
     <p class="eyebrow">Roadmap · built in deliberate phases</p>
-    <h1 class="page-title">Travel Scout is one build old.</h1>
+    <h1 class="page-title">Travel Intelligence is one build old.</h1>
     <p class="lede">Phase 1 is live: the full input card, the six-dimension scoring engine, and every output page, deployed as a static site. What's next is listed honestly below — including the parts that require your explicit go-ahead before they happen.</p>
 
     <div class="phase">
@@ -57,7 +57,7 @@
       <p class="phase-body">Index (the optimizer itself), About, Guide, and this Roadmap — a static, no-build site, deployed to Netlify.</p>
       <p class="phase-value">Something to open and run a real trip through, without opening a Cowork session first.</p>
       <ul class="phase-log">
-        <li><span class="lg-date">JUL 2026</span>Deployed to a new Netlify site. Custom domain intentionally deferred — see phase 05.</li>
+        <li><span class="lg-date">JUL 2026</span>Deployed to a new Netlify site. Custom domain connected shortly after — see phase 06.</li>
       </ul>
     </div>
 
@@ -74,6 +74,19 @@
     <div class="phase">
       <div class="phase-head">
         <span class="phase-num">04</span>
+        <span class="phase-title">iOS app</span>
+        <span class="phase-status live">Live</span>
+      </div>
+      <p class="phase-body">An installable version that adds itself to the Home Screen: its own icon, no browser chrome. Same site, no separate codebase, no App Store submission — a web app manifest and an icon set, nothing more.</p>
+      <p class="phase-value">One tap from the Home Screen before a trip, instead of finding a browser tab.</p>
+      <ul class="phase-log">
+        <li><span class="lg-date">JUL 2026</span>Add to Home Screen shipped: a web app manifest plus icon set (192px, 512px, and an Apple touch icon) makes the site installable with its own icon and no address bar, on iOS and Android alike.</li>
+      </ul>
+    </div>
+
+    <div class="phase">
+      <div class="phase-head">
+        <span class="phase-num">05</span>
         <span class="phase-title">live fare &amp; award data</span>
         <span class="phase-status planned">Planned</span>
       </div>
@@ -83,17 +96,20 @@
 
     <div class="phase">
       <div class="phase-head">
-        <span class="phase-num">05</span>
+        <span class="phase-num">06</span>
         <span class="phase-title">a real domain</span>
-        <span class="phase-status planned">Planned</span>
+        <span class="phase-status live">Live</span>
       </div>
-      <p class="phase-body">A domain matching vinylscout.org, thefitnesslog.org, and streamingscout.org. Registering one requires entering payment, which — as with the other two sites — is a decision explicitly left to you, not something taken on your behalf.</p>
+      <p class="phase-body">A domain matching vinylscout.org, thefitnesslog.org, and streamingscout.org. Registering one required entering payment, a decision left to Susan and made by Susan directly, not taken on the agent's behalf.</p>
       <p class="phase-value">One address to remember, not a netlify.app subdomain.</p>
+      <ul class="phase-log">
+        <li><span class="lg-date">JUL 2026</span>travelintelligence.org registered and connected via Netlify DNS. TLS certificate provisioning is automatic and typically completes within a few minutes of a new domain being connected.</li>
+      </ul>
     </div>
 
     <div class="phase">
       <div class="phase-head">
-        <span class="phase-num">06</span>
+        <span class="phase-num">07</span>
         <span class="phase-title">saved preferences &amp; trip memory</span>
         <span class="phase-status planned">Planned</span>
       </div>

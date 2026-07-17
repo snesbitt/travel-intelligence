@@ -1,13 +1,15 @@
-# Travel Scout
+# Travel Intelligence
 
 Personal Travel Optimization Agent for Susan. Not a flight search tool —
 optimizes the whole travel decision (cost, comfort, upgrade potential,
 award value, flexibility, risk) against a ranked list of what actually
 matters on a given trip.
 
-Sibling project to [The Fitness Log](https://thefitnesslog.org) and
-[The Streaming Scout](https://streamingscout.org) — same house style, same
-phased-roadmap discipline, same "label every number for what it is" ethic.
+Sibling project to [The Fitness Log](https://thefitnesslog.org), [The
+Streaming Scout](https://streamingscout.org), and Vinyl Scout — same house
+style, same phased-roadmap discipline, same "label every number for what it
+is" ethic. Meant to hold the same bar as the other three: a flagship
+example of what an agentic build looks like, not a one-off demo.
 
 ## What's real today (Phase 1)
 

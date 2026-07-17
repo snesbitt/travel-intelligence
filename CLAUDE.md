@@ -5,12 +5,17 @@ the canonical source of truth for how the project is built and deployed.
 
 ## What this is
 
-Travel Scout: a personal travel optimization agent for Susan,
-sibling to The Fitness Log (thefitnesslog.org) and The Streaming Scout
-(streamingscout.org). The mission is not to find flights — it's to
-optimize the whole trip decision (cost, comfort, upgrade potential, award
-value, flexibility, risk) against a ranked list of what matters most on a
+Travel Intelligence: a personal travel optimization agent for Susan,
+sibling to The Fitness Log (thefitnesslog.org), The Streaming Scout
+(streamingscout.org), and Vinyl Scout. The mission is not to find flights —
+it's to optimize the whole trip decision (cost, comfort, upgrade potential,
+award value, flexibility, risk) against a ranked list of what matters most on a
 given trip, and to explain the weighting, never hide it.
+
+This project holds the same bar as the other three: it's meant to be a
+flagship example of what an agentic build looks like — planned in phases,
+honest about what's real vs. modeled, and legible to a non-technical reader,
+not just a demo. Hold every future change to that standard.
 
 - Data source: none live yet. `app.js` runs a deterministic scoring model
   against hand-maintained reference ranges (typical fares by cabin,
@@ -24,11 +29,11 @@ given trip, and to explain the weighting, never hide it.
 ## Repository layout
 
 - `index.html` — the optimizer UI. Collects the Input Card, calls
-  `window.TravelScout.runOptimization(inputs)`, renders the result.
+  `window.TravelIntel.runOptimization(inputs)`, renders the result.
   Keep view/DOM logic here; keep scoring logic in `app.js`.
 - `app.js` — pure scoring engine, no DOM access. Exports
   `runOptimization`, `computeWeights`, and the reference-data tables via
-  `window.TravelScout`. Every reference table at the top of the file has
+  `window.TravelIntel`. Every reference table at the top of the file has
   a comment explaining it's hand-maintained, not fetched — keep those
   comments accurate if the numbers change.
 - `about.html`, `roadmap.html`, `guide.html` — public, self-contained
