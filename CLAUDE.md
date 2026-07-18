@@ -17,10 +17,19 @@ flagship example of what an agentic build looks like — planned in phases,
 honest about what's real vs. modeled, and legible to a non-technical reader,
 not just a demo. Hold every future change to that standard.
 
-- Data source: none live yet. `app.js` runs a deterministic scoring model
-  against hand-maintained reference ranges (typical fares by cabin,
-  typical mileage redemption ranges, general carrier upgrade-friendliness
-  reputation). Phase 2 (see `roadmap.html`) wires in real fare/award data.
+- Data source: live fares via `netlify/functions/fares.mjs`, a proxy to
+  the Amadeus Flight Offers API. Credentials live ONLY in Netlify env
+  vars (`AMADEUS_CLIENT_ID`, `AMADEUS_CLIENT_SECRET`, optional
+  `AMADEUS_ENV=production`), never in source. When unconfigured or
+  unreachable, the frontend falls back to the deterministic scoring
+  model on hand-maintained reference ranges and SAYS SO in the banner
+  and results header — the fallback must never be silent. Live offers
+  are scored through the same six-dimension engine (`buildLiveCandidates`
+  in `app.js`); mileage figures remain distance-scaled planning ranges
+  in both modes (award space is not yet searched). Flight times and
+  fare scaling in model mode derive from great-circle distances via the
+  hand-maintained `CITY_COORDS`/`CITY_IATA` tables — when adding a city
+  to one, add it to both.
 - One exception to "modeled": `POINT_VALUATIONS` and `TRANSFER_BONUSES`
   in `app.js` are real published figures hand-copied from The Points
   Guy's monthly valuations / current-transfer-bonuses pages, each dated

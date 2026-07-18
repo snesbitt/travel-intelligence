@@ -90,10 +90,13 @@
       <div class="phase-head">
         <span class="phase-num">05</span>
         <span class="phase-title">live fare &amp; award data</span>
-        <span class="phase-status planned">Planned</span>
+        <span class="phase-status live">Built — awaiting credential</span>
       </div>
-      <p class="phase-body">The single biggest gap today. Wiring in real data sources — Google Flights/ITA-style fare search, seats.aero-style award availability, live seat maps and upgrade fare rules — behind Netlify Functions, matching the backend pattern Vinyl Scout and The Fitness Log already run. This is what turns the reference-range planning model into an actual live search.</p>
+      <p class="phase-body">The live-fare backend is built and shipped: a Netlify Function (<code>/api/fares</code>) proxying the Amadeus Flight Offers API, with the frontend wired to search real fares on every run and score them through the same six-dimension engine. The one remaining step is the API credential — creating the (free) Amadeus self-service account is Susan's to do, since credentials and any potential spend are never taken on the agent's behalf. Until the key is added in Netlify env vars, the site says plainly it's in demo mode and falls back to the documented model; the moment the key exists, the banner flips to live automatically. Award-space search (seats.aero-style) remains the next gap after fares.</p>
       <p class="phase-value">The recommendation stops being a documented estimate and becomes a real, bookable answer.</p>
+      <ul class="phase-log">
+        <li><span class="lg-date">JUL 2026</span>Fare backend shipped: Amadeus proxy Function with token caching, honest 503 fallback when unconfigured, city→IATA mapping, and live offers scored by the identical weighting engine — real prices, same legible framework. Route geometry also fixed model mode: flight times and fare scaling now derive from real great-circle distances (a nonstop to Rome reads ~12h, not a fabricated short-haul number).</li>
+      </ul>
     </div>
 
     <div class="phase">

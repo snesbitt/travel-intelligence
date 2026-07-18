@@ -87,6 +87,94 @@ const TRANSFER_BONUSES = [
   { from: "Capital One", to: "EVA Air Infinity MileageLands", bonus: "30%", ends: "Jul 31, 2026" },
 ];
 
+// Hand-maintained coordinates for common origin/destination cities and
+// airport codes, used to compute a real great-circle distance per route.
+// Flight time and the distance scaling of fares derive from THIS — not a
+// schedule read, but geometry plus a cruise-speed model, so a nonstop to
+// Europe reads ~11h, not a fabricated short-haul number. If a city isn't
+// here, the engine says so in the insights and assumes a generic 7,500 km
+// long-haul rather than silently pretending.
+const CITY_COORDS = {
+  "san francisco": [37.62, -122.38], sfo: [37.62, -122.38], sjc: [37.36, -121.93], oak: [37.72, -122.22],
+  "los angeles": [33.94, -118.41], lax: [33.94, -118.41], "san diego": [32.73, -117.19], seattle: [47.45, -122.31],
+  portland: [45.59, -122.60], denver: [39.86, -104.67], phoenix: [33.43, -112.01], "las vegas": [36.08, -115.15],
+  dallas: [32.90, -97.04], austin: [30.19, -97.67], houston: [29.98, -95.34], chicago: [41.98, -87.90],
+  minneapolis: [44.88, -93.22], detroit: [42.21, -83.35], atlanta: [33.64, -84.43], miami: [25.79, -80.29],
+  orlando: [28.43, -81.31], tampa: [27.98, -82.53], charlotte: [35.21, -80.94], washington: [38.95, -77.46],
+  "new york": [40.64, -73.78], nyc: [40.64, -73.78], jfk: [40.64, -73.78], ewr: [40.69, -74.17],
+  boston: [42.36, -71.01], philadelphia: [39.87, -75.24], honolulu: [21.32, -157.92], anchorage: [61.17, -150.00],
+  vancouver: [49.19, -123.18], toronto: [43.68, -79.63], montreal: [45.47, -73.74], "mexico city": [19.44, -99.07],
+  cancun: [21.04, -86.87], london: [51.47, -0.45], lhr: [51.47, -0.45], paris: [49.01, 2.55], cdg: [49.01, 2.55],
+  rome: [41.80, 12.24], fco: [41.80, 12.24], madrid: [40.47, -3.56], barcelona: [41.30, 2.08],
+  lisbon: [38.77, -9.13], amsterdam: [52.31, 4.76], frankfurt: [50.03, 8.56], munich: [48.35, 11.79],
+  zurich: [47.46, 8.55], geneva: [46.24, 6.11], vienna: [48.11, 16.57], prague: [50.10, 14.26],
+  berlin: [52.36, 13.50], dublin: [53.43, -6.25], edinburgh: [55.95, -3.37], copenhagen: [55.62, 12.66],
+  stockholm: [59.65, 17.92], oslo: [60.19, 11.10], helsinki: [60.32, 24.96], athens: [37.94, 23.94],
+  istanbul: [41.26, 28.74], "tel aviv": [32.01, 34.89], dubai: [25.25, 55.36], doha: [25.27, 51.61],
+  delhi: [28.56, 77.10], mumbai: [19.09, 72.87], singapore: [1.36, 103.99], bangkok: [13.69, 100.75],
+  "hong kong": [22.31, 113.91], tokyo: [35.55, 139.78], hnd: [35.55, 139.78], nrt: [35.77, 140.39],
+  osaka: [34.43, 135.23], seoul: [37.46, 126.44], icn: [37.46, 126.44], beijing: [40.08, 116.58],
+  shanghai: [31.14, 121.81], taipei: [25.08, 121.23], manila: [14.51, 121.02], sydney: [-33.95, 151.18],
+  melbourne: [-37.67, 144.84], auckland: [-37.01, 174.79], "buenos aires": [-34.82, -58.54],
+  "sao paulo": [-23.43, -46.47], "rio de janeiro": [-22.81, -43.25], lima: [-12.02, -77.11],
+  bogota: [4.70, -74.15], santiago: [-33.39, -70.79], johannesburg: [-26.14, 28.25], "cape town": [-33.96, 18.60],
+  cairo: [30.12, 31.41], nairobi: [-1.32, 36.93], casablanca: [33.37, -7.59], reykjavik: [63.99, -22.61],
+};
+
+function lookupCoords(name) {
+  if (!name) return null;
+  const n = name.trim().toLowerCase();
+  if (CITY_COORDS[n]) return CITY_COORDS[n];
+  for (const key of Object.keys(CITY_COORDS)) {
+    if (n.includes(key) || key.includes(n)) return CITY_COORDS[key];
+  }
+  return null;
+}
+
+function haversineKm(a, b) {
+  const R = 6371, toRad = (d) => (d * Math.PI) / 180;
+  const dLat = toRad(b[0] - a[0]), dLon = toRad(b[1] - a[1]);
+  const s = Math.sin(dLat / 2) ** 2 + Math.cos(toRad(a[0])) * Math.cos(toRad(b[0])) * Math.sin(dLon / 2) ** 2;
+  return Math.round(2 * R * Math.asin(Math.sqrt(s)));
+}
+
+function routeDistanceKm(origin, destination) {
+  const a = lookupCoords(origin), b = lookupCoords(destination);
+  if (!a || !b) return { km: null, known: false };
+  return { km: haversineKm(a, b), known: true };
+}
+
+// City → primary IATA code, for the live fare search. Same coverage as
+// CITY_COORDS; a raw 3-letter input is used as-is.
+const CITY_IATA = {
+  "san francisco": "SFO", "los angeles": "LAX", "san diego": "SAN", seattle: "SEA", portland: "PDX",
+  denver: "DEN", phoenix: "PHX", "las vegas": "LAS", dallas: "DFW", austin: "AUS", houston: "IAH",
+  chicago: "ORD", minneapolis: "MSP", detroit: "DTW", atlanta: "ATL", miami: "MIA", orlando: "MCO",
+  tampa: "TPA", charlotte: "CLT", washington: "IAD", "new york": "JFK", boston: "BOS",
+  philadelphia: "PHL", honolulu: "HNL", anchorage: "ANC", vancouver: "YVR", toronto: "YYZ",
+  montreal: "YUL", "mexico city": "MEX", cancun: "CUN", london: "LHR", paris: "CDG", rome: "FCO",
+  madrid: "MAD", barcelona: "BCN", lisbon: "LIS", amsterdam: "AMS", frankfurt: "FRA", munich: "MUC",
+  zurich: "ZRH", geneva: "GVA", vienna: "VIE", prague: "PRG", berlin: "BER", dublin: "DUB",
+  edinburgh: "EDI", copenhagen: "CPH", stockholm: "ARN", oslo: "OSL", helsinki: "HEL", athens: "ATH",
+  istanbul: "IST", "tel aviv": "TLV", dubai: "DXB", doha: "DOH", delhi: "DEL", mumbai: "BOM",
+  singapore: "SIN", bangkok: "BKK", "hong kong": "HKG", tokyo: "HND", osaka: "KIX", seoul: "ICN",
+  beijing: "PEK", shanghai: "PVG", taipei: "TPE", manila: "MNL", sydney: "SYD", melbourne: "MEL",
+  auckland: "AKL", "buenos aires": "EZE", "sao paulo": "GRU", "rio de janeiro": "GIG", lima: "LIM",
+  bogota: "BOG", santiago: "SCL", johannesburg: "JNB", "cape town": "CPT", cairo: "CAI",
+  nairobi: "NBO", casablanca: "CMN", reykjavik: "KEF",
+};
+
+function toIATA(name) {
+  if (!name) return null;
+  const n = name.trim().toLowerCase();
+  if (/^[a-z]{3}$/.test(n)) return n.toUpperCase();
+  if (CITY_IATA[n]) return CITY_IATA[n];
+  for (const key of Object.keys(CITY_IATA)) {
+    if (n.includes(key) || key.includes(n)) return CITY_IATA[key];
+  }
+  return null;
+}
+
 const PRIORITY_WEIGHTS = {
   Cheapest:                 { Cost: 1.0, Comfort: 0.1, Upgrade: 0.1, Award: 0.2, Flexibility: 0.1, Risk: 0.2 },
   "Best Value":              { Cost: 0.6, Comfort: 0.4, Upgrade: 0.2, Award: 0.3, Flexibility: 0.3, Risk: 0.3 },
@@ -145,11 +233,44 @@ function allianceOf(carrier) {
   return "Unaligned";
 }
 
+// Route geometry shared by both the modeled and live paths: real
+// great-circle distance when both endpoints are in the city table; a
+// stated generic long-haul assumption when not.
+function routeContext(inputs) {
+  const route = routeDistanceKm(inputs.origin, inputs.destination);
+  const effKm = route.km || 7500;
+  // Fares scale with distance: ~0.25× base for a short domestic hop up to
+  // ~1.7× for an ultra-long-haul, anchored so base = a ~9,000 km long-haul.
+  const distFactor = clamp(0.22 + 0.78 * (effKm / 9000), 0.22, 1.7);
+  const milesFactor = clamp(0.4 + 0.6 * (effKm / 9000), 0.4, 1.5);
+  const airMinutesNonstop = Math.round((effKm / 850) * 60 + 45); // 850 km/h cruise + ground overhead
+  return { route, effKm, distFactor, milesFactor, airMinutesNonstop };
+}
+
+function fuzzyCarrierScore(name) {
+  if (UPGRADE_FRIENDLY[name] != null) return UPGRADE_FRIENDLY[name];
+  const n = (name || "").toLowerCase();
+  for (const key of Object.keys(UPGRADE_FRIENDLY)) {
+    if (n.includes(key.toLowerCase()) || key.toLowerCase().includes(n)) return UPGRADE_FRIENDLY[key];
+  }
+  return 50;
+}
+
+function fuzzyAlliance(name) {
+  const n = (name || "").toLowerCase();
+  for (const [al, list] of Object.entries(ALLIANCES)) {
+    if (list.some((c) => n.includes(c.toLowerCase()) || c.toLowerCase().includes(n))) return al;
+  }
+  return "Unaligned";
+}
+
 function generateCandidates(inputs) {
   const seedStr = [inputs.origin, inputs.destination, inputs.departDate, inputs.returnDate, inputs.cabin, inputs.maxBudget].join("|");
   const rng = mulberry32(hashSeed(seedStr));
   const pool = candidatePool(inputs);
   const flexDays = { Exact: 0, "±1 day": 1, "±3 days": 3, "±7 days": 7 }[inputs.dateFlexibility] || 0;
+
+  const { route, effKm, distFactor, milesFactor, airMinutesNonstop } = routeContext(inputs);
 
   const fareTiers = ["Basic", "Standard", "Flexible"];
   const candidates = [];
@@ -162,15 +283,16 @@ function generateCandidates(inputs) {
     const fareTier = fareTiers[clamp(Math.floor(rng() * fareTiers.length) + (inputs.cabin === "Business" || inputs.cabin === "First" ? 1 : 0), 0, 2)];
     const dateOffset = flexDays ? Math.round((rng() * 2 - 1) * flexDays) : 0;
 
-    // price model: per-cabin round-trip base, seeded noise, stops discount,
-    // fare-tier adjustment, then a per-cabin floor. Planning model, not a
-    // fetched fare — see the eyebrow banner on this page.
-    let base = CABIN_BASE[inputs.cabin] || CABIN_BASE.Economy;
+    // price model: per-cabin round-trip base scaled by route distance,
+    // seeded noise, stops discount, fare-tier adjustment, then a
+    // distance-scaled per-cabin floor. Planning model, not a fetched fare
+    // — see the eyebrow banner on this page.
+    let base = (CABIN_BASE[inputs.cabin] || CABIN_BASE.Economy) * distFactor;
     base *= 1 + (0.5 - rng()) * 0.5; // +/-25% noise
     base -= stops * (CABIN_STOP_DISCOUNT[inputs.cabin] || 30);
     base *= fareTier === "Basic" ? 0.82 : fareTier === "Flexible" ? 1.18 : 1;
     if (dateOffset !== 0) base *= 1 - Math.min(0.12, Math.abs(dateOffset) * 0.02);
-    const price = Math.max(CABIN_FLOOR[inputs.cabin] || 200, Math.round(base));
+    const price = Math.max(Math.round((CABIN_FLOOR[inputs.cabin] || 200) * distFactor), Math.round(base));
 
     const scores = {};
     scores.Cost = clamp(100 - (price / Math.max(1, inputs.maxBudget)) * 65, 4, 100);
@@ -190,32 +312,37 @@ function generateCandidates(inputs) {
     scores.Risk = clamp(100 - stops * 18 - monthRisk, 5, 100);
 
     // miles+cash either/or: an estimated miles price for THIS candidate,
-    // interpolated within the cabin's reference range by where the cash
-    // price sits in its own plausible band. Planning figure, not a quote.
-    const priceBand = clamp((price - (CABIN_FLOOR[inputs.cabin] || 200)) / Math.max(1, (CABIN_BASE[inputs.cabin] || 620) * 1.4), 0, 1);
-    const milesEst = Math.round((range.milesLow + (range.milesHigh - range.milesLow) * priceBand) / 5000) * 5000;
+    // interpolated within the cabin's distance-scaled reference range by
+    // where the cash price sits in its own plausible band. Planning
+    // figure, not a quote.
+    const mLow = range.milesLow * milesFactor, mHigh = range.milesHigh * milesFactor;
+    const priceBand = clamp((price - (CABIN_FLOOR[inputs.cabin] || 200) * distFactor) / Math.max(1, (CABIN_BASE[inputs.cabin] || 620) * distFactor * 1.4), 0, 1);
+    const milesEst = Math.round((mLow + (mHigh - mLow) * priceBand) / 5000) * 5000 || 5000;
     const feesEst = Math.round(range.feesLow + (range.feesHigh - range.feesLow) * priceBand);
     const candCpp = ((price - feesEst) / Math.max(1, milesEst)) * 100;
+
+    // travel time from route geometry: nonstop air time, plus per-stop
+    // layover and routing detour — never a constant.
+    const travelMinutes = airMinutesNonstop + stops * (105 + Math.round(rng() * 30)) + Math.round(stops * airMinutesNonstop * 0.08);
 
     candidates.push({
       id: i, carrier, alliance: allianceOf(carrier), stops, fareTier, price, dateOffset,
       cabin: inputs.cabin === "Best Value" ? (cpp * 42 > 60 ? "Business" : "Economy") : inputs.cabin,
       scores, cpp, milesMid, feesMid,
       milesEst, feesEst, candCpp, payWith: candCpp >= 1.6 ? "miles" : "cash",
-      travelMinutes: 105 + stops * 95 + Math.round(rng() * 40),
-      aircraft: pickAircraft(rng, stops, inputs.cabin),
+      travelMinutes, routeKm: route.km, routeKnown: route.known,
+      aircraft: pickAircraft(rng, stops, inputs.cabin, effKm),
     });
   }
   return candidates;
 }
 
-function pickAircraft(rng, stops, cabin) {
+function pickAircraft(rng, stops, cabin, km) {
   const wide = ["Boeing 787-9", "Airbus A350-900", "Boeing 777-300ER", "Airbus A330-300"];
   const narrow = ["Airbus A321neo", "Boeing 737 MAX 9", "Airbus A320"];
-  // First class only flies on widebody aircraft in practice; nonstops skew
-  // widebody too, since a single-connection narrowbody hop is the more
-  // typical use of a narrowbody in this model.
-  const wideChance = cabin === "First" ? 1 : stops === 0 ? 0.72 : 0.15;
+  // Aircraft follows route distance: long-haul flies widebodies, short
+  // hops fly narrowbodies, with First always on a widebody.
+  const wideChance = cabin === "First" || km > 5500 ? 1 : km > 2500 ? 0.5 : 0.06;
   const pool = rng() < wideChance ? wide : narrow;
   return pool[Math.floor(rng() * pool.length)];
 }
@@ -229,6 +356,55 @@ function seasonalRisk(dateStr) {
   if (m === 6 || m === 5) return 16;
   if (m === 10) return 12;
   return 8;
+}
+
+/* ---------- live offers → scored candidates ----------
+ * Takes REAL fares (from the /api/fares Netlify Function backed by the
+ * Amadeus Flight Offers API) and runs them through the exact same
+ * six-dimension scoring the model uses — the weighting framework is the
+ * product; the data source upgraded underneath it. Prices are real; the
+ * miles estimate stays a distance-scaled planning range (award SPACE is
+ * still not searched — that's labeled in the UI).
+ */
+function buildLiveCandidates(inputs, offers) {
+  const { route, effKm, milesFactor, distFactor } = routeContext(inputs);
+  const travelers = inputs.travelers || 1;
+  const avoid = (inputs.avoidAirlines || []).map((a) => a.toLowerCase());
+  const range = AWARD_RANGES[inputs.cabin] || AWARD_RANGES.Economy;
+  const mLow = range.milesLow * milesFactor, mHigh = range.milesHigh * milesFactor;
+
+  return offers
+    .filter((o) => !avoid.some((a) => (o.carrier || "").toLowerCase().includes(a)))
+    .slice(0, 12)
+    .map((o, i) => {
+      const price = Math.round(o.priceTotal / travelers); // per person, matching the model's display convention
+      const stops = Math.max(0, o.stops || 0);
+      const cabin = inputs.cabin === "Best Value" ? (o.cabins && o.cabins.includes("BUSINESS") ? "Business" : "Economy") : inputs.cabin;
+
+      const priceBand = clamp((price - (CABIN_FLOOR[cabin] || 200) * distFactor) / Math.max(1, (CABIN_BASE[cabin] || 620) * distFactor * 1.4), 0, 1);
+      const milesEst = Math.round((mLow + (mHigh - mLow) * priceBand) / 5000) * 5000 || 5000;
+      const feesEst = Math.round(range.feesLow + (range.feesHigh - range.feesLow) * priceBand);
+      const candCpp = ((price - feesEst) / Math.max(1, milesEst)) * 100;
+
+      const scores = {};
+      scores.Cost = clamp(100 - (price / Math.max(1, inputs.maxBudget)) * 65, 4, 100);
+      scores.Comfort = clamp((CABIN_COMFORT_BASE[cabin] || 50) - stops * 11 + (stops === 0 ? 6 : 0), 5, 100);
+      scores.Upgrade = clamp(fuzzyCarrierScore(o.carrier) - (cabin === "First" ? 35 : cabin === "Business" ? 12 : 0) + (cabin === "Economy" || cabin === "Best Value" ? 6 : 0), 3, 100);
+      scores.Award = clamp(candCpp * 42, 2, 100);
+      scores.Flexibility = clamp(55 + (cabin === "Business" || cabin === "First" ? 8 : 0), 5, 100);
+      scores.Risk = clamp(100 - stops * 18 - seasonalRisk(inputs.departDate), 5, 100);
+
+      return {
+        id: i, carrier: o.carrier || o.carrierCode, alliance: fuzzyAlliance(o.carrier), stops,
+        fareTier: "Standard", price, dateOffset: 0, cabin, scores,
+        cpp: candCpp, milesMid: milesEst, feesMid: feesEst,
+        milesEst, feesEst, candCpp, payWith: candCpp >= 1.6 ? "miles" : "cash",
+        travelMinutes: o.durationMinutes ? Math.round(o.durationMinutes / 2) : null,
+        routeKm: route.km, routeKnown: route.known,
+        aircraft: o.bookableSeats ? `${o.bookableSeats} bookable seats` : "—",
+        live: true, priceTotal: Math.round(o.priceTotal), lastTicketingDate: o.lastTicketingDate,
+      };
+    });
 }
 
 /* ---------- weighting from the ranked priority list ---------- */
@@ -289,47 +465,79 @@ function awardRecommendation(best, inputs, programBalances) {
  * check-in — counter-offers there are common.
  */
 
+function fmtDateShort(d) {
+  return isNaN(d) ? null : d.toLocaleDateString("en-US", { weekday: "short", month: "short", day: "numeric" });
+}
+function daysBefore(dateStr, days) {
+  const d = new Date(dateStr + "T12:00:00");
+  if (isNaN(d)) return null;
+  d.setDate(d.getDate() - days);
+  return d;
+}
+
+// An ACTION PLAN, not a description: each step says when to do it (real
+// dates computed from the departure date), what exactly to do, and with
+// what numbers (bid amounts computed from this itinerary's modeled fare
+// gap). Ordered as a timeline from booking day to the gate.
 function upgradeTactics(best, inputs) {
   const tactics = [];
   const cabinAbove = { Economy: "Premium Economy", "Premium Economy": "Business", Business: "First", "Best Value": "Business" }[best.cabin];
   if (!cabinAbove) {
-    tactics.push({ title: "You're booking top cabin", detail: "No upgrade path above First — the play here is price, not position. Consider whether Business at roughly half the fare gets you 90% of the experience." });
+    tactics.push({ when: "Now", title: "You're booking top cabin — the play is price, not position", detail: "No upgrade path above First. Action: price Business on the same flights before paying — it's typically ~55% of the First fare for most of the experience." });
     return tactics;
   }
 
+  // Modeled fare gap to the next cabin on this route, and the 20–40% bid
+  // band computed from it (rounded to $10).
+  const ratio = (CABIN_BASE[cabinAbove] || 3600) / (CABIN_BASE[best.cabin] || 620);
+  const gap = Math.max(150, Math.round(best.price * (ratio - 1)));
+  const bidLow = Math.round((gap * 0.2) / 10) * 10;
+  const bidHigh = Math.round((gap * 0.4) / 10) * 10;
+  const bidDate = fmtDateShort(daysBefore(inputs.departDate, 4));
+  const seatMapDate = fmtDateShort(daysBefore(inputs.departDate, 3));
+  const checkInDate = fmtDateShort(daysBefore(inputs.departDate, 1));
+
   tactics.push({
-    title: `Book the upgradeable fare, not the cheapest one`,
-    detail: `Basic/deep-discount buckets are usually excluded from upgrades entirely. On ${best.carrier}, book at least the Standard fare tier — the few dollars more is the entry ticket to every tactic below.`,
+    when: "At booking",
+    title: `Book Standard, not Basic — it's the entry ticket`,
+    detail: `Basic/deep-discount buckets are excluded from most upgrade paths entirely. On ${best.carrier}, book at least the Standard tier, then immediately check two things on the booking page: "upgrade with miles" pricing, and whether an upgrade-bid invitation is offered.`,
   });
   tactics.push({
-    title: `Bid 20–40% of the fare gap — slightly above the minimum`,
-    detail: `If ${cabinAbove} sells for say $2,400 more than your fare, a winning bid typically lands at $480–960. Most travelers bid the exact minimum, so bidding even 5–10% above it beats the crowd. Typical winning long-haul Business bids run $300–600. Bids are per segment, per passenger, and charge only if you win.`,
+    when: "Same week",
+    title: `Price the miles + copay upgrade first`,
+    detail: `Before any cash bid: check what ${best.carrier} charges in miles + copay to move this booking to ${cabinAbove}. It's often the best redemption rate in the whole program and beats a cash bid of the same value. If it's offered under ~${Math.round(gap * 0.35).toLocaleString()}¢-equivalent, take it and skip the rest of this list.`,
   });
   tactics.push({
-    title: `Know the bid window and set a reminder`,
-    detail: `Most carriers open upgrade bidding after booking and close it 48–72 hours before departure (Virgin Atlantic opens a full 7 days out; a few award winners as late as 3 hours before). Set a calendar reminder for T-minus-4-days to place or revise your bid.`,
+    when: bidDate ? `By ${bidDate}` : "T−4 days",
+    title: `Place your bid: $${bidLow.toLocaleString()}–$${bidHigh.toLocaleString()} for ${cabinAbove}`,
+    detail: `That's 20–40% of this itinerary's modeled ~$${gap.toLocaleString()} fare gap. Bid 5–10% above the stated minimum — most people bid the exact minimum, so a small premium wins disproportionately often. Windows close 48–72h out on most carriers. Bids are per segment, per passenger.`,
   });
   tactics.push({
-    title: `Check the premium cabin seat map before bidding`,
-    detail: `A wide-open ${cabinAbove} cabin a week out means low bids clear; a nearly-full one means don't waste the bid. Check the seat map on ${best.carrier}'s own site (or ExpertFlyer) the day bidding closes.`,
+    when: seatMapDate ? seatMapDate : "T−3 days",
+    title: `Check the ${cabinAbove} seat map before the window closes`,
+    detail: `Open ${best.carrier}'s seat map for your flight: mostly-empty ${cabinAbove} → your low bid likely clears, leave it. Nearly full → cancel or lower the bid (most carriers allow changes until ~72h out) and pivot to the check-in play instead.`,
   });
   tactics.push({
-    title: `Miles + cash copay upgrade`,
-    detail: `Many programs sell one-cabin upgrades for miles plus a cash copay — often the single best redemption rate in the whole program, and a smart use of a balance too small for a full award. Call or check "upgrade with miles" on your booking before paying a cash bid.`,
+    when: checkInDate ? `${checkInDate} (T−24h)` : "T−24h, at check-in",
+    title: `Check in the minute it opens and look for the counter-offer`,
+    detail: `Rejected bids are routinely followed by a cheaper flat-price upgrade offer at online check-in. If none appears, ask the desk agent, specifically: "Are paid upgrades to ${cabinAbove} available on this flight?" Note the price; it's sometimes below your losing bid.`,
   });
   tactics.push({
-    title: `If the bid loses, ask at check-in — then again at the gate`,
-    detail: `Rejected bids are routinely followed by a cheaper counter-offer at online check-in (T-24h). Failing that, ask the agent at the desk, politely and specifically: "Are paid upgrades to ${cabinAbove} available on this flight?" Gate offers on undersold cabins can beat every earlier price.`,
+    when: "Departure day",
+    title: `Last ask at the gate`,
+    detail: `If ${cabinAbove} still shows open seats, ask the gate agent once, early in boarding prep. Undersold cabins get cleared at the gate at the steepest discounts — this costs nothing to ask.`,
   });
-  if (inputs.tripPurpose === "Business" || inputs.tripPurpose === "Family") {
+  if (inputs.tripPurpose === "Business" || inputs.tripPurpose === "Family" || (inputs.travelers || 1) > 1) {
     tactics.push({
-      title: `The creative play: split the cabin`,
-      detail: `Booking one ${cabinAbove} seat and the rest of the party in ${best.cabin} — then trading off on a long flight — costs a fraction of upgrading everyone and is entirely allowed.`,
+      when: "Creative play",
+      title: `Split the cabin across your party`,
+      detail: `Book ONE ${cabinAbove} seat and the rest in ${best.cabin}, then trade off in-flight. For ${inputs.travelers || 2} travelers that's roughly $${Math.round(gap / (inputs.travelers || 2)).toLocaleString()} per person for everyone to get time up front — a fraction of upgrading every seat.`,
     });
   }
   tactics.push({
-    title: `The creative play: price the "mistake" routings`,
-    detail: `Same-cabin fares from a nearby origin (${(inputs.airportFlexibility || "your alternates").split(",")[0].trim()} vs. a bigger hub) or with one positioning flight are sometimes lower than the upgrade cost itself — always price ${cabinAbove} from the alternate airports you listed before paying to upgrade the primary routing.`,
+    when: "Creative play",
+    title: `Price ${cabinAbove} outright from your alternate airports`,
+    detail: `Before paying ~$${gap.toLocaleString()} to upgrade, price ${cabinAbove} as a fresh booking from ${(inputs.airportFlexibility || "your alternates").split(",").map((s) => s.trim()).filter(Boolean).join(" / ") || "nearby airports"} — a different origin or one positioning hop is sometimes cheaper than the upgrade itself.`,
   });
   return tactics;
 }
@@ -398,6 +606,12 @@ function buildInsights(inputs, candidates, best, weights, timing) {
     insights.push(`You've listed more than one workable departure airport. Once live fare data is wired in (see roadmap.html), this is exactly the kind of input that tends to surface the largest single savings — nearby-airport comparisons routinely beat date-shifting alone.`);
   }
 
+  if (best.routeKnown === false) {
+    insights.push(`Heads up: "${inputs.origin}" → "${inputs.destination}" isn't in the hand-maintained city table, so flight times and distance-scaled fares assume a generic 7,500 km long-haul. Add the city to CITY_COORDS in app.js for a real great-circle estimate.`);
+  } else if (best.routeKm) {
+    insights.push(`Route distance: roughly ${best.routeKm.toLocaleString()} km great-circle each way — flight times and the distance scaling on fares are computed from this geometry, not fabricated per-flight.`);
+  }
+
   insights.push(`This shortlist is scored, not searched — treat the price and mileage figures as planning ranges from a documented model, not a live quote. See guide.html for exactly what's computed vs. what's a hand-maintained reference range.`);
 
   return insights.slice(0, 8);
@@ -419,8 +633,10 @@ function programBalancesFromInputs(inputs) {
 
 /* ---------- main entry point ---------- */
 
-function runOptimization(inputs) {
-  const candidates = generateCandidates(inputs);
+function runOptimization(inputs, liveOffers) {
+  const usingLive = Array.isArray(liveOffers) && liveOffers.length > 0;
+  const candidates = usingLive ? buildLiveCandidates(inputs, liveOffers) : generateCandidates(inputs);
+  if (!candidates.length) return runOptimization(inputs); // e.g. every live offer was on an avoided airline
   const weights = computeWeights(inputs.priorityRanks);
   candidates.forEach((c) => (c.weighted = weightedScore(c.scores, weights)));
   candidates.sort((a, b) => b.weighted - a.weighted);
@@ -431,12 +647,12 @@ function runOptimization(inputs) {
   const insights = buildInsights(inputs, candidates, best, weights, timing);
   const tactics = upgradeTactics(best, inputs);
   const pointsIntel = bestPointsAnswers(inputs);
-  return { candidates, weights, best, alternatives, timing, award, insights, tactics, pointsIntel };
+  return { candidates, weights, best, alternatives, timing, award, insights, tactics, pointsIntel, usingLive };
 }
 
 if (typeof window !== "undefined") {
   window.TravelIntel = {
-    runOptimization, computeWeights, upgradeTactics, bestPointsAnswers,
+    runOptimization, computeWeights, upgradeTactics, bestPointsAnswers, toIATA,
     ALLIANCES, ALL_CARRIERS, TRANSFER_PARTNERS, POINT_VALUATIONS, TRANSFER_BONUSES,
     DIMENSIONS, DIM_LABEL, fmtUSD,
   };

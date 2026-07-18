@@ -37,13 +37,19 @@ example of what an agentic build looks like, not a one-off demo.
   and active transfer bonuses, hand-copied with their as-of date shown
   (July 2026 currently), wallet-aware so your own cards are flagged.
 
+- A live-fare backend (`netlify/functions/fares.mjs`): an Amadeus Flight
+  Offers proxy the frontend queries on every run, scoring real prices
+  through the same engine. Activates automatically once
+  `AMADEUS_CLIENT_ID`/`AMADEUS_CLIENT_SECRET` are set in Netlify env
+  vars; until then the site states it's in demo mode and uses the model.
+
 ## What's not real yet (see `roadmap.html`)
 
-There is no live fare or award search. Prices and mileage figures are
-computed from hand-maintained reference ranges, not fetched from Google
-Flights, ITA Matrix, seats.aero, or any airline system. The homepage says
-this directly in a banner, and `guide.html` explains exactly which numbers
-are computed vs. referenced. Wiring in real data sources is Phase 2.
+Award-space search. Mileage figures in both modes are distance-scaled
+planning ranges, not a seats.aero-style availability check — the UI says
+so wherever they appear. In demo mode (no API credential yet), fares too
+are modeled from hand-maintained, distance-scaled reference ranges; the
+banner and results header always state which mode produced the numbers.
 
 ## Repository layout
 

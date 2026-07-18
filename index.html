@@ -37,7 +37,7 @@
 
     <div class="sync-banner">
       <span class="sync-dot"></span>
-      <span><strong>Demo mode.</strong> Fares and mileage figures come from a documented scoring model on hand-maintained reference ranges — not a live fare or award search yet. Point valuations and transfer bonuses are real, dated figures from The Points Guy (July 2026), refreshed by hand. See <a href="/guide" style="text-decoration:underline;">the guide</a> for exactly what's computed vs. copied vs. planned. No data leaves your browser — your saved wallet lives in this browser only.</span>
+      <span id="mode-banner"><strong>Checking live-fare backend…</strong> Point valuations and transfer bonuses are real, dated figures from The Points Guy (July 2026), refreshed by hand. See <a href="/guide" style="text-decoration:underline;">the guide</a> for what's live vs. computed vs. copied. Your saved wallet lives in this browser only.</span>
     </div>
 
     <form id="trip-form">
@@ -50,6 +50,7 @@
           <div class="form-field"><label for="airportFlexibility">Nearby airports you'd consider</label><input type="text" id="airportFlexibility" placeholder="e.g. SFO, SJC, OAK" value="SFO, SJC, OAK"></div>
           <div class="form-field"><label for="departDate">Departure date</label><input type="date" id="departDate"></div>
           <div class="form-field"><label for="returnDate">Return date</label><input type="date" id="returnDate"></div>
+          <div class="form-field"><label for="travelers">Travelers</label><input type="number" id="travelers" value="1" min="1" max="9" step="1"></div>
         </div>
         <div class="form-field" style="margin-top:10px;">
           <label>Date flexibility</label>
@@ -77,9 +78,9 @@
         <div class="form-field">
           <label>Cabin</label>
           <div class="pill-toggle" data-group="cabin">
-            <button type="button" data-val="Economy">Economy</button>
+            <button type="button" data-val="Economy" class="sel">Economy</button>
             <button type="button" data-val="Premium Economy">Premium Economy</button>
-            <button type="button" data-val="Business" class="sel">Business</button>
+            <button type="button" data-val="Business">Business</button>
             <button type="button" data-val="First">First</button>
             <button type="button" data-val="Best Value">Best Value</button>
           </div>
@@ -162,21 +163,21 @@
         <h2 class="card-title" style="margin-top:18px;">Airline loyalty balances</h2>
         <div class="grid2">
           <div>
-            <div class="balance-row"><label>United MileagePlus</label><input type="number" min="0" step="1000" class="prog-bal" data-program="United MileagePlus" value="0"></div>
-            <div class="balance-row"><label>Alaska Mileage Plan</label><input type="number" min="0" step="1000" class="prog-bal" data-program="Alaska Mileage Plan" value="0"></div>
-            <div class="balance-row"><label>American AAdvantage</label><input type="number" min="0" step="1000" class="prog-bal" data-program="American AAdvantage" value="0"></div>
-            <div class="balance-row"><label>Delta SkyMiles</label><input type="number" min="0" step="1000" class="prog-bal" data-program="Delta SkyMiles" value="0"></div>
-            <div class="balance-row"><label>Air Canada Aeroplan</label><input type="number" min="0" step="1000" class="prog-bal" data-program="Air Canada Aeroplan" value="0"></div>
-            <div class="balance-row"><label>Flying Blue (Air France/KLM)</label><input type="number" min="0" step="1000" class="prog-bal" data-program="Flying Blue" value="0"></div>
-            <div class="balance-row"><label>Virgin Atlantic Flying Club</label><input type="number" min="0" step="1000" class="prog-bal" data-program="Virgin Atlantic Flying Club" value="0"></div>
+            <div class="balance-row"><label>United MileagePlus</label><input type="text" inputmode="numeric" autocomplete="off" class="prog-bal" data-program="United MileagePlus" value="0"></div>
+            <div class="balance-row"><label>Alaska Mileage Plan</label><input type="text" inputmode="numeric" autocomplete="off" class="prog-bal" data-program="Alaska Mileage Plan" value="0"></div>
+            <div class="balance-row"><label>American AAdvantage</label><input type="text" inputmode="numeric" autocomplete="off" class="prog-bal" data-program="American AAdvantage" value="0"></div>
+            <div class="balance-row"><label>Delta SkyMiles</label><input type="text" inputmode="numeric" autocomplete="off" class="prog-bal" data-program="Delta SkyMiles" value="0"></div>
+            <div class="balance-row"><label>Air Canada Aeroplan</label><input type="text" inputmode="numeric" autocomplete="off" class="prog-bal" data-program="Air Canada Aeroplan" value="0"></div>
+            <div class="balance-row"><label>Flying Blue (Air France/KLM)</label><input type="text" inputmode="numeric" autocomplete="off" class="prog-bal" data-program="Flying Blue" value="0"></div>
+            <div class="balance-row"><label>Virgin Atlantic Flying Club</label><input type="text" inputmode="numeric" autocomplete="off" class="prog-bal" data-program="Virgin Atlantic Flying Club" value="0"></div>
           </div>
           <div>
-            <div class="balance-row"><label>British Airways Executive Club</label><input type="number" min="0" step="1000" class="prog-bal" data-program="British Airways Executive Club" value="0"></div>
-            <div class="balance-row"><label>Singapore KrisFlyer</label><input type="number" min="0" step="1000" class="prog-bal" data-program="Singapore KrisFlyer" value="0"></div>
-            <div class="balance-row"><label>Qatar Privilege Club</label><input type="number" min="0" step="1000" class="prog-bal" data-program="Qatar Privilege Club" value="0"></div>
-            <div class="balance-row"><label>Etihad Guest</label><input type="number" min="0" step="1000" class="prog-bal" data-program="Etihad Guest" value="0"></div>
-            <div class="balance-row"><label>Emirates Skywards</label><input type="number" min="0" step="1000" class="prog-bal" data-program="Emirates Skywards" value="0"></div>
-            <div class="balance-row"><label>Lufthansa Miles &amp; More</label><input type="number" min="0" step="1000" class="prog-bal" data-program="Lufthansa Miles & More" value="0"></div>
+            <div class="balance-row"><label>British Airways Executive Club</label><input type="text" inputmode="numeric" autocomplete="off" class="prog-bal" data-program="British Airways Executive Club" value="0"></div>
+            <div class="balance-row"><label>Singapore KrisFlyer</label><input type="text" inputmode="numeric" autocomplete="off" class="prog-bal" data-program="Singapore KrisFlyer" value="0"></div>
+            <div class="balance-row"><label>Qatar Privilege Club</label><input type="text" inputmode="numeric" autocomplete="off" class="prog-bal" data-program="Qatar Privilege Club" value="0"></div>
+            <div class="balance-row"><label>Etihad Guest</label><input type="text" inputmode="numeric" autocomplete="off" class="prog-bal" data-program="Etihad Guest" value="0"></div>
+            <div class="balance-row"><label>Emirates Skywards</label><input type="text" inputmode="numeric" autocomplete="off" class="prog-bal" data-program="Emirates Skywards" value="0"></div>
+            <div class="balance-row"><label>Lufthansa Miles &amp; More</label><input type="text" inputmode="numeric" autocomplete="off" class="prog-bal" data-program="Lufthansa Miles & More" value="0"></div>
           </div>
         </div>
         <button type="button" class="run-btn" id="save-wallet" style="margin-top:14px;">Save wallet</button>
@@ -217,17 +218,24 @@
     });
   });
 
-  /* ---------- wallet persistence (localStorage, this browser only) ---------- */
+  /* ---------- wallet persistence (localStorage, this browser only) ----------
+   * Auto-saves on every edit (checkbox change or balance blur) so figures
+   * survive into the next session without hunting for a button; the Save
+   * button remains as the explicit confirm. Balances display with commas
+   * (they're text inputs with numeric parsing, since type=number can't
+   * render thousands separators). */
   const WALLET_KEY = "tiWallet";
   const walletStatus = document.getElementById("wallet-status");
-  function saveWallet() {
+  const fmtNum = (n) => (n ? n.toLocaleString("en-US") : "0");
+  const parseNum = (s) => parseInt(String(s).replace(/[^0-9]/g, ""), 10) || 0;
+  function saveWallet(silent) {
     const wallet = {
       savedAt: new Date().toISOString(),
       cards: Array.from(document.querySelectorAll(".cc-check:checked")).map((el) => el.value),
-      balances: Array.from(document.querySelectorAll(".prog-bal")).map((el) => ({ program: el.dataset.program, balance: parseInt(el.value, 10) || 0 })),
+      balances: Array.from(document.querySelectorAll(".prog-bal")).map((el) => ({ program: el.dataset.program, balance: parseNum(el.value) })),
     };
     try { localStorage.setItem(WALLET_KEY, JSON.stringify(wallet)); } catch (e) { return; }
-    showWalletStatus(wallet.savedAt, true);
+    showWalletStatus(wallet.savedAt, silent ? "auto-saved" : "saved");
   }
   function loadWallet() {
     let wallet;
@@ -236,15 +244,21 @@
     document.querySelectorAll(".cc-check").forEach((el) => { el.checked = (wallet.cards || []).includes(el.value); });
     (wallet.balances || []).forEach((b) => {
       const el = document.querySelector(`.prog-bal[data-program="${CSS.escape(b.program)}"]`);
-      if (el) el.value = b.balance;
+      if (el) el.value = fmtNum(b.balance);
     });
-    showWalletStatus(wallet.savedAt, false);
+    showWalletStatus(wallet.savedAt, "loaded from");
   }
-  function showWalletStatus(iso, justSaved) {
+  function showWalletStatus(iso, verb) {
     const d = new Date(iso);
-    walletStatus.textContent = isNaN(d) ? "" : `· ${justSaved ? "saved" : "loaded from"} ${d.toLocaleDateString("en-US", { month: "short", day: "numeric" })}`;
+    walletStatus.textContent = isNaN(d) ? "" : `· ${verb} ${d.toLocaleDateString("en-US", { month: "short", day: "numeric" })} — edit anytime, changes save automatically`;
   }
-  document.getElementById("save-wallet").addEventListener("click", saveWallet);
+  document.getElementById("save-wallet").addEventListener("click", () => saveWallet(false));
+  document.querySelectorAll(".prog-bal").forEach((el) => {
+    el.addEventListener("blur", () => { el.value = fmtNum(parseNum(el.value)); saveWallet(true); });
+    el.addEventListener("focus", () => { if (parseNum(el.value) === 0) el.value = ""; });
+  });
+  document.querySelectorAll(".cc-check").forEach((el) => el.addEventListener("change", () => saveWallet(true)));
+  document.querySelectorAll(".prog-bal").forEach((el) => { el.value = fmtNum(parseNum(el.value)); });
   loadWallet();
 
   // default dates: 10 weeks out, 10-day trip
@@ -278,7 +292,7 @@
     priorityRanks[primary] = 1;
     if (secondary !== "None" && secondary !== primary) priorityRanks[secondary] = 2;
     const programBalances = Array.from(document.querySelectorAll(".prog-bal"))
-      .map((el) => ({ program: el.dataset.program, balance: parseInt(el.value, 10) || 0 }))
+      .map((el) => ({ program: el.dataset.program, balance: parseNum(el.value) }))
       .filter((p) => p.balance > 0);
     const creditCards = Array.from(document.querySelectorAll(".cc-check:checked")).map((el) => el.value);
     const preferredAlliances = Array.from(document.querySelectorAll(".alliance-check:checked")).map((el) => el.value);
@@ -292,7 +306,8 @@
       returnDate: returnEl.value,
       dateFlexibility: pillVal("dateFlexibility") || "Exact",
       tripPurpose: pillVal("tripPurpose") || "Flexible",
-      cabin: pillVal("cabin") || "Best Value",
+      travelers: Math.max(1, parseInt(document.getElementById("travelers").value, 10) || 1),
+      cabin: pillVal("cabin") || "Economy",
       maxBudget: parseInt(document.getElementById("maxBudget").value, 10) || 1000,
       maxStops: parseInt(document.getElementById("maxStops").value, 10),
       checkedBags: parseInt(document.getElementById("checkedBags").value, 10) || 0,
@@ -308,14 +323,47 @@
     };
   }
 
-  form.addEventListener("submit", (e) => {
+  async function fetchLiveOffers(inputs) {
+    const T = window.TravelIntel;
+    const o = T.toIATA(inputs.preferredAirport) || T.toIATA(inputs.origin);
+    const d = T.toIATA(inputs.destination);
+    if (!o || !d || !inputs.departDate) return null;
+    const q = new URLSearchParams({ origin: o, destination: d, depart: inputs.departDate, adults: String(inputs.travelers || 1), cabin: inputs.cabin });
+    if (inputs.returnDate) q.set("return", inputs.returnDate);
+    try {
+      const r = await fetch("/api/fares?" + q, { signal: AbortSignal.timeout(15000) });
+      if (!r.ok) return null;
+      const data = await r.json();
+      return data.live && data.offers && data.offers.length ? data : null;
+    } catch (e) { return null; }
+  }
+
+  form.addEventListener("submit", async (e) => {
     e.preventDefault();
     const inputs = collectInputs();
     const T = window.TravelIntel;
-    const result = T.runOptimization(inputs);
+    resultsEl.innerHTML = '<div class="empty-state"><div class="es-icon">✈</div><p>Searching live fares…</p></div>';
+    const liveData = await fetchLiveOffers(inputs);
+    const result = T.runOptimization(inputs, liveData && liveData.offers);
+    window.__tiLastInputs = inputs;
+    window.__tiLastLive = liveData;
     renderResults(inputs, result);
     document.getElementById("results").scrollIntoView({ behavior: "smooth", block: "start" });
   });
+
+  // Live re-weighting from the results view — same candidates (the model
+  // is deterministic), different lens. This is the "look at the data in
+  // different ways" filter: no form resubmit needed.
+  window.tiReoptimize = function (primary) {
+    if (!window.__tiLastInputs) return;
+    const T = window.TravelIntel;
+    const inputs = Object.assign({}, window.__tiLastInputs);
+    const secondary = document.getElementById("prioritySecondary").value;
+    inputs.priorityRanks = { [primary]: 1 };
+    if (secondary !== "None" && secondary !== primary) inputs.priorityRanks[secondary] = 2;
+    window.__tiLastInputs = inputs;
+    renderResults(inputs, T.runOptimization(inputs, window.__tiLastLive && window.__tiLastLive.offers));
+  };
 
   function scoreBar(dim, score, weight) {
     const T = window.TravelIntel;
@@ -342,8 +390,10 @@
     const award = result.award;
     const timing = result.timing;
 
+    const trav = inputs.travelers || 1;
+    const totalCash = best.price * trav;
     const execSummary = `If this were my own trip, I'd book the ${best.cabin} fare on ${best.carrier}` +
-      `${best.stops === 0 ? " nonstop" : ` with ${best.stops} stop${best.stops > 1 ? "s" : ""}`} for ${T.fmtUSD(best.price)} — ` +
+      `${best.stops === 0 ? " nonstop" : ` with ${best.stops} stop${best.stops > 1 ? "s" : ""}`} for ${T.fmtUSD(best.price)} per person${trav > 1 ? ` (${T.fmtUSD(totalCash)} total for ${trav} travelers)` : ""} — ` +
       `it comes out ahead on the priorities you ranked highest, not just on price. ` +
       (timing.verdict === "buy" ? `Purchase timing favors booking now rather than waiting. ` : timing.verdict === "wait" ? `Purchase timing favors waiting and watching for a better window before locking it in. ` : `It's early enough that I'd set a fare watch rather than transact today. `) +
       (award.strong ? `Your miles balance is a genuinely strong redemption here (${award.cpp.toFixed(2)}¢/mile) — worth booking with points instead of cash.` : `Paying cash beats redeeming miles here (${award.cpp.toFixed(2)}¢/mile) — save the balance for a stronger redemption.`);
@@ -355,9 +405,10 @@
       "Best miles value (¢/mile)": (a, b) => b.candCpp - a.candCpp,
       "Comfort": (a, b) => b.scores.Comfort - a.scores.Comfort,
       "Upgrade potential": (a, b) => b.scores.Upgrade - a.scores.Upgrade,
-      "Fewest stops": (a, b) => a.stops - b.stops || a.travelMinutes - b.travelMinutes,
-      "Shortest time": (a, b) => a.travelMinutes - b.travelMinutes,
+      "Fewest stops": (a, b) => a.stops - b.stops || (a.travelMinutes || 1e9) - (b.travelMinutes || 1e9),
+      "Shortest time": (a, b) => (a.travelMinutes || 1e9) - (b.travelMinutes || 1e9),
     };
+    const fmtTime = (m) => (m == null ? "—" : `${Math.floor(m / 60)}h ${m % 60}m`);
     window.tiSortAlts = function (key) {
       const rows = alts.slice().sort(SORTS[key] || SORTS["Weighted score"]);
       document.getElementById("alt-tbody").innerHTML = altRowsHtml(rows);
@@ -368,7 +419,7 @@
         <td><strong>${c.carrier}</strong><br><span class="form-hint">${c.alliance}</span></td>
         <td>${c.cabin}</td>
         <td>${c.stops === 0 ? "Nonstop" : c.stops + " stop" + (c.stops > 1 ? "s" : "")}</td>
-        <td>${Math.floor(c.travelMinutes / 60)}h ${c.travelMinutes % 60}m</td>
+        <td>${fmtTime(c.travelMinutes)}</td>
         <td>${T.fmtUSD(c.price)}</td>
         <td>~${(c.milesEst / 1000).toFixed(0)}k + ${T.fmtUSD(c.feesEst)}<br><span class="form-hint">${c.candCpp.toFixed(1)}¢/mi · pay ${c.payWith}</span></td>
         <td>${c.weighted.toFixed(0)}</td>
@@ -382,7 +433,20 @@
     const upgradeLikely = best.scores.Upgrade >= 66 ? "High" : best.scores.Upgrade >= 40 ? "Moderate" : "Low";
     const upgradeCostGuess = { Economy: "$150–500 to Premium Economy", "Premium Economy": "$400–1,200 to Business", Business: "$1,500–4,000 to First", First: "already top cabin", "Best Value": "$150–1,200 depending on cabin landed in" }[best.cabin];
 
+    const currentPrimary = Object.entries(inputs.priorityRanks).find(([, r]) => r === 1);
+    const PRIORITIES = ["Best Overall Experience", "Best Value", "Cheapest", "Fastest", "Most Comfortable", "Best Upgrade Opportunity", "Best Use of Miles"];
+
     resultsEl.innerHTML = `
+      <div class="card block" style="display:flex;align-items:flex-end;gap:14px;flex-wrap:wrap;">
+        <div class="form-field" style="flex:1;min-width:220px;max-width:320px;">
+          <label for="results-optimize">Optimize for — re-weights these results live</label>
+          <select id="results-optimize" onchange="tiReoptimize(this.value)">
+            ${PRIORITIES.map((p) => `<option${currentPrimary && currentPrimary[0] === p ? " selected" : ""}>${p}</option>`).join("")}
+          </select>
+        </div>
+        <p class="form-hint" style="flex:2;min-width:200px;margin-bottom:6px;">${result.usingLive ? `<strong>Live fares</strong> retrieved ${window.__tiLastLive && window.__tiLastLive.retrievedAt ? new Date(window.__tiLastLive.retrievedAt).toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit" }) : "just now"} via Amadeus (${window.__tiLastLive ? window.__tiLastLive.environment : "test"}) — real prices, scored by the same engine.` : `<strong>Modeled fares</strong> (demo mode — live backend awaits its API credential).`} Same shortlist, different lens — switching recomputes every weight and re-ranks instantly, no re-run needed. ${trav > 1 ? `Pricing shown per person; totals for ${trav} travelers alongside.` : ""}</p>
+      </div>
+
       <p class="eyebrow" id="exec">Executive summary</p>
       <div class="exec-summary"><p>${execSummary}</p></div>
 
@@ -395,15 +459,16 @@
           </div>
           <div class="rec-price-block">
             <div class="rec-price">${best.payWith === "miles" ? `~${(best.milesEst / 1000).toFixed(0)}k mi + ${T.fmtUSD(best.feesEst)}` : T.fmtUSD(best.price)}</div>
-            <div class="rec-price-sub">round-trip, ${best.cabin} · pay with <strong>${best.payWith}</strong></div>
+            <div class="rec-price-sub">round-trip per person, ${best.cabin} · pay with <strong>${best.payWith}</strong></div>
             <div class="rec-price-sub">${best.payWith === "miles" ? `or ${T.fmtUSD(best.price)} cash` : `or ~${(best.milesEst / 1000).toFixed(0)}k miles + ${T.fmtUSD(best.feesEst)} (${best.candCpp.toFixed(1)}¢/mi — below the 1.6¢ bar)`}</div>
+            ${trav > 1 ? `<div class="rec-price-sub"><strong>× ${trav} travelers:</strong> ${best.payWith === "miles" ? `~${((best.milesEst * trav) / 1000).toFixed(0)}k mi + ${T.fmtUSD(best.feesEst * trav)}` : T.fmtUSD(best.price * trav)} total</div>` : ""}
           </div>
         </div>
         <div class="rec-detail-grid">
           <div class="rec-detail"><div class="rd-label">Stops</div><div class="rd-val">${best.stops === 0 ? "Nonstop" : best.stops}</div></div>
-          <div class="rec-detail"><div class="rd-label">Flight time</div><div class="rd-val">${Math.floor(best.travelMinutes / 60)}h ${best.travelMinutes % 60}m</div></div>
+          <div class="rec-detail"><div class="rd-label">Flight time</div><div class="rd-val">${fmtTime(best.travelMinutes)}</div></div>
           <div class="rec-detail"><div class="rd-label">Fare type</div><div class="rd-val">${best.fareTier}</div></div>
-          <div class="rec-detail"><div class="rd-label">Aircraft</div><div class="rd-val">${best.aircraft}</div></div>
+          <div class="rec-detail"><div class="rd-label">${best.live ? "Availability" : "Aircraft"}</div><div class="rd-val">${best.aircraft}</div></div>
         </div>
         <div class="rec-why"><strong>Why it wins:</strong> highest weighted score (${best.weighted.toFixed(0)}/100) against the priorities you ranked — see the breakdown below for exactly how each dimension was weighted.</div>
       </div>
@@ -428,7 +493,7 @@
           <thead><tr><th>Carrier</th><th>Cabin</th><th>Stops</th><th>Time</th><th>Cash</th><th>Miles (est)</th><th>Score</th></tr></thead>
           <tbody id="alt-tbody">${altRows}</tbody>
         </table>
-        <p class="form-hint" style="margin-top:8px;">Miles column is an estimated planning range per candidate (not an award-space check); "pay miles/cash" flips at the 1.6¢-per-mile bar.</p>
+        <p class="form-hint" style="margin-top:8px;">Prices are per person${trav > 1 ? ` — multiply by ${trav} for your party` : ""}. Miles column is an estimated planning range per candidate (not an award-space check); "pay miles/cash" flips at the 1.6¢-per-mile bar. Award seats are the constraint for groups: programs rarely release ${trav > 1 ? trav + "+" : "many"} award seats on one flight, so for parties consider splitting across two bookings.</p>
       </div>
 
       <p class="eyebrow">Upgrade strategy</p>
@@ -439,7 +504,7 @@
         </div>
         ${result.tactics.map((t, i) => `
         <div class="strategy-block">
-          <h4><span class="in-num" style="margin-right:6px;">${String(i + 1).padStart(2, "0")}</span>${t.title}</h4>
+          <h4><span class="in-num" style="margin-right:6px;">${String(i + 1).padStart(2, "0")}</span>${t.title} <span class="tag" style="background:var(--mid-dim);color:var(--mid);white-space:nowrap;">${t.when}</span></h4>
           <p>${t.detail}</p>
         </div>`).join("")}
       </div>
@@ -452,12 +517,28 @@
         </div>
         ${award.relevantPrograms.length ? `<div class="strategy-block"><h4>Your balances in play</h4><p>${award.relevantPrograms.map((p) => `${p.program}: ${p.balance.toLocaleString()} miles`).join(" · ")}</p></div>` : `<div class="strategy-block"><h4>No balance entered for a ${award.alliance} program</h4><p>Add a balance above if you hold miles in a program that flies this alliance, or check the transfer-partner note below if your points live on a transferable card.</p></div>`}
         ${inputs.creditCards.length ? `<div class="strategy-block"><h4>Transfer path from your cards</h4><p>${inputs.creditCards.map((cc) => T.TRANSFER_PARTNERS[cc] ? `<strong>${cc}</strong> (${T.TRANSFER_PARTNERS[cc].ratio}): ${T.TRANSFER_PARTNERS[cc].note}.` : "").filter(Boolean).join(" ")}</p></div>` : ""}
+        <div class="strategy-block">
+          <h4>Do this now</h4>
+          <p>${award.strong
+            ? `Award space is the constraint, not the math — check live availability on <a class="pick-open" href="https://seats.aero/search" target="_blank" rel="noopener">seats.aero ↗</a> for ${T.toIATA(inputs.preferredAirport) || inputs.origin}→${T.toIATA(inputs.destination) || inputs.destination} before transferring anything. Transfers are one-way doors: confirm the award seat exists, then move the points, then book the same day.`
+            : `Skip the redemption here — book cash and credit the flight to the program whose points TPG values highest among your balances (see Points Intelligence below). Re-check the award math if a transfer bonus above covers this alliance.`}</p>
+        </div>
       </div>
 
       <p class="eyebrow">Purchase strategy</p>
       <div class="card block">
         <div style="margin-bottom:8px;">${timingBadge(timing)}</div>
         <p style="font-size:12.5px;">${timing.reason}</p>
+        <div class="strategy-block" style="margin-top:10px;">
+          <h4>Do this now</h4>
+          <p>${(() => {
+            const o = T.toIATA(inputs.preferredAirport) || T.toIATA(inputs.origin) || inputs.origin;
+            const d = T.toIATA(inputs.destination) || inputs.destination;
+            const gf = `https://www.google.com/travel/flights?q=${encodeURIComponent(`Flights from ${o} to ${d} on ${inputs.departDate}`)}`;
+            if (timing.verdict === "buy") return `<a class="pick-open" href="${gf}" target="_blank" rel="noopener">Open Google Flights ↗</a> and cross-check today's real price against this shortlist, then book directly with ${best.carrier} (direct bookings are far easier to change or get upgraded than OTA bookings).`;
+            return `<a class="pick-open" href="${gf}" target="_blank" rel="noopener">Open Google Flights ↗</a>, turn on <strong>price tracking</strong> for these exact dates (one click, emails you on drops), and set a calendar reminder to re-run this optimizer in 2–3 weeks. Don't check manually every day — let the alert do the watching.`;
+          })()}</p>
+        </div>
       </div>
 
       <p class="eyebrow">Travel advisor insights</p>
@@ -519,6 +600,23 @@
   }
   renderPointsIntel();
   document.querySelectorAll(".cc-check").forEach((el) => el.addEventListener("change", () => renderPointsIntel()));
+
+  /* ---------- mode banner: live fares connected or documented model ---------- */
+  (async function () {
+    const el = document.getElementById("mode-banner");
+    const tail = ' Point valuations and transfer bonuses are real, dated figures from The Points Guy (July 2026), refreshed by hand. See <a href="/guide" style="text-decoration:underline;">the guide</a> for what\'s live vs. computed vs. copied. Your saved wallet lives in this browser only.';
+    try {
+      const r = await fetch("/api/fares?ping=1", { signal: AbortSignal.timeout(6000) });
+      const j = await r.json();
+      if (j.live) {
+        el.innerHTML = "<strong>Live fares connected</strong> via the Amadeus " + (j.env === "production" ? "production" : "test") + " API — real prices, scored by the same documented engine. Mileage figures remain planning ranges (award space isn't searched yet)." + tail;
+        return;
+      }
+      el.innerHTML = "<strong>Demo mode — live backend built, awaiting API credential.</strong> Fares currently come from the documented scoring model; once the Amadeus key is added in Netlify, this banner flips to live automatically." + tail;
+    } catch (e) {
+      el.innerHTML = "<strong>Demo mode.</strong> Fares come from the documented scoring model on hand-maintained reference ranges — the live-fare backend isn't reachable from this page." + tail;
+    }
+  })();
 })();
 </script>
 
