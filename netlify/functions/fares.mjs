@@ -1,17 +1,18 @@
 // netlify/functions/fares.mjs
-// version: 1 (2026-07-18)
-// Live fare search via the Amadeus Self-Service Flight Offers API — the
-// backend that takes Travel Intelligence out of demo mode. The credential
-// lives ONLY in Netlify env vars (AMADEUS_CLIENT_ID / AMADEUS_CLIENT_SECRET),
-// never in source, per CLAUDE.md. With no credential configured this
-// returns {live:false, reason:"not_configured"} and the frontend states
-// plainly that it's running the documented model instead — honest fallback,
-// never a silent one. Set AMADEUS_ENV=production to leave the free test
-// environment once Susan approves any paid usage (spend rule in CLAUDE.md).
-
-const HOSTS = { test: "https://test.api.amadeus.com", production: "https://api.amadeus.com" };
-
-let cachedToken = null; // { token, expiresAt } — per warm lambda instance
+// version: 2 (2026-07-18)
+// Live fare search backend — the piece that takes Travel Intelligence out
+// of demo mode.
+//
+// v1 targeted the Amadeus Self-Service API; Amadeus decommissioned that
+// portal on 2026-07-17 (verified on their site the following day — new
+// self-service signups no longer exist, enterprise-sales only). v2 swaps
+// the provider to SerpApi's Google Flights engine: real Google Flights
+// results, self-serve API key, free tier of 100 searches/month — ample
+// for personal trip planning. The credential lives ONLY in the Netlify
+// env var SERPAPI_KEY, never in source, per CLAUDE.md. With no credential
+// configured this returns {live:false, reason:"not_configured"} and the
+// frontend states plainly that it's running the documented model instead
+// — honest fallback, never a silent one.
 
 function json(body, status) {
   return new Response(JSON.stringify(body), {
@@ -20,41 +21,22 @@ function json(body, status) {
   });
 }
 
-function host() {
-  return HOSTS[(process.env.AMADEUS_ENV || "test").toLowerCase()] || HOSTS.test;
-}
+const CABIN_CLASS = { Economy: "1", "Premium Economy": "2", Business: "3", First: "4" };
 
-async function getToken() {
-  const id = process.env.AMADEUS_CLIENT_ID, secret = process.env.AMADEUS_CLIENT_SECRET;
-  if (!id || !secret) return null;
-  if (cachedToken && Date.now() < cachedToken.expiresAt - 60000) return cachedToken.token;
-  const res = await fetch(host() + "/v1/security/oauth2/token", {
-    method: "POST",
-    headers: { "Content-Type": "application/x-www-form-urlencoded" },
-    body: new URLSearchParams({ grant_type: "client_credentials", client_id: id, client_secret: secret }),
-  });
-  if (!res.ok) return null;
-  const j = await res.json();
-  cachedToken = { token: j.access_token, expiresAt: Date.now() + (j.expires_in || 1799) * 1000 };
-  return cachedToken.token;
-}
-
-function isoDurationToMinutes(iso) {
-  const m = /PT(?:(\d+)H)?(?:(\d+)M)?/.exec(iso || "");
-  return m ? (parseInt(m[1] || 0, 10) * 60 + parseInt(m[2] || 0, 10)) : null;
-}
-
-function titleCase(s) {
-  return (s || "").toLowerCase().replace(/\b\w/g, (c) => c.toUpperCase());
+function titleCaseCarrier(list) {
+  // an itinerary can mix carriers across segments; report the distinct set
+  const names = Array.from(new Set(list.filter(Boolean)));
+  return names.join(" + ") || "Unknown carrier";
 }
 
 export const config = { path: "/api/fares" };
 
 export default async (req) => {
   const url = new URL(req.url);
+  const key = process.env.SERPAPI_KEY;
+
   if (url.searchParams.get("ping")) {
-    const configured = Boolean(process.env.AMADEUS_CLIENT_ID && process.env.AMADEUS_CLIENT_SECRET);
-    return json({ live: configured, reason: configured ? "ready" : "not_configured", env: (process.env.AMADEUS_ENV || "test") });
+    return json({ live: Boolean(key), reason: key ? "ready" : "not_configured", provider: "serpapi-google-flights" });
   }
 
   const origin = (url.searchParams.get("origin") || "").toUpperCase();
@@ -67,25 +49,25 @@ export default async (req) => {
   if (!/^[A-Z]{3}$/.test(origin) || !/^[A-Z]{3}$/.test(destination) || !/^\d{4}-\d{2}-\d{2}$/.test(departDate)) {
     return json({ live: false, reason: "bad_request", detail: "origin/destination must be IATA codes, depart must be YYYY-MM-DD" }, 400);
   }
+  if (!key) return json({ live: false, reason: "not_configured" }, 503);
 
-  const token = await getToken();
-  if (!token) return json({ live: false, reason: "not_configured" }, 503);
-
-  const cabinMap = { Economy: "ECONOMY", "Premium Economy": "PREMIUM_ECONOMY", Business: "BUSINESS", First: "FIRST" };
   const q = new URLSearchParams({
-    originLocationCode: origin,
-    destinationLocationCode: destination,
-    departureDate: departDate,
+    engine: "google_flights",
+    departure_id: origin,
+    arrival_id: destination,
+    outbound_date: departDate,
     adults: String(adults),
-    currencyCode: "USD",
-    max: "20",
+    currency: "USD",
+    hl: "en",
+    api_key: key,
   });
-  if (/^\d{4}-\d{2}-\d{2}$/.test(returnDate)) q.set("returnDate", returnDate);
-  if (cabinMap[cabin]) q.set("travelClass", cabinMap[cabin]);
+  if (/^\d{4}-\d{2}-\d{2}$/.test(returnDate)) { q.set("return_date", returnDate); q.set("type", "1"); }
+  else { q.set("type", "2"); }
+  if (CABIN_CLASS[cabin]) q.set("travel_class", CABIN_CLASS[cabin]);
 
   let res;
   try {
-    res = await fetch(host() + "/v2/shopping/flight-offers?" + q, { headers: { Authorization: "Bearer " + token } });
+    res = await fetch("https://serpapi.com/search?" + q);
   } catch (e) {
     return json({ live: false, reason: "upstream_unreachable" }, 502);
   }
@@ -94,32 +76,35 @@ export default async (req) => {
     return json({ live: false, reason: "upstream_error", status: res.status, detail: detail.slice(0, 400) }, 502);
   }
   const j = await res.json();
-  const carriers = (j.dictionaries && j.dictionaries.carriers) || {};
+  if (j.error) return json({ live: false, reason: "upstream_error", detail: String(j.error).slice(0, 400) }, 502);
 
-  const offers = (j.data || []).map((o, idx) => {
-    const its = o.itineraries || [];
-    const stopsPerLeg = its.map((it) => (it.segments || []).length - 1);
-    const minutes = its.reduce((s, it) => s + (isoDurationToMinutes(it.duration) || 0), 0);
-    const code = (o.validatingAirlineCodes && o.validatingAirlineCodes[0]) || (its[0] && its[0].segments[0] && its[0].segments[0].carrierCode) || "";
-    const cabins = new Set();
-    (o.travelerPricings || []).forEach((tp) => (tp.fareDetailsBySegment || []).forEach((fd) => fd.cabin && cabins.add(fd.cabin)));
+  const raw = [...(j.best_flights || []), ...(j.other_flights || [])];
+  const offers = raw.slice(0, 20).map((o, idx) => {
+    const segs = o.flights || [];
     return {
       id: idx,
-      carrierCode: code,
-      carrier: titleCase(carriers[code] || code),
-      priceTotal: parseFloat(o.price && o.price.grandTotal) || null, // total for ALL travelers, USD
-      stops: Math.max(...(stopsPerLeg.length ? stopsPerLeg : [0])),
-      durationMinutes: minutes || null, // out + return combined
-      cabins: Array.from(cabins),
-      bookableSeats: o.numberOfBookableSeats || null,
-      lastTicketingDate: o.lastTicketingDate || null,
+      carrier: titleCaseCarrier(segs.map((s) => s.airline)),
+      carrierCode: (segs[0] && s0code(segs[0])) || "",
+      priceTotal: typeof o.price === "number" ? o.price : parseFloat(o.price) || null, // TOTAL for all travelers, USD
+      stops: Math.max(0, segs.length - 1),
+      durationMinutes: o.total_duration || null, // whole itinerary as returned by Google Flights
+      cabins: [],
+      bookableSeats: null,
+      aircraft: segs[0] && segs[0].airplane ? segs[0].airplane : null,
+      isBest: idx < (j.best_flights || []).length,
     };
   }).filter((o) => o.priceTotal);
+
+  function s0code(seg) {
+    const fn = seg.flight_number || "";
+    const m = /^([A-Z0-9]{2})\s/.exec(fn);
+    return m ? m[1] : "";
+  }
 
   return json({
     live: true,
     retrievedAt: new Date().toISOString(),
-    environment: (process.env.AMADEUS_ENV || "test"),
+    provider: "Google Flights (SerpApi)",
     origin, destination, departDate, returnDate: returnDate || null, adults,
     offers,
   });

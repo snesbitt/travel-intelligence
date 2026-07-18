@@ -399,10 +399,11 @@ function buildLiveCandidates(inputs, offers) {
         fareTier: "Standard", price, dateOffset: 0, cabin, scores,
         cpp: candCpp, milesMid: milesEst, feesMid: feesEst,
         milesEst, feesEst, candCpp, payWith: candCpp >= 1.6 ? "miles" : "cash",
-        travelMinutes: o.durationMinutes ? Math.round(o.durationMinutes / 2) : null,
+        travelMinutes: o.durationMinutes || null, // provider returns outbound (one-way) minutes
         routeKm: route.km, routeKnown: route.known,
-        aircraft: o.bookableSeats ? `${o.bookableSeats} bookable seats` : "—",
-        live: true, priceTotal: Math.round(o.priceTotal), lastTicketingDate: o.lastTicketingDate,
+        aircraft: o.aircraft || (o.bookableSeats ? `${o.bookableSeats} bookable seats` : "—"),
+        availLabel: o.aircraft ? "Aircraft" : "Availability",
+        live: true, priceTotal: Math.round(o.priceTotal), lastTicketingDate: o.lastTicketingDate || null,
       };
     });
 }

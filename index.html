@@ -444,7 +444,7 @@
             ${PRIORITIES.map((p) => `<option${currentPrimary && currentPrimary[0] === p ? " selected" : ""}>${p}</option>`).join("")}
           </select>
         </div>
-        <p class="form-hint" style="flex:2;min-width:200px;margin-bottom:6px;">${result.usingLive ? `<strong>Live fares</strong> retrieved ${window.__tiLastLive && window.__tiLastLive.retrievedAt ? new Date(window.__tiLastLive.retrievedAt).toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit" }) : "just now"} via Amadeus (${window.__tiLastLive ? window.__tiLastLive.environment : "test"}) — real prices, scored by the same engine.` : `<strong>Modeled fares</strong> (demo mode — live backend awaits its API credential).`} Same shortlist, different lens — switching recomputes every weight and re-ranks instantly, no re-run needed. ${trav > 1 ? `Pricing shown per person; totals for ${trav} travelers alongside.` : ""}</p>
+        <p class="form-hint" style="flex:2;min-width:200px;margin-bottom:6px;">${result.usingLive ? `<strong>Live fares</strong> retrieved ${window.__tiLastLive && window.__tiLastLive.retrievedAt ? new Date(window.__tiLastLive.retrievedAt).toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit" }) : "just now"} via ${window.__tiLastLive && window.__tiLastLive.provider ? window.__tiLastLive.provider : "the live backend"} — real prices, scored by the same engine.` : `<strong>Modeled fares</strong> (demo mode — live backend awaits its API credential).`} Same shortlist, different lens — switching recomputes every weight and re-ranks instantly, no re-run needed. ${trav > 1 ? `Pricing shown per person; totals for ${trav} travelers alongside.` : ""}</p>
       </div>
 
       <p class="eyebrow" id="exec">Executive summary</p>
@@ -468,7 +468,7 @@
           <div class="rec-detail"><div class="rd-label">Stops</div><div class="rd-val">${best.stops === 0 ? "Nonstop" : best.stops}</div></div>
           <div class="rec-detail"><div class="rd-label">Flight time</div><div class="rd-val">${fmtTime(best.travelMinutes)}</div></div>
           <div class="rec-detail"><div class="rd-label">Fare type</div><div class="rd-val">${best.fareTier}</div></div>
-          <div class="rec-detail"><div class="rd-label">${best.live ? "Availability" : "Aircraft"}</div><div class="rd-val">${best.aircraft}</div></div>
+          <div class="rec-detail"><div class="rd-label">${best.live ? (best.availLabel || "Availability") : "Aircraft"}</div><div class="rd-val">${best.aircraft}</div></div>
         </div>
         <div class="rec-why"><strong>Why it wins:</strong> highest weighted score (${best.weighted.toFixed(0)}/100) against the priorities you ranked — see the breakdown below for exactly how each dimension was weighted.</div>
       </div>
@@ -609,10 +609,10 @@
       const r = await fetch("/api/fares?ping=1", { signal: AbortSignal.timeout(6000) });
       const j = await r.json();
       if (j.live) {
-        el.innerHTML = "<strong>Live fares connected</strong> via the Amadeus " + (j.env === "production" ? "production" : "test") + " API — real prices, scored by the same documented engine. Mileage figures remain planning ranges (award space isn't searched yet)." + tail;
+        el.innerHTML = "<strong>Live fares connected</strong> — real Google Flights prices (via SerpApi), scored by the same documented engine. Mileage figures remain planning ranges (award space isn't searched yet)." + tail;
         return;
       }
-      el.innerHTML = "<strong>Demo mode — live backend built, awaiting API credential.</strong> Fares currently come from the documented scoring model; once the Amadeus key is added in Netlify, this banner flips to live automatically." + tail;
+      el.innerHTML = "<strong>Demo mode — live backend built, awaiting API credential.</strong> Fares currently come from the documented scoring model; once the SerpApi key is added in Netlify, this banner flips to live automatically." + tail;
     } catch (e) {
       el.innerHTML = "<strong>Demo mode.</strong> Fares come from the documented scoring model on hand-maintained reference ranges — the live-fare backend isn't reachable from this page." + tail;
     }

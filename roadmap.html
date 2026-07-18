@@ -67,10 +67,13 @@
       <div class="phase-head">
         <span class="phase-num">03</span>
         <span class="phase-title">GitHub repo</span>
-        <span class="phase-status planned">Planned</span>
+        <span class="phase-status live">Live</span>
       </div>
-      <p class="phase-body">A GitHub repository matching the other two sites' continuous-deployment governance model — push to main, Netlify auto-deploys. This build was handed off as files to push from your own machine rather than pushed directly from this cloud session, since no GitHub credential is available here.</p>
+      <p class="phase-body">A GitHub repository matching the other two sites' continuous-deployment governance model — push to main, Netlify auto-deploys. Commits are made from Cowork sessions and pushed from Susan's own machine, since no GitHub credential lives in the cloud session.</p>
       <p class="phase-value">Parity with the other two sites' deploy pipeline, and a real commit history for this project.</p>
+      <ul class="phase-log">
+        <li><span class="lg-date">JUL 2026</span>Closed: github.com/snesbitt/travel-intelligence linked to the Netlify project (the site had been deploying via manual drag-and-drop, which is why an earlier push silently didn't appear on the live site). Auto-deploy verified end-to-end the same day.</li>
+      </ul>
     </div>
 
     <div class="phase">
@@ -92,10 +95,11 @@
         <span class="phase-title">live fare &amp; award data</span>
         <span class="phase-status live">Built — awaiting credential</span>
       </div>
-      <p class="phase-body">The live-fare backend is built and shipped: a Netlify Function (<code>/api/fares</code>) proxying the Amadeus Flight Offers API, with the frontend wired to search real fares on every run and score them through the same six-dimension engine. The one remaining step is the API credential — creating the (free) Amadeus self-service account is Susan's to do, since credentials and any potential spend are never taken on the agent's behalf. Until the key is added in Netlify env vars, the site says plainly it's in demo mode and falls back to the documented model; the moment the key exists, the banner flips to live automatically. Award-space search (seats.aero-style) remains the next gap after fares.</p>
+      <p class="phase-body">The live-fare backend is built and shipped: a Netlify Function (<code>/api/fares</code>) proxying Google Flights results via SerpApi, with the frontend wired to search real fares on every run and score them through the same six-dimension engine. The one remaining step is the API credential — creating the (free-tier) SerpApi account is Susan's to do, since credentials and any potential spend are never taken on the agent's behalf. Until the key is added in Netlify env vars, the site says plainly it's in demo mode and falls back to the documented model; the moment the key exists, the banner flips to live automatically. Award-space search (seats.aero-style) remains the next gap after fares.</p>
       <p class="phase-value">The recommendation stops being a documented estimate and becomes a real, bookable answer.</p>
       <ul class="phase-log">
-        <li><span class="lg-date">JUL 2026</span>Fare backend shipped: Amadeus proxy Function with token caching, honest 503 fallback when unconfigured, city→IATA mapping, and live offers scored by the identical weighting engine — real prices, same legible framework. Route geometry also fixed model mode: flight times and fare scaling now derive from real great-circle distances (a nonstop to Rome reads ~12h, not a fabricated short-haul number).</li>
+        <li><span class="lg-date">JUL 2026</span>Fare backend shipped: provider-proxy Function with honest 503 fallback when unconfigured, city→IATA mapping, and live offers scored by the identical weighting engine — real prices, same legible framework. Route geometry also fixed model mode: flight times and fare scaling now derive from real great-circle distances (a nonstop to Rome reads ~12h, not a fabricated short-haul number).</li>
+        <li><span class="lg-date">JUL 2026</span>Provider pivot, one day later: Amadeus decommissioned its self-service portal on Jul 17 — discovered when attempting the signup, verified on their site. Backend v2 swapped to Google Flights data via SerpApi (self-serve key, free tier of 100 searches/month), same honest-fallback contract. Netlify was also linked to the GitHub repo, closing phase 03: pushes now auto-deploy.</li>
       </ul>
     </div>
 

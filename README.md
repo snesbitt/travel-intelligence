@@ -37,11 +37,12 @@ example of what an agentic build looks like, not a one-off demo.
   and active transfer bonuses, hand-copied with their as-of date shown
   (July 2026 currently), wallet-aware so your own cards are flagged.
 
-- A live-fare backend (`netlify/functions/fares.mjs`): an Amadeus Flight
-  Offers proxy the frontend queries on every run, scoring real prices
-  through the same engine. Activates automatically once
-  `AMADEUS_CLIENT_ID`/`AMADEUS_CLIENT_SECRET` are set in Netlify env
-  vars; until then the site states it's in demo mode and uses the model.
+- A live-fare backend (`netlify/functions/fares.mjs`): a Google Flights
+  proxy (via SerpApi) the frontend queries on every run, scoring real
+  prices through the same engine. Activates automatically once
+  `SERPAPI_KEY` is set in Netlify env vars; until then the site states
+  it's in demo mode and uses the model. (Amadeus Self-Service was the
+  original provider; that portal was decommissioned 2026-07-17.)
 
 ## What's not real yet (see `roadmap.html`)
 

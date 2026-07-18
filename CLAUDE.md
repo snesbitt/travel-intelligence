@@ -18,9 +18,12 @@ honest about what's real vs. modeled, and legible to a non-technical reader,
 not just a demo. Hold every future change to that standard.
 
 - Data source: live fares via `netlify/functions/fares.mjs`, a proxy to
-  the Amadeus Flight Offers API. Credentials live ONLY in Netlify env
-  vars (`AMADEUS_CLIENT_ID`, `AMADEUS_CLIENT_SECRET`, optional
-  `AMADEUS_ENV=production`), never in source. When unconfigured or
+  SerpApi's Google Flights engine (v1 targeted Amadeus Self-Service;
+  Amadeus decommissioned that portal 2026-07-17, so v2 pivoted). The
+  credential lives ONLY in the Netlify env var `SERPAPI_KEY`, never in
+  source. Free tier is 100 searches/month — each "Run the optimization"
+  costs one search, so don't add auto-refresh loops without Susan's
+  sign-off. When unconfigured or
   unreachable, the frontend falls back to the deterministic scoring
   model on hand-maintained reference ranges and SAYS SO in the banner
   and results header — the fallback must never be silent. Live offers
