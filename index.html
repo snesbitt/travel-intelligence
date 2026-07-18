@@ -50,7 +50,14 @@
           <div class="form-field"><label for="airportFlexibility">Nearby airports you'd consider</label><input type="text" id="airportFlexibility" placeholder="e.g. SFO, SJC, OAK" value="SFO, SJC, OAK"></div>
           <div class="form-field"><label for="departDate">Departure date</label><input type="date" id="departDate"></div>
           <div class="form-field"><label for="returnDate">Return date</label><input type="date" id="returnDate"></div>
-          <div class="form-field"><label for="travelers">Travelers</label><input type="number" id="travelers" value="1" min="1" max="9" step="1"></div>
+          <div class="form-field"><label>Travelers</label>
+            <div style="display:flex;align-items:center;gap:10px;">
+              <button type="button" id="trav-minus" aria-label="Fewer travelers" style="width:40px;height:40px;border-radius:10px;border:1px solid var(--line, #d8d0bf);background:#fff;font-size:20px;cursor:pointer;line-height:1;">−</button>
+              <span id="trav-count" style="min-width:44px;text-align:center;font-weight:600;font-size:16px;">1 <span style="font-weight:400;font-size:11px;display:block;">traveler</span></span>
+              <button type="button" id="trav-plus" aria-label="More travelers" style="width:40px;height:40px;border-radius:10px;border:1px solid var(--line, #d8d0bf);background:#fff;font-size:20px;cursor:pointer;line-height:1;">+</button>
+              <input type="hidden" id="travelers" value="1">
+            </div>
+          </div>
         </div>
         <div class="form-field" style="margin-top:10px;">
           <label>Date flexibility</label>
@@ -252,6 +259,19 @@
     const d = new Date(iso);
     walletStatus.textContent = isNaN(d) ? "" : `· ${verb} ${d.toLocaleDateString("en-US", { month: "short", day: "numeric" })} — edit anytime, changes save automatically`;
   }
+  /* ---------- travelers stepper ---------- */
+  (function () {
+    const hidden = document.getElementById("travelers");
+    const count = document.getElementById("trav-count");
+    function render() {
+      const n = parseInt(hidden.value, 10) || 1;
+      count.innerHTML = `${n} <span style="font-weight:400;font-size:11px;display:block;">${n === 1 ? "traveler" : "travelers"}</span>`;
+    }
+    document.getElementById("trav-minus").addEventListener("click", () => { hidden.value = Math.max(1, (parseInt(hidden.value, 10) || 1) - 1); render(); });
+    document.getElementById("trav-plus").addEventListener("click", () => { hidden.value = Math.min(9, (parseInt(hidden.value, 10) || 1) + 1); render(); });
+    render();
+  })();
+
   document.getElementById("save-wallet").addEventListener("click", () => saveWallet(false));
   document.querySelectorAll(".prog-bal").forEach((el) => {
     el.addEventListener("blur", () => { el.value = fmtNum(parseNum(el.value)); saveWallet(true); });
