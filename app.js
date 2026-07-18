@@ -49,14 +49,43 @@ const CABIN_FLOOR = { Economy: 220, "Premium Economy": 560, Business: 1800, Firs
 const CABIN_COMFORT_BASE = { Economy: 38, "Premium Economy": 58, Business: 85, First: 97, "Best Value": 54 };
 
 const TRANSFER_PARTNERS = {
-  "American Express Membership Rewards": { ratio: "1:1", note: "transfers to most Star Alliance and Oneworld programs, plus Delta" },
-  "Chase Ultimate Rewards": { ratio: "1:1", note: "transfers to United, Air France/KLM, Virgin Atlantic — no American or Delta" },
-  "Capital One": { ratio: "1:1 (most partners)", note: "transfers to Air Canada, Turkish, Avianca LifeMiles, Air France/KLM" },
-  "Citi ThankYou": { ratio: "1:1 (most partners)", note: "transfers to Turkish, Air France/KLM" },
-  "Bilt Rewards": { ratio: "1:1", note: "transfers to United, American, Air France/KLM, Turkish — the only major card that transfers to American" },
-  "Wells Fargo": { ratio: "1:1", note: "transfers to Air France/KLM, Avianca LifeMiles" },
-  "Marriott Bonvoy": { ratio: "3:1 (plus a 5,000 bonus per 60k converted)", note: "weak ratio for flights — hotel points converted to air are rarely a good redemption" },
+  "American Express Membership Rewards": { ratio: "1:1", value: 2.0, note: "transfers to most Star Alliance and Oneworld programs, plus Delta, Flying Blue, Virgin Atlantic, ANA, Avianca LifeMiles" },
+  "Chase Ultimate Rewards": { ratio: "1:1", value: 2.05, note: "transfers to United, Air Canada Aeroplan, Air France/KLM Flying Blue, Virgin Atlantic, Singapore, British Airways — no American or Delta" },
+  "Capital One": { ratio: "1:1 (most partners)", value: 1.85, note: "transfers to Air Canada Aeroplan, Turkish, Avianca LifeMiles, Air France/KLM, Cathay, EVA" },
+  "Citi ThankYou": { ratio: "1:1 (most partners)", value: 1.9, note: "transfers to Turkish, Air France/KLM, Avianca LifeMiles, Qatar Avios" },
+  "Bilt Rewards": { ratio: "1:1", value: 2.2, note: "transfers to United, American, Air France/KLM, Turkish, Alaska — the only major card that transfers to American, and TPG's highest-valued currency" },
+  "Wells Fargo": { ratio: "1:1", value: 1.75, note: "transfers to Air France/KLM, Avianca LifeMiles, Virgin Atlantic" },
+  "Marriott Bonvoy": { ratio: "3:1 (plus a 5,000 bonus per 60k converted)", value: 0.8, note: "weak ratio for flights — hotel points converted to air are rarely a good redemption" },
 };
+
+// TPG's published monthly valuations, July 2026 issue (thepointsguy.com/
+// loyalty-programs/monthly-valuations/). Hand-copied on 2026-07-18, not
+// live-fetched — re-copy monthly or when a program devalues. Cents per
+// point/mile. This is the "which airline's points are actually worth the
+// most" answer, straight from the source Susan asked to pull in.
+const POINT_VALUATIONS = {
+  asOf: "July 2026 (TPG monthly valuations, copied 2026-07-18)",
+  cards: {
+    "Bilt Rewards": 2.2, "Chase Ultimate Rewards": 2.05, "American Express Membership Rewards": 2.0,
+    "Citi ThankYou": 1.9, "Capital One": 1.85, "Wells Fargo": 1.75,
+  },
+  airlines: {
+    "Alaska Atmos Rewards": 1.55, "Flying Blue (Air France/KLM)": 1.55, "Air Canada Aeroplan": 1.5,
+    "Virgin Atlantic Flying Club": 1.5, "Avianca LifeMiles": 1.45, "American AAdvantage": 1.4,
+    "ANA Mileage Club": 1.4, "Avios (BA/Iberia/Qatar)": 1.4, "JetBlue TrueBlue": 1.35,
+    "United MileagePlus": 1.3, "Cathay Asia Miles": 1.3, "Qantas Frequent Flyer": 1.3,
+    "Singapore KrisFlyer": 1.3, "Southwest Rapid Rewards": 1.25, "Delta SkyMiles": 1.2,
+    "Emirates Skywards": 1.2, "Etihad Guest": 1.2, "Turkish Miles&Smiles": 1.1,
+  },
+};
+
+// Active transfer bonuses — hand-copied 2026-07-18 from TPG's current-
+// transfer-bonuses page; these expire and change monthly, so each entry
+// carries its end date and the UI must always show it.
+const TRANSFER_BONUSES = [
+  { from: "American Express Membership Rewards", to: "Virgin Atlantic Flying Club", bonus: "30%", ends: "Jul 31, 2026" },
+  { from: "Capital One", to: "EVA Air Infinity MileageLands", bonus: "30%", ends: "Jul 31, 2026" },
+];
 
 const PRIORITY_WEIGHTS = {
   Cheapest:                 { Cost: 1.0, Comfort: 0.1, Upgrade: 0.1, Award: 0.2, Flexibility: 0.1, Risk: 0.2 },
@@ -160,10 +189,19 @@ function generateCandidates(inputs) {
     const monthRisk = seasonalRisk(inputs.departDate);
     scores.Risk = clamp(100 - stops * 18 - monthRisk, 5, 100);
 
+    // miles+cash either/or: an estimated miles price for THIS candidate,
+    // interpolated within the cabin's reference range by where the cash
+    // price sits in its own plausible band. Planning figure, not a quote.
+    const priceBand = clamp((price - (CABIN_FLOOR[inputs.cabin] || 200)) / Math.max(1, (CABIN_BASE[inputs.cabin] || 620) * 1.4), 0, 1);
+    const milesEst = Math.round((range.milesLow + (range.milesHigh - range.milesLow) * priceBand) / 5000) * 5000;
+    const feesEst = Math.round(range.feesLow + (range.feesHigh - range.feesLow) * priceBand);
+    const candCpp = ((price - feesEst) / Math.max(1, milesEst)) * 100;
+
     candidates.push({
       id: i, carrier, alliance: allianceOf(carrier), stops, fareTier, price, dateOffset,
       cabin: inputs.cabin === "Best Value" ? (cpp * 42 > 60 ? "Business" : "Economy") : inputs.cabin,
       scores, cpp, milesMid, feesMid,
+      milesEst, feesEst, candCpp, payWith: candCpp >= 1.6 ? "miles" : "cash",
       travelMinutes: 105 + stops * 95 + Math.round(rng() * 40),
       aircraft: pickAircraft(rng, stops, inputs.cabin),
     });
@@ -239,6 +277,74 @@ function awardRecommendation(best, inputs, programBalances) {
   const relevantPrograms = programBalances.filter((p) => p.balance > 0);
   const strong = cpp >= 1.6;
   return { milesLow: range.milesLow, milesHigh: range.milesHigh, milesMid, feesMid, cpp, strong, alliance, relevantPrograms, cabin: best.cabin };
+}
+
+/* ---------- upgrade tactics ----------
+ * Concrete, ordered plays to land the cabin you actually want — the
+ * "do this creative thing to get what you want" layer. Grounded in the
+ * bid-upgrade mechanics documented by TPG and Going (July 2026): bid
+ * 20–40% of the fare gap, slightly above the minimum; most bid windows
+ * close 48–72h out (Virgin Atlantic opens 7 days out); typical winning
+ * long-haul business bids run $300–600; if the bid loses, ask at
+ * check-in — counter-offers there are common.
+ */
+
+function upgradeTactics(best, inputs) {
+  const tactics = [];
+  const cabinAbove = { Economy: "Premium Economy", "Premium Economy": "Business", Business: "First", "Best Value": "Business" }[best.cabin];
+  if (!cabinAbove) {
+    tactics.push({ title: "You're booking top cabin", detail: "No upgrade path above First — the play here is price, not position. Consider whether Business at roughly half the fare gets you 90% of the experience." });
+    return tactics;
+  }
+
+  tactics.push({
+    title: `Book the upgradeable fare, not the cheapest one`,
+    detail: `Basic/deep-discount buckets are usually excluded from upgrades entirely. On ${best.carrier}, book at least the Standard fare tier — the few dollars more is the entry ticket to every tactic below.`,
+  });
+  tactics.push({
+    title: `Bid 20–40% of the fare gap — slightly above the minimum`,
+    detail: `If ${cabinAbove} sells for say $2,400 more than your fare, a winning bid typically lands at $480–960. Most travelers bid the exact minimum, so bidding even 5–10% above it beats the crowd. Typical winning long-haul Business bids run $300–600. Bids are per segment, per passenger, and charge only if you win.`,
+  });
+  tactics.push({
+    title: `Know the bid window and set a reminder`,
+    detail: `Most carriers open upgrade bidding after booking and close it 48–72 hours before departure (Virgin Atlantic opens a full 7 days out; a few award winners as late as 3 hours before). Set a calendar reminder for T-minus-4-days to place or revise your bid.`,
+  });
+  tactics.push({
+    title: `Check the premium cabin seat map before bidding`,
+    detail: `A wide-open ${cabinAbove} cabin a week out means low bids clear; a nearly-full one means don't waste the bid. Check the seat map on ${best.carrier}'s own site (or ExpertFlyer) the day bidding closes.`,
+  });
+  tactics.push({
+    title: `Miles + cash copay upgrade`,
+    detail: `Many programs sell one-cabin upgrades for miles plus a cash copay — often the single best redemption rate in the whole program, and a smart use of a balance too small for a full award. Call or check "upgrade with miles" on your booking before paying a cash bid.`,
+  });
+  tactics.push({
+    title: `If the bid loses, ask at check-in — then again at the gate`,
+    detail: `Rejected bids are routinely followed by a cheaper counter-offer at online check-in (T-24h). Failing that, ask the agent at the desk, politely and specifically: "Are paid upgrades to ${cabinAbove} available on this flight?" Gate offers on undersold cabins can beat every earlier price.`,
+  });
+  if (inputs.tripPurpose === "Business" || inputs.tripPurpose === "Family") {
+    tactics.push({
+      title: `The creative play: split the cabin`,
+      detail: `Booking one ${cabinAbove} seat and the rest of the party in ${best.cabin} — then trading off on a long flight — costs a fraction of upgrading everyone and is entirely allowed.`,
+    });
+  }
+  tactics.push({
+    title: `The creative play: price the "mistake" routings`,
+    detail: `Same-cabin fares from a nearby origin (${(inputs.airportFlexibility || "your alternates").split(",")[0].trim()} vs. a bigger hub) or with one positioning flight are sometimes lower than the upgrade cost itself — always price ${cabinAbove} from the alternate airports you listed before paying to upgrade the primary routing.`,
+  });
+  return tactics;
+}
+
+/* ---------- best-points answers ----------
+ * Direct answers to "which airlines offer the best points" and "what are
+ * my transfer options" — driven by the dated TPG table above, never
+ * presented as timeless truth.
+ */
+
+function bestPointsAnswers(inputs) {
+  const airlines = Object.entries(POINT_VALUATIONS.airlines).sort((a, b) => b[1] - a[1]);
+  const cards = Object.entries(POINT_VALUATIONS.cards).sort((a, b) => b[1] - a[1]);
+  const held = (inputs.creditCards || []).filter((c) => TRANSFER_PARTNERS[c]);
+  return { asOf: POINT_VALUATIONS.asOf, topAirlines: airlines.slice(0, 6), allAirlines: airlines, topCards: cards, heldCards: held, bonuses: TRANSFER_BONUSES };
 }
 
 /* ---------- insights ---------- */
@@ -323,9 +429,15 @@ function runOptimization(inputs) {
   const timing = purchaseTiming(inputs);
   const award = awardRecommendation(best, inputs, inputs.programBalances || []);
   const insights = buildInsights(inputs, candidates, best, weights, timing);
-  return { candidates, weights, best, alternatives, timing, award, insights };
+  const tactics = upgradeTactics(best, inputs);
+  const pointsIntel = bestPointsAnswers(inputs);
+  return { candidates, weights, best, alternatives, timing, award, insights, tactics, pointsIntel };
 }
 
 if (typeof window !== "undefined") {
-  window.TravelIntel = { runOptimization, computeWeights, ALLIANCES, ALL_CARRIERS, TRANSFER_PARTNERS, DIMENSIONS, DIM_LABEL, fmtUSD };
+  window.TravelIntel = {
+    runOptimization, computeWeights, upgradeTactics, bestPointsAnswers,
+    ALLIANCES, ALL_CARRIERS, TRANSFER_PARTNERS, POINT_VALUATIONS, TRANSFER_BONUSES,
+    DIMENSIONS, DIM_LABEL, fmtUSD,
+  };
 }

@@ -13,15 +13,29 @@ example of what an agentic build looks like, not a one-off demo.
 
 ## What's real today (Phase 1)
 
-- The full Input Card: trip, flight preferences, ranked optimization
-  priority, credit cards, 13 airline loyalty programs, airport flexibility.
-  (Hotel loyalty programs were removed for now — see roadmap.html.)
+- The full Input Card: trip, flight preferences, optimization priority
+  (primary + optional secondary dropdown), credit cards, 13 airline
+  loyalty programs, airport flexibility. (Hotel loyalty programs were
+  removed for now — see roadmap.html.)
+- A saved wallet: credit cards and loyalty balances persist in the
+  browser (localStorage) and reload automatically — update the figures
+  as they change and re-save.
 - A deterministic scoring engine (`app.js`) — six dimensions (Cost,
   Comfort, Upgrade Potential, Award Value, Flexibility, Risk), weighted by
-  your priority ranking, computed entirely in the browser.
+  your priority choice, computed entirely in the browser.
+- Miles-or-cash pricing on every candidate: an estimated miles+fees price
+  alongside cash, with a pay-with recommendation that flips at the
+  1.6¢/mile bar, plus a sort-by control to view the shortlist by price,
+  miles value, comfort, upgrade potential, stops, or time.
 - Every output section from the original agent brief: Executive Summary,
-  Best Recommendation, Top Five Alternatives, Upgrade Strategy, Award
-  Strategy, Purchase Strategy, Travel Advisor Insights.
+  Best Recommendation, Top Five Alternatives, Upgrade Strategy (now seven
+  concrete tactics — bid sizing, bid windows, check-in counter-offers,
+  miles+copay, creative plays), Award Strategy, Purchase Strategy, Travel
+  Advisor Insights.
+- A Points Intelligence panel answering "which airline's points are worth
+  the most" and "what are my transfer options": TPG's monthly valuations
+  and active transfer bonuses, hand-copied with their as-of date shown
+  (July 2026 currently), wallet-aware so your own cards are flagged.
 
 ## What's not real yet (see `roadmap.html`)
 

@@ -37,7 +37,7 @@
 
     <div class="sync-banner">
       <span class="sync-dot"></span>
-      <span><strong>Demo mode.</strong> This runs a documented scoring model on hand-maintained reference ranges — not a live fare or award search yet. See <a href="/guide" style="text-decoration:underline;">the guide</a> for exactly what's computed vs. planned. No data leaves your browser.</span>
+      <span><strong>Demo mode.</strong> Fares and mileage figures come from a documented scoring model on hand-maintained reference ranges — not a live fare or award search yet. Point valuations and transfer bonuses are real, dated figures from The Points Guy (July 2026), refreshed by hand. See <a href="/guide" style="text-decoration:underline;">the guide</a> for exactly what's computed vs. copied vs. planned. No data leaves your browser — your saved wallet lives in this browser only.</span>
     </div>
 
     <form id="trip-form">
@@ -116,20 +116,39 @@
 
       <section class="block card">
         <h2 class="card-title">Optimization priority</h2>
-        <p class="form-hint" style="margin-bottom:10px;">Rank 1 (most important) through 7 (least). This is the weighting the engine explains its recommendation against — see the score breakdown in your results.</p>
-        <ul class="rank-list" id="rank-list">
-          <li><span class="rank-num">—</span><span style="flex:1;">Cheapest</span><input type="number" min="1" max="7" value="2" data-priority="Cheapest" style="width:52px;"></li>
-          <li><span class="rank-num">—</span><span style="flex:1;">Best Value</span><input type="number" min="1" max="7" value="1" data-priority="Best Value" style="width:52px;"></li>
-          <li><span class="rank-num">—</span><span style="flex:1;">Fastest</span><input type="number" min="1" max="7" value="7" data-priority="Fastest" style="width:52px;"></li>
-          <li><span class="rank-num">—</span><span style="flex:1;">Most Comfortable</span><input type="number" min="1" max="7" value="4" data-priority="Most Comfortable" style="width:52px;"></li>
-          <li><span class="rank-num">—</span><span style="flex:1;">Best Upgrade Opportunity</span><input type="number" min="1" max="7" value="5" data-priority="Best Upgrade Opportunity" style="width:52px;"></li>
-          <li><span class="rank-num">—</span><span style="flex:1;">Best Use of Miles</span><input type="number" min="1" max="7" value="6" data-priority="Best Use of Miles" style="width:52px;"></li>
-          <li><span class="rank-num">—</span><span style="flex:1;">Best Overall Experience</span><input type="number" min="1" max="7" value="3" data-priority="Best Overall Experience" style="width:52px;"></li>
-        </ul>
+        <p class="form-hint" style="margin-bottom:10px;">Pick what matters most on this trip (and optionally a runner-up). The engine weights every dimension from this — the per-dimension weights stay visible in your results, never collapsed into an opaque number. Use the sort-by control in the results to view the same shortlist through any other lens.</p>
+        <div class="form-grid">
+          <div class="form-field">
+            <label for="priorityPrimary">Optimize for</label>
+            <select id="priorityPrimary">
+              <option>Best Value</option>
+              <option>Cheapest</option>
+              <option>Fastest</option>
+              <option>Most Comfortable</option>
+              <option>Best Upgrade Opportunity</option>
+              <option>Best Use of Miles</option>
+              <option selected>Best Overall Experience</option>
+            </select>
+          </div>
+          <div class="form-field">
+            <label for="prioritySecondary">Also weigh (optional)</label>
+            <select id="prioritySecondary">
+              <option>None</option>
+              <option selected>Best Value</option>
+              <option>Cheapest</option>
+              <option>Fastest</option>
+              <option>Most Comfortable</option>
+              <option>Best Upgrade Opportunity</option>
+              <option>Best Use of Miles</option>
+              <option>Best Overall Experience</option>
+            </select>
+          </div>
+        </div>
       </section>
 
-      <section class="block card">
-        <h2 class="card-title">Credit cards</h2>
+      <section class="block card" id="wallet">
+        <h2 class="card-title">Your wallet <span class="form-hint" id="wallet-status" style="font-weight:400;"></span></h2>
+        <p class="form-hint" style="margin-bottom:10px;">Cards and loyalty balances save to this browser and reload automatically — update the figures whenever they change and hit Save wallet. Nothing leaves your device.</p>
         <div class="check-grid">
           <label class="check-row"><input type="checkbox" class="cc-check" value="American Express Membership Rewards"> American Express Membership Rewards</label>
           <label class="check-row"><input type="checkbox" class="cc-check" value="Chase Ultimate Rewards"> Chase Ultimate Rewards</label>
@@ -139,10 +158,8 @@
           <label class="check-row"><input type="checkbox" class="cc-check" value="Wells Fargo"> Wells Fargo</label>
           <label class="check-row"><input type="checkbox" class="cc-check" value="Marriott Bonvoy"> Marriott Bonvoy</label>
         </div>
-      </section>
 
-      <section class="block card">
-        <h2 class="card-title">Airline loyalty balances (optional)</h2>
+        <h2 class="card-title" style="margin-top:18px;">Airline loyalty balances</h2>
         <div class="grid2">
           <div>
             <div class="balance-row"><label>United MileagePlus</label><input type="number" min="0" step="1000" class="prog-bal" data-program="United MileagePlus" value="0"></div>
@@ -162,6 +179,7 @@
             <div class="balance-row"><label>Lufthansa Miles &amp; More</label><input type="number" min="0" step="1000" class="prog-bal" data-program="Lufthansa Miles & More" value="0"></div>
           </div>
         </div>
+        <button type="button" class="run-btn" id="save-wallet" style="margin-top:14px;">Save wallet</button>
       </section>
 
       <button type="submit" class="run-btn">Run the optimization</button>
@@ -173,6 +191,8 @@
         <p>Fill in your trip and run the optimization to see the executive summary, best recommendation, and the five alternatives it was weighed against.</p>
       </div>
     </section>
+
+    <section class="block" id="points-intel" style="margin-top:2rem;"></section>
 
   </div>
 </main>
@@ -197,15 +217,35 @@
     });
   });
 
-  // rank-list live numbering hint
-  function refreshRankNums() {
-    document.querySelectorAll("#rank-list li").forEach((li) => {
-      const input = li.querySelector("input");
-      li.querySelector(".rank-num").textContent = input.value || "—";
-    });
+  /* ---------- wallet persistence (localStorage, this browser only) ---------- */
+  const WALLET_KEY = "tiWallet";
+  const walletStatus = document.getElementById("wallet-status");
+  function saveWallet() {
+    const wallet = {
+      savedAt: new Date().toISOString(),
+      cards: Array.from(document.querySelectorAll(".cc-check:checked")).map((el) => el.value),
+      balances: Array.from(document.querySelectorAll(".prog-bal")).map((el) => ({ program: el.dataset.program, balance: parseInt(el.value, 10) || 0 })),
+    };
+    try { localStorage.setItem(WALLET_KEY, JSON.stringify(wallet)); } catch (e) { return; }
+    showWalletStatus(wallet.savedAt, true);
   }
-  document.querySelectorAll("#rank-list input").forEach((inp) => inp.addEventListener("input", refreshRankNums));
-  refreshRankNums();
+  function loadWallet() {
+    let wallet;
+    try { wallet = JSON.parse(localStorage.getItem(WALLET_KEY) || "null"); } catch (e) { return; }
+    if (!wallet) return;
+    document.querySelectorAll(".cc-check").forEach((el) => { el.checked = (wallet.cards || []).includes(el.value); });
+    (wallet.balances || []).forEach((b) => {
+      const el = document.querySelector(`.prog-bal[data-program="${CSS.escape(b.program)}"]`);
+      if (el) el.value = b.balance;
+    });
+    showWalletStatus(wallet.savedAt, false);
+  }
+  function showWalletStatus(iso, justSaved) {
+    const d = new Date(iso);
+    walletStatus.textContent = isNaN(d) ? "" : `· ${justSaved ? "saved" : "loaded from"} ${d.toLocaleDateString("en-US", { month: "short", day: "numeric" })}`;
+  }
+  document.getElementById("save-wallet").addEventListener("click", saveWallet);
+  loadWallet();
 
   // default dates: 10 weeks out, 10-day trip
   const departEl = document.getElementById("departDate");
@@ -230,10 +270,13 @@
 
   function collectInputs() {
     const T = window.TravelIntel;
+    // Primary priority gets rank 1, optional secondary rank 2 — same
+    // computeWeights machinery as before, driven by the two dropdowns.
     const priorityRanks = {};
-    document.querySelectorAll("#rank-list input").forEach((inp) => {
-      priorityRanks[inp.dataset.priority] = parseInt(inp.value, 10) || 4;
-    });
+    const primary = document.getElementById("priorityPrimary").value;
+    const secondary = document.getElementById("prioritySecondary").value;
+    priorityRanks[primary] = 1;
+    if (secondary !== "None" && secondary !== primary) priorityRanks[secondary] = 2;
     const programBalances = Array.from(document.querySelectorAll(".prog-bal"))
       .map((el) => ({ program: el.dataset.program, balance: parseInt(el.value, 10) || 0 }))
       .filter((p) => p.balance > 0);
@@ -305,17 +348,33 @@
       (timing.verdict === "buy" ? `Purchase timing favors booking now rather than waiting. ` : timing.verdict === "wait" ? `Purchase timing favors waiting and watching for a better window before locking it in. ` : `It's early enough that I'd set a fare watch rather than transact today. `) +
       (award.strong ? `Your miles balance is a genuinely strong redemption here (${award.cpp.toFixed(2)}¢/mile) — worth booking with points instead of cash.` : `Paying cash beats redeeming miles here (${award.cpp.toFixed(2)}¢/mile) — save the balance for a stronger redemption.`);
 
-    const altRows = alts.map((c, i) => `
-      <tr class="${i === 0 ? "best-row" : ""}">
-        <td class="rank-cell">${i + 1}</td>
+    const SORTS = {
+      "Weighted score": (a, b) => b.weighted - a.weighted,
+      "Price (low → high)": (a, b) => a.price - b.price,
+      "Miles (low → high)": (a, b) => a.milesEst - b.milesEst,
+      "Best miles value (¢/mile)": (a, b) => b.candCpp - a.candCpp,
+      "Comfort": (a, b) => b.scores.Comfort - a.scores.Comfort,
+      "Upgrade potential": (a, b) => b.scores.Upgrade - a.scores.Upgrade,
+      "Fewest stops": (a, b) => a.stops - b.stops || a.travelMinutes - b.travelMinutes,
+      "Shortest time": (a, b) => a.travelMinutes - b.travelMinutes,
+    };
+    window.tiSortAlts = function (key) {
+      const rows = alts.slice().sort(SORTS[key] || SORTS["Weighted score"]);
+      document.getElementById("alt-tbody").innerHTML = altRowsHtml(rows);
+    };
+    function altRowsHtml(rows) {
+      return rows.map((c) => `
+      <tr class="${c.id === best.id ? "best-row" : ""}">
         <td><strong>${c.carrier}</strong><br><span class="form-hint">${c.alliance}</span></td>
         <td>${c.cabin}</td>
         <td>${c.stops === 0 ? "Nonstop" : c.stops + " stop" + (c.stops > 1 ? "s" : "")}</td>
         <td>${Math.floor(c.travelMinutes / 60)}h ${c.travelMinutes % 60}m</td>
-        <td>${c.fareTier}</td>
         <td>${T.fmtUSD(c.price)}</td>
+        <td>~${(c.milesEst / 1000).toFixed(0)}k + ${T.fmtUSD(c.feesEst)}<br><span class="form-hint">${c.candCpp.toFixed(1)}¢/mi · pay ${c.payWith}</span></td>
         <td>${c.weighted.toFixed(0)}</td>
       </tr>`).join("");
+    }
+    const altRows = altRowsHtml(alts);
 
     const insightItems = result.insights.map((text, i) => `
       <li class="insight-item"><span class="in-num">${String(i + 1).padStart(2, "0")}</span><p>${text}</p></li>`).join("");
@@ -335,8 +394,9 @@
             <div class="rec-airline">${best.carrier} · ${best.alliance} · ${best.aircraft}</div>
           </div>
           <div class="rec-price-block">
-            <div class="rec-price">${T.fmtUSD(best.price)}</div>
-            <div class="rec-price-sub">round-trip, ${best.cabin}</div>
+            <div class="rec-price">${best.payWith === "miles" ? `~${(best.milesEst / 1000).toFixed(0)}k mi + ${T.fmtUSD(best.feesEst)}` : T.fmtUSD(best.price)}</div>
+            <div class="rec-price-sub">round-trip, ${best.cabin} · pay with <strong>${best.payWith}</strong></div>
+            <div class="rec-price-sub">${best.payWith === "miles" ? `or ${T.fmtUSD(best.price)} cash` : `or ~${(best.milesEst / 1000).toFixed(0)}k miles + ${T.fmtUSD(best.feesEst)} (${best.candCpp.toFixed(1)}¢/mi — below the 1.6¢ bar)`}</div>
           </div>
         </div>
         <div class="rec-detail-grid">
@@ -358,10 +418,17 @@
 
       <p class="eyebrow">Top five alternatives</p>
       <div class="card block alt-table-wrap">
+        <div class="form-field" style="max-width:260px;margin-bottom:10px;">
+          <label for="alt-sort">Sort by</label>
+          <select id="alt-sort" onchange="tiSortAlts(this.value)">
+            ${Object.keys(SORTS).map((k) => `<option>${k}</option>`).join("")}
+          </select>
+        </div>
         <table class="alt-table">
-          <thead><tr><th>#</th><th>Carrier</th><th>Cabin</th><th>Stops</th><th>Time</th><th>Fare</th><th>Price</th><th>Score</th></tr></thead>
-          <tbody>${altRows}</tbody>
+          <thead><tr><th>Carrier</th><th>Cabin</th><th>Stops</th><th>Time</th><th>Cash</th><th>Miles (est)</th><th>Score</th></tr></thead>
+          <tbody id="alt-tbody">${altRows}</tbody>
         </table>
+        <p class="form-hint" style="margin-top:8px;">Miles column is an estimated planning range per candidate (not an award-space check); "pay miles/cash" flips at the 1.6¢-per-mile bar.</p>
       </div>
 
       <p class="eyebrow">Upgrade strategy</p>
@@ -370,10 +437,11 @@
           <h4>Complimentary / mileage upgrade likelihood <span class="tag" style="background:${upgradeLikely === "High" ? "var(--good-dim)" : upgradeLikely === "Moderate" ? "var(--mid-dim)" : "var(--bad-dim)"};color:${upgradeLikely === "High" ? "var(--good)" : upgradeLikely === "Moderate" ? "var(--mid)" : "var(--bad)"};">${upgradeLikely}</span></h4>
           <p>${best.carrier} scores ${Math.round(best.scores.Upgrade)}/100 on upgrade friendliness in this model, based on its general reputation for complimentary and mileage upgrades — not a live seat-map check. Typical buy-up cost from ${best.cabin}: ${upgradeCostGuess}.</p>
         </div>
+        ${result.tactics.map((t, i) => `
         <div class="strategy-block">
-          <h4>Best cabin to purchase first</h4>
-          <p>${best.cabin === "First" ? "You're already booking top cabin — no upgrade path above it." : `Booking ${best.cabin === "Economy" ? "a higher Economy fare bucket" : best.cabin} and buying up tends to beat booking the target cabin outright, especially on ${best.alliance} carriers with generous upgrade fare rules.`}</p>
-        </div>
+          <h4><span class="in-num" style="margin-right:6px;">${String(i + 1).padStart(2, "0")}</span>${t.title}</h4>
+          <p>${t.detail}</p>
+        </div>`).join("")}
       </div>
 
       <p class="eyebrow">Award strategy</p>
@@ -395,7 +463,62 @@
       <p class="eyebrow">Travel advisor insights</p>
       <ul class="insight-list block">${insightItems}</ul>
     `;
+    renderPointsIntel(inputs.creditCards);
   }
+
+  /* ---------- points intelligence (always visible, wallet-aware) ---------- */
+  function renderPointsIntel(heldCards) {
+    const T = window.TravelIntel;
+    const V = T.POINT_VALUATIONS;
+    const held = heldCards || Array.from(document.querySelectorAll(".cc-check:checked")).map((el) => el.value);
+    const airlines = Object.entries(V.airlines).sort((a, b) => b[1] - a[1]);
+    const cards = Object.entries(V.cards).sort((a, b) => b[1] - a[1]);
+    const maxA = airlines[0][1];
+
+    const airlineRows = airlines.map(([name, val]) => `
+      <div class="score-row">
+        <span class="score-label">${name}</span>
+        <div class="score-track"><div class="score-fill ${val >= 1.4 ? "" : val >= 1.25 ? "mid" : "bad"}" style="width:${Math.round((val / maxA) * 100)}%"></div></div>
+        <span class="score-val">${val.toFixed(2)}¢</span>
+      </div>`).join("");
+
+    const cardRows = cards.map(([name, val]) => {
+      const holds = held.includes(name) || held.some((h) => name.includes(h) || h.includes(name));
+      return `<div class="score-row">
+        <span class="score-label">${name}${holds ? ' <span class="tag" style="background:var(--good-dim);color:var(--good);">in your wallet</span>' : ""}</span>
+        <div class="score-track"><div class="score-fill" style="width:${Math.round((val / cards[0][1]) * 100)}%"></div></div>
+        <span class="score-val">${val.toFixed(2)}¢</span>
+      </div>`;
+    }).join("");
+
+    const heldTransfer = held.filter((c) => T.TRANSFER_PARTNERS[c]);
+    const transferBlock = heldTransfer.length
+      ? heldTransfer.map((cc) => `<div class="strategy-block"><h4>${cc} <span class="form-hint">(${T.TRANSFER_PARTNERS[cc].ratio} · TPG ${T.TRANSFER_PARTNERS[cc].value}¢)</span></h4><p>${T.TRANSFER_PARTNERS[cc].note}.</p></div>`).join("")
+      : `<div class="strategy-block"><p>Check the cards you hold in Your Wallet above and this section shows the transfer map for exactly those currencies.</p></div>`;
+
+    const bonusRows = T.TRANSFER_BONUSES.map((b) => `
+      <div class="strategy-block"><h4>${b.from} → ${b.to} <span class="tag" style="background:var(--good-dim);color:var(--good);">+${b.bonus}</span></h4><p>Ends ${b.ends}. A 30% bonus turns 100k points into 130k miles — if a redemption below was borderline, an active bonus is usually what tips it.</p></div>`).join("");
+
+    document.getElementById("points-intel").innerHTML = `
+      <p class="eyebrow">Points intelligence</p>
+      <div class="card block">
+        <div class="strategy-block">
+          <h4>Which airline's points are worth the most right now</h4>
+          <p class="form-hint">Source: The Points Guy monthly valuations, ${V.asOf}. Hand-copied, dated, refreshed monthly — not a live feed.</p>
+        </div>
+        <div class="score-grid">${airlineRows}</div>
+        <div class="strategy-block" style="margin-top:14px;">
+          <h4>Transferable card currencies, ranked</h4>
+        </div>
+        <div class="score-grid">${cardRows}</div>
+        <div class="strategy-block" style="margin-top:14px;"><h4>Your transfer options</h4></div>
+        ${transferBlock}
+        <div class="strategy-block" style="margin-top:14px;"><h4>Active transfer bonuses</h4></div>
+        ${bonusRows || '<div class="strategy-block"><p>No live bonuses recorded this month.</p></div>'}
+      </div>`;
+  }
+  renderPointsIntel();
+  document.querySelectorAll(".cc-check").forEach((el) => el.addEventListener("change", () => renderPointsIntel()));
 })();
 </script>
 

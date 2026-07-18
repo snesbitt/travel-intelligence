@@ -46,6 +46,7 @@
         <li><span class="lg-date">JUL 2026</span>Hotel loyalty programs removed from the Input Card for now — the scoring engine wasn't using them, and a checkbox that doesn't affect the result is worse than no checkbox. Revisit once hotel signal actually feeds the model.</li>
         <li><span class="lg-date">JUL 2026</span>Pricing model reworked after an early version clustered nearly every Business-class result at the same floor price regardless of carrier or route — replaced with per-cabin base prices, seeded variation, and cabin-appropriate floors so the spread looks like a real fare set rather than a repeated number.</li>
         <li><span class="lg-date">JUL 2026</span>House style adopted from the sibling portfolio: cream/serif shell, persistent nav, pill-nav, phase/step page patterns — matching thefitnesslog.org and streamingscout.org rather than a one-off look.</li>
+        <li><span class="lg-date">JUL 2026</span>Roame/TPG iteration shipped: miles-or-cash pricing on every candidate (either/or, flips at the 1.6¢/mile bar), a Points Intelligence panel with TPG's dated July 2026 valuations and active transfer bonuses, seven concrete upgrade tactics (bid 20–40% of the fare gap, bid-window timing, check-in counter-offers, miles+copay, two creative plays), the Optimization Priority card simplified to dropdowns, a sort-by control on the alternatives table, and a saved wallet — cards and balances persist in the browser, editable and re-savable as figures change.</li>
       </ul>
     </div>
 
@@ -116,6 +117,9 @@
       </div>
       <p class="phase-body">Remembering preferred airlines, seats, hotels, upgrade successes, disliked airports, connection tolerance, and typical travel style across sessions, so later recommendations get more personalized instead of starting from the same defaults every time — matching the North Star in the original agent brief.</p>
       <p class="phase-value">The agent gets better at optimizing for you specifically, trip over trip.</p>
+      <ul class="phase-log">
+        <li><span class="lg-date">JUL 2026</span>First slice shipped early by direct request: the saved wallet (credit cards + 13 loyalty balances) now persists in the browser via localStorage and reloads automatically — the first piece of cross-session memory, ahead of the fuller preference profile this phase describes.</li>
+      </ul>
     </div>
 
     <p class="phase-value" style="margin-top:1.5rem;">Phases are sequential. A later phase isn't started early, and nothing gets added to an earlier phase just because it would be easy to slot in.</p>

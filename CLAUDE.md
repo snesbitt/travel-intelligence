@@ -21,6 +21,13 @@ not just a demo. Hold every future change to that standard.
   against hand-maintained reference ranges (typical fares by cabin,
   typical mileage redemption ranges, general carrier upgrade-friendliness
   reputation). Phase 2 (see `roadmap.html`) wires in real fare/award data.
+- One exception to "modeled": `POINT_VALUATIONS` and `TRANSFER_BONUSES`
+  in `app.js` are real published figures hand-copied from The Points
+  Guy's monthly valuations / current-transfer-bonuses pages, each dated
+  in the code and in the UI. Refresh them monthly (or when a program
+  devalues) by re-copying — never let the shown as-of date go silently
+  stale, and never present them as a live feed. Transfer bonuses expire:
+  drop entries whose end date has passed when refreshing.
 - Backend: none yet — fully static, scoring runs client-side.
 - Frontend: `index.html` is the Input Card + results, importing the pure
   scoring logic from `app.js` via a plain `<script>` tag (no build step,
@@ -73,8 +80,27 @@ is genuinely strong.
 
 `index.html`'s results view always renders the per-dimension weight
 percentage next to its score bar. Don't collapse the Decision Framework
-into a single opaque number — the whole point of the ranked-priority
-input is that the trade-off stays legible.
+into a single opaque number — the whole point of the priority input is
+that the trade-off stays legible. (The priority input itself was
+simplified 2026-07-18 from a 1–7 rank list to a primary + optional
+secondary dropdown at Susan's direct request; the weighting machinery
+and its visibility are unchanged, and a sort-by control on the
+alternatives table lets the same shortlist be viewed through any lens.)
+
+### Miles + cash is either/or, never both-hidden
+
+Every candidate carries both a cash price and an estimated miles price
+(`milesEst`/`feesEst`/`candCpp`), and the UI shows the recommended one
+with the other as the visible alternative. The flip point is the same
+1.6¢/mile bar as `awardRecommendation` — keep the two thresholds in
+sync if either ever changes.
+
+### The saved wallet is browser-local
+
+Cards and loyalty balances persist via `localStorage` (`tiWallet` key)
+only — no backend, nothing transmitted, stated plainly in the UI. If a
+backend ever changes that, update the wallet copy and the sync banner
+in the same commit.
 
 ### Spend requires Susan's go-ahead
 
