@@ -727,7 +727,7 @@
         const diff = latest.price - prev.price;
         const pct = Math.round((diff / prev.price) * 100);
         delta = diff === 0 ? '<span class="form-hint">unchanged</span>'
-          : diff < 0 ? `<span style="color:var(--good,#3f6b4f);font-weight:600;">▼ ${fmtNum(Math.abs(diff))} (${Math.abs(pct)}%)</span>`
+          : diff < 0 ? `<span style="color:var(--good,#3f6b4f);font-weight:600;">▼ $${fmtNum(Math.abs(diff))} (${Math.abs(pct)}%)</span>`
           : `<span style="color:var(--bad,#a24a3f);font-weight:600;">▲ $${fmtNum(diff)} (${pct}%)</span>`;
       }
       const priceLine = latest
