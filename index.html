@@ -31,13 +31,11 @@
 
 <main>
   <div class="wrap">
-    <p class="eyebrow">Personal Travel Optimization Agent</p>
-    <h1 class="page-title">Every travel decision, optimized — not just the fare.</h1>
-    <p class="lede">Weighs cost, comfort, upgrade potential, award value, flexibility, and risk together, based on what matters most on this trip. Give it the trip and what's in your wallet — miles, points, cards — and it tells you what to book, and why.</p>
+    <h1 class="page-title" style="margin-bottom:0.4rem;">Every travel decision, optimized — not just the fare.</h1>
 
     <div class="sync-banner">
       <span class="sync-dot"></span>
-      <span id="mode-banner"><strong>Checking live-fare backend…</strong> Point valuations and transfer bonuses are real, dated figures from The Points Guy (July 2026), refreshed by hand. See <a href="/guide" style="text-decoration:underline;">the guide</a> for what's live vs. computed vs. copied. Your saved wallet lives in this browser only.</span>
+      <span id="mode-banner">Checking live-fare backend… · <a href="/about" style="text-decoration:underline;">what this is</a> · <a href="/guide" style="text-decoration:underline;">what's live vs. modeled</a></span>
     </div>
 
     <form id="trip-form">
@@ -627,17 +625,18 @@
   /* ---------- mode banner: live fares connected or documented model ---------- */
   (async function () {
     const el = document.getElementById("mode-banner");
-    const tail = ' Point valuations and transfer bonuses are real, dated figures from The Points Guy (July 2026), refreshed by hand. See <a href="/guide" style="text-decoration:underline;">the guide</a> for what\'s live vs. computed vs. copied. Your saved wallet lives in this browser only.';
+    // One line only — the full what's-live-vs-modeled story lives on /guide,
+    // the pitch lives on /about, and the wallet-privacy note is on the
+    // wallet card itself. Don't grow this back into a paragraph.
+    const links = ' · <a href="/guide" style="text-decoration:underline;">what\'s live vs. modeled</a>';
     try {
       const r = await fetch("/api/fares?ping=1", { signal: AbortSignal.timeout(6000) });
       const j = await r.json();
-      if (j.live) {
-        el.innerHTML = "<strong>Live fares connected</strong> — real Google Flights prices (via SerpApi), scored by the same documented engine. Mileage figures remain planning ranges (award space isn't searched yet)." + tail;
-        return;
-      }
-      el.innerHTML = "<strong>Demo mode — live backend built, awaiting API credential.</strong> Fares currently come from the documented scoring model; once the SerpApi key is added in Netlify, this banner flips to live automatically." + tail;
+      el.innerHTML = j.live
+        ? "<strong>Live fares connected</strong> · real Google Flights prices, scored by the documented engine" + links
+        : "<strong>Demo mode</strong> · modeled fares until the API credential is added" + links;
     } catch (e) {
-      el.innerHTML = "<strong>Demo mode.</strong> Fares come from the documented scoring model on hand-maintained reference ranges — the live-fare backend isn't reachable from this page." + tail;
+      el.innerHTML = "<strong>Demo mode</strong> · modeled fares (live backend unreachable)" + links;
     }
   })();
 })();
