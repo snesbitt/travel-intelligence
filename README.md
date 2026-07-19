@@ -100,7 +100,7 @@ npm run dev     # serves on :8888
 
 ## Deploy
 
-Static site, no backend. Push to the GitHub repo (once connected) and
-Netlify auto-deploys, matching the other two sites' pipeline. Until that's
-connected, deploy directly via Netlify's dashboard or CLI against this
-directory.
+Push to main on github.com/snesbitt/travel-intelligence and Netlify
+auto-deploys — static pages plus the three Functions (`fares`, `watch`,
+`watch-check`). `SERPAPI_KEY` lives in Netlify env vars; without it the
+site runs in labeled demo mode.

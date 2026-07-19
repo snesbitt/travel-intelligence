@@ -195,8 +195,13 @@ mark in a different accent color, not a bespoke logo per site.
 - Pure logic lives in `app.js`, no DOM code. If scoring logic needs a DOM
   reference, that's a sign it belongs in `index.html`'s render layer
   instead.
-- Never hardcode secrets — there are none yet, but if Phase 2 adds API
-  keys, they belong in Netlify env vars, never in source.
+- Never hardcode secrets — the one credential (`SERPAPI_KEY`) lives in
+  Netlify env vars; any future key goes the same way, never in source.
+- **Radical simplicity wins** (Susan's standing rule, 2026-07-19).
+  Simple beats complicated-and-bloated for this project, every time. The
+  backend stays three single-file Functions and one blob store; a new
+  feature that needs more infrastructure has to earn it, and the first
+  question about any addition is "what can we delete instead?"
 - **Brevity.** Explanations are a paragraph, not an essay. Don't
   re-explain how the scoring model works in general, Susan has read this
   file.
@@ -207,14 +212,15 @@ mark in a different accent color, not a bespoke logo per site.
 
 ## Deploy workflow
 
-No backend, no build step. Once the GitHub repo is connected:
+No build step; three single-file Functions ride along with the static
+pages. GitHub is connected and Netlify auto-deploys main:
 
 ```bash
 git add -A
 git commit -m "..."
-git push           # Netlify webhook auto-deploys main
+git push           # Netlify auto-deploys main (pages + Functions)
 ```
 
-Until GitHub is connected, deploy directly via the Netlify dashboard/CLI
-against this directory — that's the emergency-lever path becoming the
-default path only until phase 03 (GitHub repo) on the roadmap ships.
+Claude sessions commit; Susan runs the push (the cloud bridge has no
+network) — and per the standing rule in ~/Projects/CLAUDE.md, every
+"commit is ready" message must end with the exact push command block.

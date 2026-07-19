@@ -49,7 +49,7 @@
 
     <div class="step" id="tools">
       <div><span class="step-num">01</span><span class="step-title">Tools &amp; mode</span></div>
-      <p class="step-body">Built entirely in Cowork, with no terminal involved, by design. The Input Card, scoring engine, and every output section run as plain JavaScript in your browser. Nothing you type is sent anywhere — the system collects no data because it has nowhere to send it.</p>
+      <p class="step-body">Built in Cowork, by design. The Input Card, scoring engine, and every output section run as plain JavaScript in your browser. Two things leave it, both stated plainly: a fare search sends the route, dates, cabin, and traveler count to the site's own <code>/api/fares</code> function, and watching a trip stores that route server-side so the daily check can run. Your wallet — cards and balances — never leaves the browser.</p>
 
       <div class="mode-grid">
         <div class="mode-card tint-a">
@@ -68,14 +68,14 @@
           <ul><li>reads your Input Card</li><li>computes scores locally</li><li>nothing transmitted</li></ul>
         </div>
         <div class="mode-card tint-d">
-          <div class="mode-name">Phase 2 (planned)</div>
-          <div class="mode-role">live data</div>
-          <ul><li>real fare search</li><li>real award availability</li><li>see Roadmap, phase 05</li></ul>
+          <div class="mode-name">Backend (live)</div>
+          <div class="mode-role">fetch &amp; watch</div>
+          <ul><li>real Google Flights fares</li><li>daily watched-trip checks</li><li>award space: still the gap</li></ul>
         </div>
       </div>
 
       <figure class="diagram">
-        <svg viewBox="0 0 720 176" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Four boxes: Chat decides the model, Cowork builds and maintains, your browser runs the model locally, and a planned Phase 2 adds live data, connected left to right">
+        <svg viewBox="0 0 720 176" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Four boxes: Chat decides the model, Cowork builds and maintains, your browser runs the model locally, and a live backend fetches fares and runs the daily watcher, connected left to right">
           <defs>
             <marker id="tiArr" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto">
               <path d="M0,0 L10,5 L0,10 z" fill="#a8a597"/>
@@ -104,11 +104,11 @@
             <text x="451" y="110" text-anchor="middle" font-size="10.5" fill="#182c47">nothing transmitted</text>
 
             <rect x="554" y="14" width="158" height="118" rx="8" fill="#f0e4c8" stroke="#a97b2f"/>
-            <text x="633" y="38" text-anchor="middle" font-size="13" font-weight="600" fill="#24262b">Phase 2</text>
-            <text x="633" y="55" text-anchor="middle" font-size="10.5" font-style="italic" fill="#8a611f">live data (planned)</text>
-            <text x="633" y="78" text-anchor="middle" font-size="10.5" fill="#5c4419">real fare search</text>
-            <text x="633" y="94" text-anchor="middle" font-size="10.5" fill="#5c4419">real award data</text>
-            <text x="633" y="110" text-anchor="middle" font-size="10.5" fill="#5c4419">Roadmap, phase 05</text>
+            <text x="633" y="38" text-anchor="middle" font-size="13" font-weight="600" fill="#24262b">Backend</text>
+            <text x="633" y="55" text-anchor="middle" font-size="10.5" font-style="italic" fill="#8a611f">live · fetch &amp; watch</text>
+            <text x="633" y="78" text-anchor="middle" font-size="10.5" fill="#5c4419">Google Flights fares</text>
+            <text x="633" y="94" text-anchor="middle" font-size="10.5" fill="#5c4419">daily watched-trip check</text>
+            <text x="633" y="110" text-anchor="middle" font-size="10.5" fill="#5c4419">award space: still modeled</text>
 
             <line x1="166" y1="73" x2="188" y2="73" stroke="#a8a597" stroke-width="1.5" marker-end="url(#tiArr)"/>
             <line x1="348" y1="73" x2="370" y2="73" stroke="#a8a597" stroke-width="1.5" marker-end="url(#tiArr)"/>
@@ -149,8 +149,8 @@
     </div>
 
     <div class="step" id="deploy">
-      <div><span class="step-num">05</span><span class="step-title">Static deploy today, GitHub + Netlify Functions next</span></div>
-      <p class="step-body">This build ships as static HTML, CSS, and JavaScript to Netlify. No backend is required for a scoring engine that runs entirely in the browser. A GitHub repository will mirror the other sites' deployment model — push to main, Netlify deploys automatically — and becomes the foundation for Phase 2's live data functions once those are approved and built.</p>
+      <div><span class="step-num">05</span><span class="step-title">Push to main, Netlify deploys — three small Functions, nothing more</span></div>
+      <p class="step-body">The repo is on GitHub and every push to main auto-deploys — the same governance as the sibling sites. The backend is deliberately tiny: three single-file Functions (<code>fares</code> — the live search proxy, <code>watch</code> — the watched-trips store, <code>watch-check</code> — the daily scheduled re-search) and nothing else. No framework, no build step, no database beyond one blob store. Radical simplicity is the standing rule here: a feature that needs infrastructure has to earn it.</p>
 
       <figure class="diagram">
         <svg viewBox="0 0 720 150" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Claude and Cowork build the static site and push to GitHub, Netlify auto-deploys, and the live site runs the scoring engine entirely in the visitor's browser">
@@ -180,7 +180,7 @@
             <line x1="348" y1="51" x2="376" y2="51" stroke="#a8a597" stroke-width="1.5" marker-end="url(#tiArr2)"/>
             <line x1="528" y1="51" x2="556" y2="51" stroke="#a8a597" stroke-width="1.5" marker-end="url(#tiArr2)"/>
 
-            <text x="360" y="122" text-anchor="middle" font-size="10.5" font-style="italic" fill="#82869a">no server round-trip once the page loads — the scoring engine ships as part of the static bundle</text>
+            <text x="360" y="122" text-anchor="middle" font-size="10.5" font-style="italic" fill="#82869a">the engine ships in the static bundle — the only server calls are the fare search and the watcher</text>
           </g>
         </svg>
         <figcaption>The real deploy path today.</figcaption>
