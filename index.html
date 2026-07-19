@@ -72,9 +72,7 @@
           <div class="pill-toggle" data-group="tripPurpose">
             <button type="button" data-val="Vacation" class="sel">Vacation</button>
             <button type="button" data-val="Business">Business</button>
-            <button type="button" data-val="Family">Family</button>
-            <button type="button" data-val="Adventure">Adventure</button>
-            <button type="button" data-val="Flexible">Flexible</button>
+            <button type="button" data-val="Both">Both</button>
           </div>
         </div>
       </section>
@@ -325,7 +323,7 @@
       departDate: departEl.value,
       returnDate: returnEl.value,
       dateFlexibility: pillVal("dateFlexibility") || "Exact",
-      tripPurpose: pillVal("tripPurpose") || "Flexible",
+      tripPurpose: pillVal("tripPurpose") || "Vacation",
       travelers: Math.max(1, parseInt(document.getElementById("travelers").value, 10) || 1),
       cabin: pillVal("cabin") || "Economy",
       maxBudget: parseInt(document.getElementById("maxBudget").value, 10) || 1000,

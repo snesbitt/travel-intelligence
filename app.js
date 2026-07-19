@@ -584,7 +584,7 @@ function upgradeTactics(best, inputs) {
     title: `Last ask at the gate`,
     detail: `If ${cabinAbove} still shows open seats, ask the gate agent once, early in boarding prep. Undersold cabins get cleared at the gate at the steepest discounts — this costs nothing to ask.`,
   });
-  if (inputs.tripPurpose === "Business" || inputs.tripPurpose === "Family" || (inputs.travelers || 1) > 1) {
+  if (inputs.tripPurpose === "Business" || inputs.tripPurpose === "Both" || (inputs.travelers || 1) > 1) {
     tactics.push({
       when: "Creative play",
       title: `Split the cabin across your party`,
