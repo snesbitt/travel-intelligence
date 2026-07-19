@@ -237,11 +237,27 @@ function allianceOf(carrier) {
 // great-circle distance when both endpoints are in the city table; a
 // stated generic long-haul assumption when not.
 function routeContext(inputs) {
-  const route = routeDistanceKm(inputs.origin, inputs.destination);
+  const via = (inputs.viaCity || "").trim();
+  let route;
+  if (via) {
+    // Via routing: real geometry for both legs, summed. Forces at least
+    // one stop and carries a small multi-city fare premium below.
+    const a = lookupCoords(inputs.origin), v = lookupCoords(via), b = lookupCoords(inputs.destination);
+    if (a && v && b) {
+      const leg1 = haversineKm(a, v), leg2 = haversineKm(v, b);
+      const direct = haversineKm(a, b);
+      route = { km: leg1 + leg2, known: true, via, legs: [leg1, leg2], directKm: direct };
+    } else {
+      route = { km: null, known: false, via };
+    }
+  } else {
+    route = routeDistanceKm(inputs.origin, inputs.destination);
+  }
   const effKm = route.km || 7500;
   // Fares scale with distance: ~0.25× base for a short domestic hop up to
   // ~1.7× for an ultra-long-haul, anchored so base = a ~9,000 km long-haul.
-  const distFactor = clamp(0.22 + 0.78 * (effKm / 9000), 0.22, 1.7);
+  // Via routings carry a ~6% multi-city premium on top.
+  const distFactor = clamp(0.22 + 0.78 * (effKm / 9000), 0.22, 1.7) * (via ? 1.06 : 1);
   const milesFactor = clamp(0.4 + 0.6 * (effKm / 9000), 0.4, 1.5);
   const airMinutesNonstop = Math.round((effKm / 850) * 60 + 45); // 850 km/h cruise + ground overhead
   return { route, effKm, distFactor, milesFactor, airMinutesNonstop };
@@ -279,7 +295,9 @@ function generateCandidates(inputs) {
   for (let i = 0; i < n; i++) {
     const carrier = pool[i % pool.length];
     const stopsRoll = rng();
-    const stops = inputs.maxStops <= 0 ? 0 : Math.min(inputs.maxStops, Math.floor(stopsRoll * (inputs.maxStops + 1)));
+    // A via routing can't be nonstop — the stopover IS a stop.
+    const minStops = route.via ? 1 : 0;
+    const stops = Math.max(minStops, inputs.maxStops <= 0 ? 0 : Math.min(Math.max(inputs.maxStops, minStops), Math.floor(stopsRoll * (inputs.maxStops + 1))));
     const fareTier = fareTiers[clamp(Math.floor(rng() * fareTiers.length) + (inputs.cabin === "Business" || inputs.cabin === "First" ? 1 : 0), 0, 2)];
     const dateOffset = flexDays ? Math.round((rng() * 2 - 1) * flexDays) : 0;
 
@@ -331,6 +349,7 @@ function generateCandidates(inputs) {
       scores, cpp, milesMid, feesMid,
       milesEst, feesEst, candCpp, payWith: candCpp >= 1.6 ? "miles" : "cash",
       travelMinutes, routeKm: route.km, routeKnown: route.known,
+      via: route.via || null, routeLegs: route.legs || null, directKm: route.directKm || null,
       aircraft: pickAircraft(rng, stops, inputs.cabin, effKm),
     });
   }
@@ -608,7 +627,9 @@ function buildInsights(inputs, candidates, best, weights, timing) {
   }
 
   if (best.routeKnown === false) {
-    insights.push(`Heads up: "${inputs.origin}" → "${inputs.destination}" isn't in the hand-maintained city table, so flight times and distance-scaled fares assume a generic 7,500 km long-haul. Add the city to CITY_COORDS in app.js for a real great-circle estimate.`);
+    insights.push(`Heads up: ${best.via ? `"${inputs.origin}" / "${best.via}" / "${inputs.destination}" — at least one` : `"${inputs.origin}" → "${inputs.destination}"`} isn't in the hand-maintained city table, so flight times and distance-scaled fares assume a generic 7,500 km long-haul. Add the city to CITY_COORDS in app.js for a real great-circle estimate.`);
+  } else if (best.via && best.routeLegs) {
+    insights.push(`Routed via ${best.via}: ${best.routeLegs[0].toLocaleString()} km + ${best.routeLegs[1].toLocaleString()} km = ${best.routeKm.toLocaleString()} km each way, vs ~${(best.directKm || 0).toLocaleString()} km direct — about ${Math.max(0, Math.round(((best.routeKm - (best.directKm || best.routeKm)) / Math.max(1, best.directKm || 1)) * 100))}% extra flying for the stopover. Book it as one multi-city ticket, not two one-ways: it's usually cheaper and protects the connection if the first leg delays.`);
   } else if (best.routeKm) {
     insights.push(`Route distance: roughly ${best.routeKm.toLocaleString()} km great-circle each way — flight times and the distance scaling on fares are computed from this geometry, not fabricated per-flight.`);
   }

@@ -46,6 +46,7 @@
         <div class="form-grid">
           <div class="form-field"><label for="origin">Origin</label><input type="text" id="origin" placeholder="e.g. San Francisco" value="San Francisco"></div>
           <div class="form-field"><label for="destination">Destination</label><input type="text" id="destination" placeholder="e.g. Tokyo" value="Tokyo"></div>
+          <div class="form-field"><label for="viaCity">Via — stopover city (optional)</label><input type="text" id="viaCity" placeholder="e.g. Osaka — routes the trip through it"></div>
           <div class="form-field"><label for="preferredAirport">Preferred departure airport</label><input type="text" id="preferredAirport" placeholder="e.g. SFO" value="SFO"></div>
           <div class="form-field"><label for="airportFlexibility">Nearby airports you'd consider</label><input type="text" id="airportFlexibility" placeholder="e.g. SFO, SJC, OAK" value="SFO, SJC, OAK"></div>
           <div class="form-field"><label for="departDate">Departure date</label><input type="date" id="departDate"></div>
@@ -93,7 +94,7 @@
           </div>
         </div>
         <div class="form-grid" style="margin-top:12px;">
-          <div class="form-field"><label for="maxBudget">Maximum budget (round-trip, USD)</label><input type="number" id="maxBudget" value="4500" min="100" step="50"></div>
+          <div class="form-field"><label for="maxBudget">Maximum budget (round-trip, USD)</label><input type="number" id="maxBudget" value="2000" min="100" step="50"></div>
           <div class="form-field">
             <label for="maxStops">Maximum stops</label>
             <select id="maxStops"><option value="0">Nonstop only</option><option value="1" selected>1 stop</option><option value="2">2 stops</option><option value="3">No preference</option></select>
@@ -320,6 +321,7 @@
     return {
       origin: document.getElementById("origin").value || "Origin",
       destination: document.getElementById("destination").value || "Destination",
+      viaCity: document.getElementById("viaCity").value.trim(),
       preferredAirport: document.getElementById("preferredAirport").value,
       airportFlexibility: document.getElementById("airportFlexibility").value,
       departDate: departEl.value,
@@ -345,6 +347,7 @@
 
   async function fetchLiveOffers(inputs) {
     const T = window.TravelIntel;
+    if (inputs.viaCity) return null; // via/stopover routings aren't wired to the live search yet — model handles them, and the results header says so
     const o = T.toIATA(inputs.preferredAirport) || T.toIATA(inputs.origin);
     const d = T.toIATA(inputs.destination);
     if (!o || !d || !inputs.departDate) return null;
@@ -464,7 +467,7 @@
             ${PRIORITIES.map((p) => `<option${currentPrimary && currentPrimary[0] === p ? " selected" : ""}>${p}</option>`).join("")}
           </select>
         </div>
-        <p class="form-hint" style="flex:2;min-width:200px;margin-bottom:6px;">${result.usingLive ? `<strong>Live fares</strong> retrieved ${window.__tiLastLive && window.__tiLastLive.retrievedAt ? new Date(window.__tiLastLive.retrievedAt).toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit" }) : "just now"} via ${window.__tiLastLive && window.__tiLastLive.provider ? window.__tiLastLive.provider : "the live backend"} — real prices, scored by the same engine.` : `<strong>Modeled fares</strong> (demo mode — live backend awaits its API credential).`} Same shortlist, different lens — switching recomputes every weight and re-ranks instantly, no re-run needed. ${trav > 1 ? `Pricing shown per person; totals for ${trav} travelers alongside.` : ""}</p>
+        <p class="form-hint" style="flex:2;min-width:200px;margin-bottom:6px;">${result.usingLive ? `<strong>Live fares</strong> retrieved ${window.__tiLastLive && window.__tiLastLive.retrievedAt ? new Date(window.__tiLastLive.retrievedAt).toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit" }) : "just now"} via ${window.__tiLastLive && window.__tiLastLive.provider ? window.__tiLastLive.provider : "the live backend"} — real prices, scored by the same engine.` : inputs.viaCity ? `<strong>Modeled fares</strong> — via/stopover routings aren't wired to the live search yet, so this ${inputs.viaCity} routing is scored on real route geometry with a multi-city premium.` : `<strong>Modeled fares</strong> (demo mode — live backend awaits its API credential).`} Same shortlist, different lens — switching recomputes every weight and re-ranks instantly, no re-run needed. ${trav > 1 ? `Pricing shown per person; totals for ${trav} travelers alongside.` : ""}</p>
       </div>
 
       <p class="eyebrow" id="exec">Executive summary</p>
@@ -474,7 +477,7 @@
       <div class="rec-hero">
         <div class="rec-hero-top">
           <div>
-            <div class="rec-route">${inputs.origin} → ${inputs.destination}</div>
+            <div class="rec-route">${inputs.origin} → ${inputs.viaCity ? inputs.viaCity + " → " : ""}${inputs.destination}</div>
             <div class="rec-airline">${best.carrier} · ${best.alliance} · ${best.aircraft}</div>
           </div>
           <div class="rec-price-block">
