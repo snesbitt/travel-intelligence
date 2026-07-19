@@ -452,7 +452,7 @@
       <li class="insight-item"><span class="in-num">${String(i + 1).padStart(2, "0")}</span><p>${text}</p></li>`).join("");
 
     const upgradeLikely = best.scores.Upgrade >= 66 ? "High" : best.scores.Upgrade >= 40 ? "Moderate" : "Low";
-    const upgradeCostGuess = { Economy: "$150–500 to Premium Economy", "Premium Economy": "$400–1,200 to Business", Business: "$1,500–4,000 to First", First: "already top cabin", "Best Value": "$150–1,200 depending on cabin landed in" }[best.cabin];
+    const upgradeCostGuess = { Economy: "see the three priced Economy → Business routes below", "Premium Economy": "$400–1,200 to Business", Business: "$1,500–4,000 to First", First: "already top cabin", "Best Value": "see the three priced Economy → Business routes below" }[best.cabin];
 
     const currentPrimary = Object.entries(inputs.priorityRanks).find(([, r]) => r === 1);
     const PRIORITIES = ["Best Overall Experience", "Best Value", "Cheapest", "Fastest", "Most Comfortable", "Best Upgrade Opportunity", "Best Use of Miles"];

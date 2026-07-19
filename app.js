@@ -499,16 +499,51 @@ function daysBefore(dateStr, days) {
 // dates computed from the departure date), what exactly to do, and with
 // what numbers (bid amounts computed from this itinerary's modeled fare
 // gap). Ordered as a timeline from booking day to the gate.
+//
+// When the booked cabin is Economy, the plan targets BUSINESS — the most
+// common real goal — and opens with the three priced routes to get there
+// (the Premium Economy ladder, the direct bid, miles + copay), because
+// "upgrade one cabin" advice buries what the traveler actually wants.
 function upgradeTactics(best, inputs) {
   const tactics = [];
-  const cabinAbove = { Economy: "Premium Economy", "Premium Economy": "Business", Business: "First", "Best Value": "Business" }[best.cabin];
+  const fromEconomy = best.cabin === "Economy" || best.cabin === "Best Value";
+  const cabinAbove = fromEconomy ? "Business" : { "Premium Economy": "Business", Business: "First" }[best.cabin];
   if (!cabinAbove) {
     tactics.push({ when: "Now", title: "You're booking top cabin — the play is price, not position", detail: "No upgrade path above First. Action: price Business on the same flights before paying — it's typically ~55% of the First fare for most of the experience." });
     return tactics;
   }
 
-  // Modeled fare gap to the next cabin on this route, and the 20–40% bid
-  // band computed from it (rounded to $10).
+  if (fromEconomy) {
+    // Economy → Business: price all three routes for THIS trip. Cabin
+    // multipliers come from the same hand-maintained CABIN_BASE table the
+    // fare model uses; applied to the (live or modeled) Economy price.
+    const econ = best.price;
+    const pePrice = Math.round(econ * (CABIN_BASE["Premium Economy"] / CABIN_BASE.Economy));      // ~2×
+    const bizPrice = Math.round(econ * (CABIN_BASE.Business / CABIN_BASE.Economy));               // ~5.8×
+    const ladderBidLow = Math.round(((bizPrice - pePrice) * 0.2) / 10) * 10;
+    const ladderBidHigh = Math.round(((bizPrice - pePrice) * 0.4) / 10) * 10;
+    const ladderLow = pePrice + ladderBidLow, ladderHigh = pePrice + ladderBidHigh;
+    const directBidLow = Math.round(((bizPrice - econ) * 0.2) / 10) * 10;
+    const directBidHigh = Math.round(((bizPrice - econ) * 0.4) / 10) * 10;
+    // Upgrade-award reference range (round-trip, one cabin jump at ticketing
+    // time), scaled to route distance — hand-maintained, not a live chart.
+    const kmScale = clamp(0.4 + 0.6 * ((best.routeKm || 7500) / 9000), 0.4, 1.5);
+    const upMilesLow = Math.round((40000 * kmScale) / 5000) * 5000;
+    const upMilesHigh = Math.round((120000 * kmScale) / 5000) * 5000;
+    const biggestBalance = (inputs.programBalances || []).reduce((m, p) => Math.max(m, p.balance), 0);
+    const ladderSavings = Math.max(0, Math.round((1 - ladderHigh / bizPrice) * 100));
+
+    tactics.push({
+      when: "Your goal",
+      title: `Economy → Business: three routes, priced for this trip`,
+      detail: `Business outright runs ~${fmtUSD(bizPrice)} vs your ${fmtUSD(econ)} Economy fare. ` +
+        `<strong>Route 1 — the ladder (usually cheapest reliable):</strong> book Premium Economy at ~${fmtUSD(pePrice)}, then bid ${fmtUSD(ladderBidLow)}–${fmtUSD(ladderBidHigh)} for the PE→Business jump — lands Business for ~${fmtUSD(ladderLow)}–${fmtUSD(ladderHigh)} all-in, roughly ${ladderSavings}% under booking it outright, and PE is your worst case, not a middle seat. ` +
+        `<strong>Route 2 — the direct bid:</strong> stay in Economy and bid ${fmtUSD(directBidLow)}–${fmtUSD(directBidHigh)}; cheapest when it clears, but Economy→Business bids lose more often than PE→Business ones, and your fallback is the Economy seat. ` +
+        `<strong>Route 3 — miles + copay:</strong> typically ~${(upMilesLow / 1000).toFixed(0)}k–${(upMilesHigh / 1000).toFixed(0)}k miles round-trip plus a cash copay for this distance${biggestBalance >= upMilesLow ? ` — your ${biggestBalance.toLocaleString()}-mile balance covers the low end, check it first` : biggestBalance > 0 ? ` — your ${biggestBalance.toLocaleString()}-mile balance falls short of the typical range` : ""}; requires an upgradeable (non-Basic) fare and award space, so confirm before ticketing.`,
+    });
+  }
+
+  // Fare gap to the target cabin, and the 20–40% bid band from it.
   const ratio = (CABIN_BASE[cabinAbove] || 3600) / (CABIN_BASE[best.cabin] || 620);
   const gap = Math.max(150, Math.round(best.price * (ratio - 1)));
   const bidLow = Math.round((gap * 0.2) / 10) * 10;
@@ -519,8 +554,10 @@ function upgradeTactics(best, inputs) {
 
   tactics.push({
     when: "At booking",
-    title: `Book Standard, not Basic — it's the entry ticket`,
-    detail: `Basic/deep-discount buckets are excluded from most upgrade paths entirely. On ${best.carrier}, book at least the Standard tier, then immediately check two things on the booking page: "upgrade with miles" pricing, and whether an upgrade-bid invitation is offered.`,
+    title: fromEconomy ? `Commit to a route, then book the fare that keeps it open` : `Book Standard, not Basic — it's the entry ticket`,
+    detail: fromEconomy
+      ? `Ladder route: book Premium Economy (Standard tier) directly. Bid or miles route: book Economy at the Standard tier or above — Basic fares are excluded from bids, mileage upgrades, and complimentary lists alike. Either way, immediately check two things on ${best.carrier}'s booking page: "upgrade with miles" pricing, and whether an upgrade-bid invitation appears.`
+      : `Basic/deep-discount buckets are excluded from most upgrade paths entirely. On ${best.carrier}, book at least the Standard tier, then immediately check two things on the booking page: "upgrade with miles" pricing, and whether an upgrade-bid invitation is offered.`,
   });
   tactics.push({
     when: "Same week",
