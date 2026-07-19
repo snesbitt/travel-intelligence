@@ -25,7 +25,9 @@ function json(body, status) {
 export const config = { path: "/api/watch" };
 
 export default async (req) => {
-  const store = getStore("watched-trips");
+  // strong consistency: a GET right after a watch/unwatch must reflect it
+  // (default eventual consistency made the card vanish on quick reloads)
+  const store = getStore({ name: "watched-trips", consistency: "strong" });
   const url = new URL(req.url);
 
   if (req.method === "GET") {

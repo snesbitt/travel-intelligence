@@ -18,7 +18,7 @@ export default async () => {
   const key = process.env.SERPAPI_KEY;
   if (!key) return new Response("not configured", { status: 200 }); // scheduled fn: never crash, just no-op
 
-  const store = getStore("watched-trips");
+  const store = getStore({ name: "watched-trips", consistency: "strong" });
   const trips = (await store.get("list", { type: "json" })) || [];
   if (!trips.length) return new Response("no trips", { status: 200 });
 
