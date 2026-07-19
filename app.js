@@ -12,10 +12,19 @@
 
 const ALLIANCES = {
   "Star Alliance": ["United", "Air Canada", "Lufthansa", "Singapore Airlines", "ANA", "Turkish Airlines"],
-  "Oneworld": ["American", "British Airways", "Qatar Airways", "Cathay Pacific", "Qantas"],
+  "Oneworld": ["American", "Japan Airlines", "British Airways", "Qatar Airways", "Cathay Pacific", "Qantas"],
   "SkyTeam": ["Delta", "Air France", "KLM", "Korean Air"],
   "Unaligned": ["Alaska Airlines", "Emirates", "JetBlue"],
 };
+
+// Network accuracy (Susan, 2026-07-19): these carriers don't operate their
+// own metal across the Pacific (American's Asia service is Tokyo-only —
+// its Asia itineraries fly on oneworld partners like JAL and Cathay). On
+// Asia-bound MODELED routes they're excluded from the candidate pool so
+// the partner that actually operates the flight is what's displayed. Live
+// results already name operating carriers, so this applies to the model
+// only.
+const NO_OWN_ASIA_SERVICE = ["American", "Alaska Airlines", "JetBlue"];
 
 const ALL_CARRIERS = Object.values(ALLIANCES).flat();
 
@@ -24,7 +33,7 @@ const ALL_CARRIERS = Object.values(ALLIANCES).flat();
 // see about.html for how this differs from a real inventory check.
 const UPGRADE_FRIENDLY = {
   United: 78, "Air Canada": 63, Lufthansa: 52, "Singapore Airlines": 38, ANA: 44, "Turkish Airlines": 58,
-  American: 74, "British Airways": 48, "Qatar Airways": 33, "Cathay Pacific": 43, Qantas: 54,
+  American: 74, "Japan Airlines": 42, "British Airways": 48, "Qatar Airways": 33, "Cathay Pacific": 43, Qantas: 54,
   Delta: 81, "Air France": 46, KLM: 49, "Korean Air": 41,
   "Alaska Airlines": 71, Emirates: 28, JetBlue: 62,
 };
@@ -182,7 +191,7 @@ function toIATA(name) {
 const CARRIER_SITES = {
   United: "https://www.united.com", "Air Canada": "https://www.aircanada.com", Lufthansa: "https://www.lufthansa.com",
   "Singapore Airlines": "https://www.singaporeair.com", ANA: "https://www.ana.co.jp/en/us/", "Turkish Airlines": "https://www.turkishairlines.com",
-  American: "https://www.aa.com", "British Airways": "https://www.britishairways.com", "Qatar Airways": "https://www.qatarairways.com",
+  American: "https://www.aa.com", "Japan Airlines": "https://www.jal.co.jp/us/en/", "British Airways": "https://www.britishairways.com", "Qatar Airways": "https://www.qatarairways.com",
   "Cathay Pacific": "https://www.cathaypacific.com", Qantas: "https://www.qantas.com", Delta: "https://www.delta.com",
   "Air France": "https://wwws.airfrance.us", KLM: "https://www.klm.com", "Korean Air": "https://www.koreanair.com",
   "Alaska Airlines": "https://www.alaskaair.com", Emirates: "https://www.emirates.com", JetBlue: "https://www.jetblue.com",
@@ -258,6 +267,9 @@ function fmtUSD(n) { return "$" + Math.round(n).toLocaleString("en-US"); }
 
 function candidatePool(inputs) {
   let pool = ALL_CARRIERS.slice();
+  if (destinationInAsia(inputs)) {
+    pool = pool.filter((c) => !NO_OWN_ASIA_SERVICE.includes(c));
+  }
   if (inputs.preferredAlliances.length) {
     pool = pool.filter((c) => inputs.preferredAlliances.some((al) => ALLIANCES[al].includes(c)));
   }
