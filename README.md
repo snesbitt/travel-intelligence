@@ -28,10 +28,21 @@ example of what an agentic build looks like, not a one-off demo.
   1.6¢/mile bar, plus a sort-by control to view the shortlist by price,
   miles value, comfort, upgrade potential, stops, or time.
 - Every output section from the original agent brief: Executive Summary,
-  Best Recommendation, Top Five Alternatives, Upgrade Strategy (now seven
-  concrete tactics — bid sizing, bid windows, check-in counter-offers,
-  miles+copay, creative plays), Award Strategy, Purchase Strategy, Travel
-  Advisor Insights.
+  Best Recommendation, Top Five Alternatives, Upgrade Strategy, Award
+  Strategy, Purchase Strategy, Travel Advisor Insights — each with
+  do-this-now actions and live links, not descriptions.
+- An Economy → Business playbook: when booking Economy (the default),
+  the Upgrade Strategy prices the three real routes to Business for the
+  specific trip — the Premium Economy ladder, the direct bid (20–40% of
+  the computed fare gap), and miles + copay checked against your saved
+  balances — then runs a dated timeline from booking day to the gate.
+- Via/stopover routing (e.g. SFO → Osaka → Bangkok) on real two-leg
+  great-circle geometry, a travelers stepper with per-person and total
+  pricing, and a results-level "Optimize for" filter plus sort-by control
+  that re-rank instantly without re-running.
+- Collapsible density: long cards (13 loyalty programs, 18 TPG valuation
+  rows, the 9-step upgrade timeline) open collapsed to their high-signal
+  rows with explicit "Show all N" toggles.
 - A Points Intelligence panel answering "which airline's points are worth
   the most" and "what are my transfer options": TPG's monthly valuations
   and active transfer bonuses, hand-copied with their as-of date shown

@@ -107,6 +107,26 @@ with the other as the visible alternative. The flip point is the same
 1.6¢/mile bar as `awardRecommendation` — keep the two thresholds in
 sync if either ever changes.
 
+### Density: long cards collapse, honesty never does
+
+Cards with many rows collapse by default to their high-signal subset
+(`.ti-toggle` / `.ti-hidden` in `style.css`): loyalty balances show only
+funded programs, the TPG valuation list shows the top 6, the upgrade
+timeline shows the goal + first 3 steps. Rules: the collapsed view must
+never hide the pay-with recommendation, a mode label (live vs. modeled),
+or an as-of date — those stay visible in every state; and every toggle
+states what it's hiding ("Show all 18 programs"), never a bare "more".
+
+### Upgrade tactics target Economy → Business
+
+When the booked cabin is Economy/Best Value, `upgradeTactics` opens with
+a "Your goal" block pricing the three routes to Business for the
+specific trip (PE ladder, direct bid, miles+copay — computed from
+CABIN_BASE ratios, the 20–40% bid band, and a distance-scaled upgrade-
+award range), then runs the dated timeline against Business. Don't
+regress it to one-cabin-up advice — that framing buried the actual goal.
+Trip purpose is Vacation / Business / Both only.
+
 ### The saved wallet is browser-local
 
 Cards and loyalty balances persist via `localStorage` (`tiWallet` key)

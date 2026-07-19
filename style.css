@@ -357,3 +357,18 @@ table.alt-table td.rank-cell { font-family: var(--serif); font-style: italic; co
 .sync-dot { width: 7px; height: 7px; border-radius: 50%; background: var(--mid); flex-shrink: 0; }
 .sync-banner strong { color: var(--ink); font-weight: 700; }
 @media (min-width: 640px) { .sync-banner { font-size: 12.5px; padding: 9px 14px; margin-bottom: 1.75rem; } }
+
+/* --- collapsible density controls (2026-07-19) ---------------------------
+   Long cards (13 loyalty programs, 18 valuation rows, 9 tactic steps)
+   collapse to their high-signal rows with a toggle, per Susan's vertical-
+   space direction. .ti-hidden hides collapsed rows; .ti-toggle is the
+   expand/collapse control, styled to read as an action, not a link. */
+.ti-hidden { display: none !important; }
+.ti-toggle {
+  display: inline-block; margin-top: 10px; padding: 7px 14px;
+  font-size: 12px; font-weight: 600; letter-spacing: 0.02em;
+  color: var(--accent, #1f3a5f); background: transparent;
+  border: 1px solid var(--line, #d8d0bf); border-radius: 999px;
+  cursor: pointer;
+}
+.ti-toggle:hover { background: rgba(31, 58, 95, 0.06); }

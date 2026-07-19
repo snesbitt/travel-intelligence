@@ -165,7 +165,7 @@
         </div>
 
         <h2 class="card-title" style="margin-top:18px;">Airline loyalty balances</h2>
-        <div class="grid2">
+        <div class="grid2" id="balance-grid">
           <div>
             <div class="balance-row"><label>United MileagePlus</label><input type="text" inputmode="numeric" autocomplete="off" class="prog-bal" data-program="United MileagePlus" value="0"></div>
             <div class="balance-row"><label>Alaska Mileage Plan</label><input type="text" inputmode="numeric" autocomplete="off" class="prog-bal" data-program="Alaska Mileage Plan" value="0"></div>
@@ -184,6 +184,7 @@
             <div class="balance-row"><label>Lufthansa Miles &amp; More</label><input type="text" inputmode="numeric" autocomplete="off" class="prog-bal" data-program="Lufthansa Miles & More" value="0"></div>
           </div>
         </div>
+        <button type="button" class="ti-toggle" id="balance-toggle">Show all programs ▾</button>
         <button type="button" class="run-btn" id="save-wallet" style="margin-top:14px;">Save wallet</button>
       </section>
 
@@ -271,12 +272,31 @@
 
   document.getElementById("save-wallet").addEventListener("click", () => saveWallet(false));
   document.querySelectorAll(".prog-bal").forEach((el) => {
-    el.addEventListener("blur", () => { el.value = fmtNum(parseNum(el.value)); saveWallet(true); });
+    el.addEventListener("blur", () => { el.value = fmtNum(parseNum(el.value)); saveWallet(true); applyBalanceCollapse(); });
     el.addEventListener("focus", () => { if (parseNum(el.value) === 0) el.value = ""; });
   });
   document.querySelectorAll(".cc-check").forEach((el) => el.addEventListener("change", () => saveWallet(true)));
   document.querySelectorAll(".prog-bal").forEach((el) => { el.value = fmtNum(parseNum(el.value)); });
   loadWallet();
+
+  /* ---------- collapsible balances: show only funded programs by default ---------- */
+  let balancesCollapsed = true;
+  function applyBalanceCollapse() {
+    const rows = Array.from(document.querySelectorAll("#balance-grid .balance-row"));
+    const funded = rows.filter((r) => parseNum(r.querySelector(".prog-bal").value) > 0);
+    rows.forEach((r) => {
+      const hide = balancesCollapsed && parseNum(r.querySelector(".prog-bal").value) === 0 && funded.length > 0;
+      r.classList.toggle("ti-hidden", hide);
+    });
+    const btn = document.getElementById("balance-toggle");
+    if (funded.length === 0) { btn.classList.add("ti-hidden"); balancesCollapsed = false; }
+    else {
+      btn.classList.remove("ti-hidden");
+      btn.textContent = balancesCollapsed ? `Show all ${rows.length} programs ▾` : "Show only funded programs ▴";
+    }
+  }
+  document.getElementById("balance-toggle").addEventListener("click", () => { balancesCollapsed = !balancesCollapsed; applyBalanceCollapse(); });
+  applyBalanceCollapse();
 
   // default dates: 10 weeks out, 10-day trip
   const departEl = document.getElementById("departDate");
@@ -522,10 +542,11 @@
           <p>${best.carrier} scores ${Math.round(best.scores.Upgrade)}/100 on upgrade friendliness in this model, based on its general reputation for complimentary and mileage upgrades — not a live seat-map check. Typical buy-up cost from ${best.cabin}: ${upgradeCostGuess}.</p>
         </div>
         ${result.tactics.map((t, i) => `
-        <div class="strategy-block">
+        <div class="strategy-block ${i >= 3 ? "tac-extra ti-hidden" : ""}">
           <h4><span class="in-num" style="margin-right:6px;">${String(i + 1).padStart(2, "0")}</span>${t.title} <span class="tag" style="background:var(--mid-dim);color:var(--mid);white-space:nowrap;">${t.when}</span></h4>
           <p>${t.detail}</p>
         </div>`).join("")}
+        ${result.tactics.length > 3 ? `<button type="button" class="ti-toggle" onclick="var ex=this.parentElement.querySelectorAll('.tac-extra');var hidden=ex[0].classList.contains('ti-hidden');ex.forEach(e=>e.classList.toggle('ti-hidden',!hidden));this.textContent=hidden?'Collapse the timeline ▴':'Show the full timeline — ${result.tactics.length - 3} more steps ▾';">Show the full timeline — ${result.tactics.length - 3} more steps ▾</button>` : ""}
       </div>
 
       <p class="eyebrow">Award strategy</p>
@@ -575,8 +596,8 @@
     const cards = Object.entries(V.cards).sort((a, b) => b[1] - a[1]);
     const maxA = airlines[0][1];
 
-    const airlineRows = airlines.map(([name, val]) => `
-      <div class="score-row">
+    const airlineRows = airlines.map(([name, val], i) => `
+      <div class="score-row ${i >= 6 ? "pi-extra ti-hidden" : ""}">
         <span class="score-label">${name}</span>
         <div class="score-track"><div class="score-fill ${val >= 1.4 ? "" : val >= 1.25 ? "mid" : "bad"}" style="width:${Math.round((val / maxA) * 100)}%"></div></div>
         <span class="score-val">${val.toFixed(2)}¢</span>
@@ -607,6 +628,7 @@
           <p class="form-hint">Source: The Points Guy monthly valuations, ${V.asOf}. Hand-copied, dated, refreshed monthly — not a live feed.</p>
         </div>
         <div class="score-grid">${airlineRows}</div>
+        <button type="button" class="ti-toggle" onclick="var ex=this.parentElement.querySelectorAll('.pi-extra');var hidden=ex[0]&&ex[0].classList.contains('ti-hidden');ex.forEach(e=>e.classList.toggle('ti-hidden',!hidden));this.textContent=hidden?'Show top 6 only ▴':'Show all ${airlines.length} programs ▾';">Show all ${airlines.length} programs ▾</button>
         <div class="strategy-block" style="margin-top:14px;">
           <h4>Transferable card currencies, ranked</h4>
         </div>
