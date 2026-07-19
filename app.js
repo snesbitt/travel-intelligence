@@ -483,6 +483,50 @@ function buildLiveCandidates(inputs, offers) {
     });
 }
 
+/* ---------- priority suggestion ----------
+ * Recommends a primary + runner-up optimization lens from the trip's own
+ * characteristics — route distance, cabin, budget vs the typical modeled
+ * fare, purpose, party size, and whether the saved miles balance can
+ * realistically cover this route. Rule-based and transparent: every
+ * suggestion states its reason, and it's a suggestion the user applies
+ * with one click, never an override.
+ */
+function suggestPriorities(inputs) {
+  const { effKm, distFactor, milesFactor } = routeContext(inputs);
+  const longHaul = effKm >= 8000;
+  const typicalFare = Math.round((CABIN_BASE[inputs.cabin] || CABIN_BASE.Economy) * distFactor);
+  const tightBudget = (inputs.maxBudget || 0) > 0 && inputs.maxBudget < typicalFare * 0.9;
+  const biggestBalance = (inputs.programBalances || []).reduce((m, p) => Math.max(m, p.balance), 0);
+  const econAwardLow = Math.round(AWARD_RANGES.Economy.milesLow * milesFactor);
+  const milesUseful = biggestBalance >= econAwardLow;
+  const kmStr = effKm.toLocaleString() + " km";
+
+  if (tightBudget) {
+    return { primary: "Cheapest", secondary: longHaul ? "Best Value" : "Best Overall Experience",
+      reason: `your $${inputs.maxBudget.toLocaleString()} budget sits below the ~$${typicalFare.toLocaleString()} typical ${inputs.cabin} fare for this ${kmStr} route — price has to lead.` };
+  }
+  if ((inputs.cabin === "Economy" || inputs.cabin === "Best Value") && longHaul && milesUseful) {
+    return { primary: "Best Upgrade Opportunity", secondary: "Best Use of Miles",
+      reason: `${kmStr} in Economy is where an upgrade pays off most, and your ${biggestBalance.toLocaleString()}-mile balance clears the ~${econAwardLow.toLocaleString()}-mile bar to be in play.` };
+  }
+  if ((inputs.cabin === "Economy" || inputs.cabin === "Best Value") && longHaul) {
+    return { primary: "Best Overall Experience", secondary: "Most Comfortable",
+      reason: `${kmStr} is a long day in Economy — comfort (nonstops, better carriers) is worth weighting alongside the rounded view.` };
+  }
+  if (inputs.tripPurpose === "Business" && inputs.dateFlexibility === "Exact") {
+    return { primary: "Fastest", secondary: "Best Overall Experience",
+      reason: `a business trip on exact dates — total travel time and low disruption risk usually matter more than saving a little.` };
+  }
+  if (inputs.cabin === "Business" || inputs.cabin === "First") {
+    return { primary: "Best Value", secondary: milesUseful ? "Best Use of Miles" : "Most Comfortable",
+      reason: milesUseful
+        ? `premium cabins are where redemptions run strongest — with ${biggestBalance.toLocaleString()} miles saved, value and miles are the right two lenses.`
+        : `${inputs.cabin} fares vary wildly for near-identical products on this route — value comparison beats any single dimension.` };
+  }
+  return { primary: "Best Overall Experience", secondary: "Best Value",
+    reason: `nothing about this trip forces a single dimension — the balanced lens with a value runner-up fits.` };
+}
+
 /* ---------- weighting from the ranked priority list ---------- */
 
 function computeWeights(priorityRanks) {
@@ -774,7 +818,7 @@ function runOptimization(inputs, liveOffers) {
 
 if (typeof window !== "undefined") {
   window.TravelIntel = {
-    runOptimization, computeWeights, upgradeTactics, bestPointsAnswers, toIATA, carrierSite,
+    runOptimization, computeWeights, upgradeTactics, bestPointsAnswers, toIATA, carrierSite, suggestPriorities,
     ALLIANCES, ALL_CARRIERS, TRANSFER_PARTNERS, POINT_VALUATIONS, TRANSFER_BONUSES,
     DIMENSIONS, DIM_LABEL, fmtUSD,
   };

@@ -36,6 +36,10 @@ example of what an agentic build looks like, not a one-off demo.
   specific trip — the Premium Economy ladder, the direct bid (20–40% of
   the computed fare gap), and miles + copay checked against your saved
   balances — then runs a dated timeline from booking day to the gate.
+- Trip-aware priority suggestions: a transparent rule set reads the
+  route distance, cabin, budget-vs-typical-fare, purpose, and saved miles
+  and recommends the two best optimization lenses with its reasoning —
+  one-click Apply, never an override.
 - Via/stopover routing (e.g. SFO → Osaka → Bangkok) on real two-leg
   great-circle geometry, a travelers stepper with per-person and total
   pricing, and a results-level "Optimize for" filter plus sort-by control

@@ -154,6 +154,7 @@
             </select>
           </div>
         </div>
+        <p class="form-hint" id="prio-suggest" style="margin-top:10px;"></p>
       </section>
 
       <section class="block card" id="wallet">
@@ -280,6 +281,32 @@
     document.getElementById("trav-plus").addEventListener("click", () => { hidden.value = Math.min(9, (parseInt(hidden.value, 10) || 1) + 1); render(); });
     render();
   })();
+
+  /* ---------- priority suggestion: trip-aware, one-click apply ---------- */
+  function updateSuggestion() {
+    const T = window.TravelIntel;
+    const el = document.getElementById("prio-suggest");
+    if (!T || !T.suggestPriorities) return;
+    const s = T.suggestPriorities(collectInputs());
+    const current = document.getElementById("priorityPrimary").value;
+    const currentSec = document.getElementById("prioritySecondary").value;
+    if (current === s.primary && currentSec === s.secondary) {
+      el.innerHTML = `Suggested for this trip: <strong>${s.primary}</strong> + <strong>${s.secondary}</strong> — ${s.reason} <span style="color:var(--good,#3f6b4f);">✓ applied</span>`;
+      return;
+    }
+    el.innerHTML = `Suggested for this trip: <strong>${s.primary}</strong> + <strong>${s.secondary}</strong> — ${s.reason} <button type="button" class="ti-toggle" style="margin-top:6px;" onclick="tiApplySuggestion('${s.primary}','${s.secondary}')">Apply</button>`;
+  }
+  window.tiApplySuggestion = function (p, sec) {
+    document.getElementById("priorityPrimary").value = p;
+    document.getElementById("prioritySecondary").value = sec;
+    updateSuggestion();
+  };
+  form.addEventListener("change", updateSuggestion);
+  document.getElementById("trav-minus").addEventListener("click", updateSuggestion);
+  document.getElementById("trav-plus").addEventListener("click", updateSuggestion);
+  document.querySelectorAll(".pill-toggle button").forEach((b) => b.addEventListener("click", () => setTimeout(updateSuggestion, 0)));
+  document.querySelectorAll(".prog-bal").forEach((el) => el.addEventListener("blur", () => setTimeout(updateSuggestion, 0)));
+  setTimeout(updateSuggestion, 0);
 
   document.getElementById("save-wallet").addEventListener("click", () => saveWallet(false));
   document.querySelectorAll(".prog-bal").forEach((el) => {
