@@ -372,3 +372,14 @@ table.alt-table td.rank-cell { font-family: var(--serif); font-style: italic; co
   cursor: pointer;
 }
 .ti-toggle:hover { background: rgba(31, 58, 95, 0.06); }
+
+/* --- audit fixes (2026-07-19): contrast + mobile input zoom ------------
+   .form-hint measured 1.96:1 and th 3.31:1 on the cream background —
+   darkened to clear WCAG AA (4.5:1) while keeping the dim hierarchy.
+   16px inputs under 640px stop iOS auto-zoom on focus. */
+.form-hint { color: #6b7080; }
+.alt-table th { color: #565b6e; }
+.rec-price-sub { color: #565b6e; }
+@media (max-width: 639px) {
+  input, select, textarea { font-size: 16px; }
+}

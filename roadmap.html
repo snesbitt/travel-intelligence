@@ -93,9 +93,9 @@
       <div class="phase-head">
         <span class="phase-num">05</span>
         <span class="phase-title">live fare &amp; award data</span>
-        <span class="phase-status live">Built — awaiting credential</span>
+        <span class="phase-status live">Live (fares)</span>
       </div>
-      <p class="phase-body">The live-fare backend is built and shipped: a Netlify Function (<code>/api/fares</code>) proxying Google Flights results via SerpApi, with the frontend wired to search real fares on every run and score them through the same six-dimension engine. The one remaining step is the API credential — creating the (free-tier) SerpApi account is Susan's to do, since credentials and any potential spend are never taken on the agent's behalf. Until the key is added in Netlify env vars, the site says plainly it's in demo mode and falls back to the documented model; the moment the key exists, the banner flips to live automatically. Award-space search (seats.aero-style) remains the next gap after fares.</p>
+      <p class="phase-body">Live fares are running: a Netlify Function (<code>/api/fares</code>) searches real Google Flights results via SerpApi on every run, and the frontend scores them through the same six-dimension engine. The credential was created and installed by Susan directly — credentials and spend are never taken on the agent's behalf. If the backend is ever unreachable, the site falls back to the documented model and says so in the banner rather than failing silently. Award-space search (seats.aero-style availability) is the remaining data gap.</p>
       <p class="phase-value">The recommendation stops being a documented estimate and becomes a real, bookable answer.</p>
       <ul class="phase-log">
         <li><span class="lg-date">JUL 2026</span>Fare backend shipped: provider-proxy Function with honest 503 fallback when unconfigured, city→IATA mapping, and live offers scored by the identical weighting engine — real prices, same legible framework. Route geometry also fixed model mode: flight times and fare scaling now derive from real great-circle distances (a nonstop to Rome reads ~12h, not a fabricated short-haul number).</li>

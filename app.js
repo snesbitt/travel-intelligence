@@ -1,10 +1,11 @@
 /* Travel Intelligence — optimization engine
- * Pure, deterministic, client-side. No live fare or award data yet (see
- * roadmap.html Phase 2) — this models the same scoring/weighting framework
- * real data will plug into later, using hand-maintained reference ranges
- * instead of a live search. Every number the engine shows is either
- * computed from your inputs or labeled as a typical/reference range —
- * nothing here is presented as a live quote. See guide.html, step 03.
+ * Pure, deterministic, client-side. Fares arrive live from /api/fares
+ * (Google Flights via SerpApi) and are scored by buildLiveCandidates;
+ * when the backend is unreachable the engine falls back to a documented
+ * model on hand-maintained, distance-scaled reference ranges — and the
+ * UI states which mode produced the numbers. Mileage/award figures are
+ * planning ranges in BOTH modes (award space isn't searched yet). See
+ * guide.html steps 02–04.
  */
 
 /* ---------- reference data (hand-maintained, not live-fetched) ---------- */
@@ -468,11 +469,18 @@ function awardRecommendation(best, inputs, programBalances) {
   const range = AWARD_RANGES[best.cabin] || AWARD_RANGES[inputs.cabin] || AWARD_RANGES.Economy;
   const milesMid = Math.round((range.milesLow + range.milesHigh) / 2);
   const feesMid = Math.round((range.feesLow + range.feesHigh) / 2);
-  const cpp = ((best.price - feesMid) / milesMid) * 100;
+  // ONE verdict per itinerary: the candidate's own cpp (best.candCpp) is
+  // the single source of truth for pay-with everywhere — exec summary,
+  // hero, and this card must never disagree (audit finding). The chart
+  // range is shown as a range of possible cpp outcomes, not a second
+  // verdict.
+  const cpp = best.candCpp != null ? best.candCpp : ((best.price - feesMid) / milesMid) * 100;
+  const cppBestCase = ((best.price - range.feesLow) / Math.max(1, range.milesLow)) * 100;
+  const cppWorstCase = ((best.price - range.feesHigh) / Math.max(1, range.milesHigh)) * 100;
   const alliance = best.alliance;
   const relevantPrograms = programBalances.filter((p) => p.balance > 0);
   const strong = cpp >= 1.6;
-  return { milesLow: range.milesLow, milesHigh: range.milesHigh, milesMid, feesMid, cpp, strong, alliance, relevantPrograms, cabin: best.cabin };
+  return { milesLow: range.milesLow, milesHigh: range.milesHigh, milesMid, feesMid, cpp, cppBestCase, cppWorstCase, strong, alliance, relevantPrograms, cabin: best.cabin };
 }
 
 /* ---------- upgrade tactics ----------
@@ -562,7 +570,7 @@ function upgradeTactics(best, inputs) {
   tactics.push({
     when: "Same week",
     title: `Price the miles + copay upgrade first`,
-    detail: `Before any cash bid: check what ${best.carrier} charges in miles + copay to move this booking to ${cabinAbove}. It's often the best redemption rate in the whole program and beats a cash bid of the same value. If it's offered under ~${Math.round(gap * 0.35).toLocaleString()}¢-equivalent, take it and skip the rest of this list.`,
+    detail: `Before any cash bid: check what ${best.carrier} charges in miles + copay to move this booking to ${cabinAbove}. It's often the best redemption rate in the whole program and beats a cash bid of the same value. If the miles + copay package values out under ~${fmtUSD(gap * 0.35)} all-in, take it and skip the rest of this list.`,
   });
   tactics.push({
     when: bidDate ? `By ${bidDate}` : "T−4 days",
@@ -614,7 +622,7 @@ function bestPointsAnswers(inputs) {
 
 /* ---------- insights ---------- */
 
-function buildInsights(inputs, candidates, best, weights, timing) {
+function buildInsights(inputs, candidates, best, weights, timing, usingLive) {
   const insights = [];
   const sorted = candidates.slice().sort((a, b) => b.scores.Cost - a.scores.Cost);
   const cheapest = sorted[0];
@@ -648,19 +656,13 @@ function buildInsights(inputs, candidates, best, weights, timing) {
     insights.push(`You're carrying a meaningful mile balance, but none of it is in a ${best.alliance} program that flies this itinerary directly — a transferable-point transfer (see Award Strategy) is likely your best path to using it here.`);
   }
 
-  if (timing.verdict === "wait") {
-    insights.push(`Purchase timing leans "wait, don't book yet" — ${timing.reason.toLowerCase()} Set a fare alert instead of checking manually.`);
-  }
-  if (timing.verdict === "buy") {
-    insights.push(`Purchase timing leans "buy now" — ${timing.reason.toLowerCase()}`);
-  }
-
-  if (best.stops >= 1 && candidates.every((c) => c.stops >= 1) === false) {
-    // already covered above; skip duplicate
-  }
+  // Purchase timing is covered by its own Purchase Strategy card — no
+  // duplicate insight here (audit finding: verbatim repetition).
 
   if (inputs.airportFlexibility && inputs.airportFlexibility.split(",").map((s) => s.trim()).filter(Boolean).length > 1) {
-    insights.push(`You've listed more than one workable departure airport. Once live fare data is wired in (see roadmap.html), this is exactly the kind of input that tends to surface the largest single savings — nearby-airport comparisons routinely beat date-shifting alone.`);
+    insights.push(usingLive
+      ? `Only your primary airport was searched live — the nearby airports you listed (${inputs.airportFlexibility}) weren't. Nearby-airport comparisons routinely beat date-shifting alone, so price the alternates on Google Flights before booking.`
+      : `You've listed more than one workable departure airport. Nearby-airport comparisons routinely surface the largest single savings — price the alternates before locking in the primary routing.`);
   }
 
   if (best.routeKnown === false) {
@@ -671,7 +673,9 @@ function buildInsights(inputs, candidates, best, weights, timing) {
     insights.push(`Route distance: roughly ${best.routeKm.toLocaleString()} km great-circle each way — flight times and the distance scaling on fares are computed from this geometry, not fabricated per-flight.`);
   }
 
-  insights.push(`This shortlist is scored, not searched — treat the price and mileage figures as planning ranges from a documented model, not a live quote. See guide.html for exactly what's computed vs. what's a hand-maintained reference range.`);
+  insights.push(usingLive
+    ? `Prices in this shortlist are live Google Flights quotes; mileage figures remain distance-scaled planning ranges (award space isn't searched yet). See guide.html for exactly what's live vs. modeled.`
+    : `This shortlist is scored, not searched — treat the price and mileage figures as planning ranges from a documented model, not a live quote. See guide.html for exactly what's computed vs. what's a hand-maintained reference range.`);
 
   return insights.slice(0, 8);
 }
@@ -703,7 +707,7 @@ function runOptimization(inputs, liveOffers) {
   const alternatives = candidates.slice(0, 5);
   const timing = purchaseTiming(inputs);
   const award = awardRecommendation(best, inputs, inputs.programBalances || []);
-  const insights = buildInsights(inputs, candidates, best, weights, timing);
+  const insights = buildInsights(inputs, candidates, best, weights, timing, usingLive);
   const tactics = upgradeTactics(best, inputs);
   const pointsIntel = bestPointsAnswers(inputs);
   return { candidates, weights, best, alternatives, timing, award, insights, tactics, pointsIntel, usingLive };
