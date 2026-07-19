@@ -38,6 +38,11 @@
       <span id="mode-banner">Checking live-fare backend… · <a href="/about" style="text-decoration:underline;">what this is</a> · <a href="/guide" style="text-decoration:underline;">what's live vs. modeled</a></span>
     </div>
 
+    <section class="block card ti-hidden" id="watched" aria-live="polite">
+      <h2 class="card-title">Watched trips <span class="form-hint" style="font-weight:400;">· re-searched daily at ~7am PT · shows the live fare floor (cheapest offer), not the weighted winner</span></h2>
+      <div id="watched-rows"></div>
+    </section>
+
     <form id="trip-form">
       <section class="block card" id="optimize">
         <h2 class="card-title">Trip</h2>
@@ -503,6 +508,7 @@
 
     const currentPrimary = Object.entries(inputs.priorityRanks).find(([, r]) => r === 1);
     const PRIORITIES = ["Best Overall Experience", "Best Value", "Cheapest", "Fastest", "Most Comfortable", "Best Upgrade Opportunity", "Best Use of Miles"];
+    window.__tiLastBest = best;
 
     resultsEl.innerHTML = `
       <div class="card block" style="display:flex;align-items:flex-end;gap:14px;flex-wrap:wrap;">
@@ -511,6 +517,10 @@
           <select id="results-optimize" onchange="tiReoptimize(this.value)">
             ${PRIORITIES.map((p) => `<option${currentPrimary && currentPrimary[0] === p ? " selected" : ""}>${p}</option>`).join("")}
           </select>
+        </div>
+        <div style="display:flex;gap:8px;align-items:flex-end;flex-wrap:wrap;">
+          <button type="button" class="ti-toggle" id="watch-btn" onclick="tiWatchTrip(this)">⭑ Watch this trip</button>
+          <button type="button" class="ti-toggle" onclick="tiExportIcs()">Upgrade plan → calendar (.ics)</button>
         </div>
         <p class="form-hint" style="flex:2;min-width:200px;margin-bottom:6px;">${result.usingLive ? `<strong>Live fares</strong> retrieved ${window.__tiLastLive && window.__tiLastLive.retrievedAt ? new Date(window.__tiLastLive.retrievedAt).toLocaleString("en-US", { month: "short", day: "numeric", hour: "numeric", minute: "2-digit" }) : "just now"} via ${window.__tiLastLive && window.__tiLastLive.provider ? window.__tiLastLive.provider : "the live backend"} — real prices, scored by the same engine.` : `<strong>Modeled fares</strong> — ${(FALLBACK_REASONS[window.__tiLiveReason] || FALLBACK_REASONS["api-fail"])(inputs)}`} Same shortlist, different lens — switching recomputes every weight and re-ranks instantly, no re-run needed. ${trav > 1 ? `Pricing shown per person; totals for ${trav} travelers alongside.` : ""}</p>
       </div>
@@ -523,7 +533,7 @@
         <div class="rec-hero-top">
           <div>
             <div class="rec-route">${inputs.origin} → ${inputs.viaCity ? inputs.viaCity + " → " : ""}${inputs.destination}</div>
-            <div class="rec-airline">${best.carrier} · ${best.alliance} · ${best.aircraft}</div>
+            <div class="rec-airline">${best.carrier} · ${best.alliance} · ${best.aircraft}${(() => { const site = T.carrierSite(best.carrier); return site ? ` · <a class="pick-open" href="${site}" target="_blank" rel="noopener">Book on ${best.carrier} ↗</a>` : ""; })()}</div>
           </div>
           <div class="rec-price-block">
             <div class="rec-price">${best.payWith === "miles" ? `~${(best.milesEst / 1000).toFixed(0)}k mi + ${T.fmtUSD(best.feesEst)}` : T.fmtUSD(best.price)}</div>
@@ -674,6 +684,113 @@
   }
   renderPointsIntel();
   document.querySelectorAll(".cc-check").forEach((el) => el.addEventListener("change", () => renderPointsIntel()));
+
+  /* ---------- fare watcher UI ---------- */
+  window.tiWatchTrip = async function (btn) {
+    const inputs = window.__tiLastInputs;
+    const T = window.TravelIntel;
+    if (!inputs) return;
+    const o = T.toIATA(inputs.preferredAirport) || T.toIATA(inputs.origin);
+    const d = T.toIATA(inputs.destination);
+    if (!o || !d) { btn.textContent = "Can't watch — unknown airport"; return; }
+    const best = window.__tiLastBest;
+    btn.textContent = "Saving…";
+    try {
+      const r = await fetch("/api/watch", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ trip: {
+          originIata: o, destIata: d, origin: inputs.origin, destination: inputs.destination,
+          departDate: inputs.departDate, returnDate: inputs.returnDate, cabin: inputs.cabin,
+          travelers: inputs.travelers || 1,
+          baseline: best ? { price: best.priceTotal || best.price * (inputs.travelers || 1), carrier: best.carrier } : null,
+        } }),
+      });
+      const j = await r.json();
+      if (!r.ok) { btn.textContent = j.error && j.error.includes("cap") ? "Watch cap reached (3)" : "Watch failed — retry"; return; }
+      btn.textContent = "Watching ✓";
+      renderWatched(j.trips);
+    } catch (e) { btn.textContent = "Watch failed — offline?"; }
+  };
+
+  function renderWatched(trips) {
+    const card = document.getElementById("watched");
+    const rows = document.getElementById("watched-rows");
+    if (!trips || !trips.length) { card.classList.add("ti-hidden"); return; }
+    card.classList.remove("ti-hidden");
+    rows.innerHTML = trips.map((t) => {
+      const checks = t.checks || [];
+      const latest = checks[checks.length - 1];
+      const prev = checks.length > 1 ? checks[checks.length - 2] : (t.baseline ? { price: t.baseline.price } : null);
+      let delta = "";
+      if (latest && prev && prev.price) {
+        const diff = latest.price - prev.price;
+        const pct = Math.round((diff / prev.price) * 100);
+        delta = diff === 0 ? '<span class="form-hint">unchanged</span>'
+          : diff < 0 ? `<span style="color:var(--good,#3f6b4f);font-weight:600;">▼ ${fmtNum(Math.abs(diff))} (${Math.abs(pct)}%)</span>`
+          : `<span style="color:var(--bad,#a24a3f);font-weight:600;">▲ $${fmtNum(diff)} (${pct}%)</span>`;
+      }
+      const priceLine = latest
+        ? `$${fmtNum(latest.price)} total · ${latest.carrier || "—"} · checked ${new Date(latest.at).toLocaleDateString("en-US", { month: "short", day: "numeric" })} ${delta}`
+        : t.baseline ? `baseline $${fmtNum(t.baseline.price)} · first check runs tonight` : `first check runs tonight`;
+      return `<div class="watching-row" data-id="${t.id}">
+        <span><span class="watching-title">${t.origin} → ${t.destination}</span><span class="watching-meta">${t.departDate}${t.returnDate ? " – " + t.returnDate : ""} · ${t.cabin} · ${t.travelers} trav</span></span>
+        <span style="text-align:right;font-size:12px;">${priceLine} <button type="button" class="pick-dismiss" aria-label="Stop watching ${t.origin} to ${t.destination}" onclick="tiUnwatch('${t.id.replace(/'/g, "")}')">×</button></span>
+      </div>`;
+    }).join("");
+  }
+
+  window.tiUnwatch = async function (id) {
+    try {
+      const r = await fetch("/api/watch?id=" + encodeURIComponent(id), { method: "DELETE" });
+      const j = await r.json();
+      renderWatched(j.trips);
+      const btn = document.getElementById("watch-btn");
+      if (btn) btn.textContent = "⭑ Watch this trip";
+    } catch (e) {}
+  };
+
+  (async function loadWatched() {
+    try {
+      const r = await fetch("/api/watch", { signal: AbortSignal.timeout(6000) });
+      if (!r.ok) return;
+      const j = await r.json();
+      renderWatched(j.trips);
+    } catch (e) { /* backend absent — card stays hidden */ }
+  })();
+
+  /* ---------- upgrade plan → calendar (.ics) ---------- */
+  window.tiExportIcs = function () {
+    const inputs = window.__tiLastInputs;
+    if (!inputs || !inputs.departDate) return;
+    const d = (offset) => {
+      const dt = new Date(inputs.departDate + "T12:00:00");
+      dt.setDate(dt.getDate() - offset);
+      return dt.toISOString().slice(0, 10).replace(/-/g, "");
+    };
+    const route = `${inputs.origin} → ${inputs.viaCity ? inputs.viaCity + " → " : ""}${inputs.destination}`;
+    const esc = (s) => String(s).replace(/<[^>]+>/g, "").replace(/[\\;,]/g, " ").replace(/\n/g, " ");
+    const events = [
+      { date: d(4), title: `Place upgrade bid — ${route}`, desc: "Bid 20–40% of the fare gap, slightly above the minimum. Windows close 48–72h out on most carriers." },
+      { date: d(3), title: `Check premium-cabin seat map — ${route}`, desc: "Mostly empty: leave the bid. Nearly full: cancel or lower it and pivot to the check-in play." },
+      { date: d(1), title: `Check in the minute it opens — ${route}`, desc: "Look for the flat-price counter-offer at online check-in; otherwise ask the desk agent about paid upgrades." },
+      { date: d(0), title: `Departure — last upgrade ask at the gate — ${route}`, desc: "If the cabin shows open seats, ask the gate agent once, early in boarding prep." },
+    ];
+    const stamp = new Date().toISOString().replace(/[-:]/g, "").slice(0, 15) + "Z";
+    const ics = ["BEGIN:VCALENDAR", "VERSION:2.0", "PRODID:-//Travel Intelligence//upgrade-plan//EN",
+      ...events.flatMap((ev, i) => ["BEGIN:VEVENT", `UID:ti-${stamp}-${i}@travelintelligence.org`, `DTSTAMP:${stamp}`, `DTSTART;VALUE=DATE:${ev.date}`, `SUMMARY:${esc(ev.title)}`, `DESCRIPTION:${esc(ev.desc)}`, "END:VEVENT"]),
+      "END:VCALENDAR"].join("\r\n");
+    const a = document.createElement("a");
+    a.href = URL.createObjectURL(new Blob([ics], { type: "text/calendar" }));
+    a.download = "upgrade-plan.ics";
+    a.click();
+    URL.revokeObjectURL(a.href);
+  };
+
+  /* ---------- service worker: offline shell for the installed PWA ---------- */
+  if ("serviceWorker" in navigator) {
+    navigator.serviceWorker.register("/sw.js").catch(() => {});
+  }
 
   /* ---------- mode banner: live fares connected or documented model ---------- */
   (async function () {

@@ -127,6 +127,17 @@ award range), then runs the dated timeline against Business. Don't
 regress it to one-cabin-up advice — that framing buried the actual goal.
 Trip purpose is Vacation / Business / Both only.
 
+### The watcher spends quota on a schedule — cap is a spend decision
+
+`watch.mjs` caps watched trips at 3 and `watch-check.mjs` re-searches
+each at most once per day (~90 searches/month at the cap, inside the
+250/month free tier alongside manual runs). Raising the cap, adding
+email/push alerts (needs a new credential), or increasing frequency are
+quota/spend decisions — Susan's call, never the agent's. The watcher
+records the live fare FLOOR (cheapest offer), not the engine's weighted
+winner, and the UI labels it exactly that way — don't blur that line.
+Watched trips store routes and dates only, never wallet data.
+
 ### The saved wallet is browser-local
 
 Cards and loyalty balances persist via `localStorage` (`tiWallet` key)

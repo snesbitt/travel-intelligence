@@ -176,6 +176,27 @@ function toIATA(name) {
   return null;
 }
 
+// Direct booking sites per carrier — the "book it" handoff the audit
+// flagged as missing. Fuzzy-matched by name; unknown carriers fall back
+// to the Google Flights link in Purchase Strategy.
+const CARRIER_SITES = {
+  United: "https://www.united.com", "Air Canada": "https://www.aircanada.com", Lufthansa: "https://www.lufthansa.com",
+  "Singapore Airlines": "https://www.singaporeair.com", ANA: "https://www.ana.co.jp/en/us/", "Turkish Airlines": "https://www.turkishairlines.com",
+  American: "https://www.aa.com", "British Airways": "https://www.britishairways.com", "Qatar Airways": "https://www.qatarairways.com",
+  "Cathay Pacific": "https://www.cathaypacific.com", Qantas: "https://www.qantas.com", Delta: "https://www.delta.com",
+  "Air France": "https://wwws.airfrance.us", KLM: "https://www.klm.com", "Korean Air": "https://www.koreanair.com",
+  "Alaska Airlines": "https://www.alaskaair.com", Emirates: "https://www.emirates.com", JetBlue: "https://www.jetblue.com",
+};
+
+function carrierSite(name) {
+  if (!name) return null;
+  const n = name.toLowerCase();
+  for (const [key, url] of Object.entries(CARRIER_SITES)) {
+    if (n.includes(key.toLowerCase()) || key.toLowerCase().includes(n)) return url;
+  }
+  return null;
+}
+
 const PRIORITY_WEIGHTS = {
   Cheapest:                 { Cost: 1.0, Comfort: 0.1, Upgrade: 0.1, Award: 0.2, Flexibility: 0.1, Risk: 0.2 },
   "Best Value":              { Cost: 0.6, Comfort: 0.4, Upgrade: 0.2, Award: 0.3, Flexibility: 0.3, Risk: 0.3 },
@@ -715,7 +736,7 @@ function runOptimization(inputs, liveOffers) {
 
 if (typeof window !== "undefined") {
   window.TravelIntel = {
-    runOptimization, computeWeights, upgradeTactics, bestPointsAnswers, toIATA,
+    runOptimization, computeWeights, upgradeTactics, bestPointsAnswers, toIATA, carrierSite,
     ALLIANCES, ALL_CARRIERS, TRANSFER_PARTNERS, POINT_VALUATIONS, TRANSFER_BONUSES,
     DIMENSIONS, DIM_LABEL, fmtUSD,
   };

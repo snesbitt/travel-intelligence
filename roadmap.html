@@ -128,6 +128,7 @@
       <p class="phase-value">The agent gets better at optimizing for you specifically, trip over trip.</p>
       <ul class="phase-log">
         <li><span class="lg-date">JUL 2026</span>First slice shipped early by direct request: the saved wallet (credit cards + 13 loyalty balances) now persists in the browser via localStorage and reloads automatically — the first piece of cross-session memory, ahead of the fuller preference profile this phase describes.</li>
+        <li><span class="lg-date">JUL 2026</span>The fare watcher shipped — the audit's "one big bet." Watch a trip (max 3) and a scheduled backend re-searches it daily, with day-over-day fare-floor deltas on the homepage. The cap exists because each watched trip spends one metered search per day; raising it, or adding email/push alerts (which need a new credential), stays an explicit approval decision. Shipped alongside: the upgrade timeline exports to calendar (.ics), the winning itinerary links straight to the carrier's booking site, and a service worker gives the installed app an offline shell.</li>
       </ul>
     </div>
 

@@ -43,6 +43,20 @@ example of what an agentic build looks like, not a one-off demo.
 - Collapsible density: long cards (13 loyalty programs, 18 TPG valuation
   rows, the 9-step upgrade timeline) open collapsed to their high-signal
   rows with explicit "Show all N" toggles.
+- The fare watcher: "Watch this trip" saves a route (max 3, stored in
+  Netlify Blobs via `/api/watch`); a scheduled function
+  (`watch-check.mjs`, daily 14:00 UTC) re-searches each watched trip —
+  one live search per trip per day, ~90/month at the cap — and the
+  homepage Watched Trips card shows the live fare floor with day-over-day
+  deltas. Alerts are in-app; email/push would need a new credential and
+  is deliberately unwired.
+- Upgrade plan → calendar: one click exports the dated upgrade timeline
+  (bid deadline, seat-map check, check-in, gate ask) as an `.ics` file.
+- Booking handoffs: the winning itinerary links directly to the
+  carrier's own site ("Book on United ↗") for 18 known carriers.
+- Offline shell: a service worker caches the pages and engine so the
+  installed PWA opens without a connection (API calls are never cached —
+  live stays live or fails honestly).
 - A Points Intelligence panel answering "which airline's points are worth
   the most" and "what are my transfer options": TPG's monthly valuations
   and active transfer bonuses, hand-copied with their as-of date shown
