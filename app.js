@@ -188,6 +188,24 @@ const CARRIER_SITES = {
   "Alaska Airlines": "https://www.alaskaair.com", Emirates: "https://www.emirates.com", JetBlue: "https://www.jetblue.com",
 };
 
+// Susan's rule (2026-07-19): prioritize Asia-based carriers on Asia-bound
+// trips — their home-market product quality (seat, service, food) is a
+// real comfort difference the cabin+stops model can't see. Applied as a
+// +12 Comfort bonus, surfaced in the insights whenever it's active so the
+// preference is visible, never a hidden thumb on the scale.
+const ASIAN_CARRIERS = ["ANA", "All Nippon", "Japan Airlines", "JAL", "Singapore", "Cathay", "Korean Air", "Asiana", "EVA", "China Airlines", "Air China", "China Eastern", "China Southern", "Thai", "Vietnam Airlines", "Philippine Airlines", "Malaysia Airlines", "Garuda", "Air India", "Vistara", "Starlux", "Zipair"];
+const ASIA_COMFORT_BONUS = 12;
+
+function isAsianCarrier(name) {
+  const n = (name || "").toLowerCase();
+  return ASIAN_CARRIERS.some((c) => n.includes(c.toLowerCase()));
+}
+
+function destinationInAsia(inputs) {
+  const c = lookupCoords(inputs.destination);
+  return Boolean(c && c[1] >= 60 && c[1] <= 150 && c[0] >= -10 && c[0] <= 60);
+}
+
 function carrierSite(name) {
   if (!name) return null;
   const n = name.toLowerCase();
@@ -204,7 +222,11 @@ const PRIORITY_WEIGHTS = {
   "Most Comfortable":        { Cost: 0.1, Comfort: 1.0, Upgrade: 0.2, Award: 0.1, Flexibility: 0.2, Risk: 0.2 },
   "Best Upgrade Opportunity": { Cost: 0.1, Comfort: 0.3, Upgrade: 1.0, Award: 0.1, Flexibility: 0.1, Risk: 0.1 },
   "Best Use of Miles":        { Cost: 0.1, Comfort: 0.1, Upgrade: 0.2, Award: 1.0, Flexibility: 0.1, Risk: 0.1 },
-  "Best Overall Experience":  { Cost: 0.3, Comfort: 0.5, Upgrade: 0.4, Award: 0.3, Flexibility: 0.3, Risk: 0.3 },
+  // Cost raised 0.3 → 1.4 (2026-07-19, Susan's call after the ANA-vs-United
+  // case): under "Best Overall", a fare at ~half price now outranks a
+  // nonstop, while modest price gaps still lose to the better-rounded
+  // itinerary. Tuned against that real case — see CLAUDE.md.
+  "Best Overall Experience":  { Cost: 1.4, Comfort: 0.5, Upgrade: 0.4, Award: 0.3, Flexibility: 0.3, Risk: 0.3 },
 };
 
 const DIMENSIONS = ["Cost", "Comfort", "Upgrade", "Award", "Flexibility", "Risk"];
@@ -336,7 +358,7 @@ function generateCandidates(inputs) {
 
     const scores = {};
     scores.Cost = clamp(100 - (price / Math.max(1, inputs.maxBudget)) * 65, 4, 100);
-    scores.Comfort = clamp((CABIN_COMFORT_BASE[inputs.cabin] || 50) - stops * 11 + (stops === 0 ? 6 : 0), 5, 100);
+    scores.Comfort = clamp((CABIN_COMFORT_BASE[inputs.cabin] || 50) - stops * 11 + (stops === 0 ? 6 : 0) + (destinationInAsia(inputs) && isAsianCarrier(carrier) ? ASIA_COMFORT_BONUS : 0), 5, 100);
     const upgradeFriendly = UPGRADE_FRIENDLY[carrier] ?? 50;
     scores.Upgrade = clamp(
       upgradeFriendly - (inputs.cabin === "First" ? 35 : inputs.cabin === "Business" ? 12 : 0) + (inputs.cabin === "Economy" || inputs.cabin === "Best Value" ? 6 : 0),
@@ -429,7 +451,7 @@ function buildLiveCandidates(inputs, offers) {
 
       const scores = {};
       scores.Cost = clamp(100 - (price / Math.max(1, inputs.maxBudget)) * 65, 4, 100);
-      scores.Comfort = clamp((CABIN_COMFORT_BASE[cabin] || 50) - stops * 11 + (stops === 0 ? 6 : 0), 5, 100);
+      scores.Comfort = clamp((CABIN_COMFORT_BASE[cabin] || 50) - stops * 11 + (stops === 0 ? 6 : 0) + (destinationInAsia(inputs) && isAsianCarrier(o.carrier) ? ASIA_COMFORT_BONUS : 0), 5, 100);
       scores.Upgrade = clamp(fuzzyCarrierScore(o.carrier) - (cabin === "First" ? 35 : cabin === "Business" ? 12 : 0) + (cabin === "Economy" || cabin === "Best Value" ? 6 : 0), 3, 100);
       scores.Award = clamp(candCpp * 42, 2, 100);
       scores.Flexibility = clamp(55 + (cabin === "Business" || cabin === "First" ? 8 : 0), 5, 100);
@@ -675,6 +697,10 @@ function buildInsights(inputs, candidates, best, weights, timing, usingLive) {
   const relevant = award.filter((p) => p.balance > 0 && ALLIANCES[best.alliance] && ALLIANCES[best.alliance].some((c) => programMatchesAlliance(p.program, best.alliance)));
   if (relevant.length === 0 && award.some((p) => p.balance > 20000)) {
     insights.push(`You're carrying a meaningful mile balance, but none of it is in a ${best.alliance} program that flies this itinerary directly — a transferable-point transfer (see Award Strategy) is likely your best path to using it here.`);
+  }
+
+  if (destinationInAsia(inputs) && candidates.some((c) => isAsianCarrier(c.carrier))) {
+    insights.push(`Asia route: Asia-based carriers (ANA, JAL, Singapore, Cathay, EVA…) receive a +${ASIA_COMFORT_BONUS} Comfort bonus here — your standing preference for their home-market product quality, set 2026-07-19. It's visible in the Comfort scores, not a hidden adjustment.`);
   }
 
   // Purchase timing is covered by its own Purchase Strategy card — no

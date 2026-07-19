@@ -88,6 +88,26 @@ threshold to make more redemptions look "strong" — it exists because the
 agent brief explicitly says never recommend miles unless the redemption
 is genuinely strong.
 
+### "Best Overall" is value-conscious by explicit decision
+
+2026-07-19: Susan reviewed a live SFO→Tokyo result where United nonstop
+($1,512) outranked ANA 1-stop ($761) under Best Overall Experience and
+ruled the cheaper fare should win. The BOE priority vector's Cost weight
+went 0.3 → 1.4 — the minimal value that flips that case (verified
+against the real candidate scores) while a nonstop still beats a
+modestly-cheaper connection. Known remaining blindspots, declined for
+now: Comfort ignores carrier product quality (ANA economy > United
+economy, invisible to the model) and the upgrade-friendliness table is
+editorial — revisit only with Susan.
+
+### Asia routes prefer Asia-based carriers — Susan's standing rule
+
+2026-07-19: on Asia-bound trips, carriers in `ASIAN_CARRIERS` get a
++12 Comfort bonus (`ASIA_COMFORT_BONUS` in app.js) — home-market product
+quality the cabin+stops model can't otherwise see. The rule announces
+itself in the insights whenever active; keep it visible, never silent.
+Destination-in-Asia is a coordinate box on the city table.
+
 ### Weighting must stay visible
 
 `index.html`'s results view always renders the per-dimension weight
