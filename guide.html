@@ -31,7 +31,6 @@
   <div class="wrap">
     <p class="eyebrow">How it's built · an agentic project ·<br>July 2026</p>
     <h1 class="page-title">A scoring engine, built and run by an AI agent</h1>
-    <p class="lede">Six steps, in order. Each stands on its own — the accountability does not depend on finishing the rest. Written for any reader, technical or not: every section below describes what the system actually does, not an idealized version of it.</p>
 
     <nav class="pill-nav">
       <a href="#tools"><b>01</b>Tools</a>
@@ -42,10 +41,6 @@
       <a href="#manual"><b>06</b>Manual</a>
     </nav>
 
-    <div class="field-note">
-      <p class="eyebrow">Field note</p>
-      <p>An early version of the pricing model priced nearly every Business class round-trip at the same figure, regardless of route or carrier: a rounding floor was overriding the variation built into the model. Step 03 exists because a recommendation is only as trustworthy as the numbers behind it. The error was found by running the engine end-to-end and reading the output, not by reviewing the code alone.</p>
-    </div>
 
     <div class="step" id="tools">
       <div><span class="step-num">01</span><span class="step-title">Tools &amp; mode</span></div>
@@ -65,7 +60,7 @@
         <div class="mode-card tint-c">
           <div class="mode-name">Your browser</div>
           <div class="mode-role">run the model</div>
-          <ul><li>reads your Input Card</li><li>computes scores locally</li><li>nothing transmitted</li></ul>
+          <ul><li>reads your Input Card</li><li>computes scores locally</li><li>wallet stays local</li></ul>
         </div>
         <div class="mode-card tint-d">
           <div class="mode-name">Backend (live)</div>
@@ -101,7 +96,7 @@
             <text x="451" y="55" text-anchor="middle" font-size="10.5" font-style="italic" fill="#1f3a5f">run the model</text>
             <text x="451" y="78" text-anchor="middle" font-size="10.5" fill="#182c47">reads Input Card</text>
             <text x="451" y="94" text-anchor="middle" font-size="10.5" fill="#182c47">computes locally</text>
-            <text x="451" y="110" text-anchor="middle" font-size="10.5" fill="#182c47">nothing transmitted</text>
+            <text x="451" y="110" text-anchor="middle" font-size="10.5" fill="#182c47">wallet stays local</text>
 
             <rect x="554" y="14" width="158" height="118" rx="8" fill="#f0e4c8" stroke="#a97b2f"/>
             <text x="633" y="38" text-anchor="middle" font-size="13" font-weight="600" fill="#24262b">Backend</text>
@@ -190,14 +185,6 @@
     <div class="step" id="manual">
       <div><span class="step-num">06</span><span class="step-title">What's still manual — and what's still missing</span></div>
       <p class="step-body">Award-space search is the largest remaining data gap — mileage figures are planning ranges, never availability checks. The watcher now does the daily fare-watching automatically (capped at three trips because each check spends one metered search — raising that cap, or adding email/push alerts, needs a new credential or quota decision and therefore Susan's explicit approval, the same rule as all real spend). Saved memory covers the wallet and watched trips; other inputs still reset each session. The TPG valuation and transfer-bonus tables remain a manual monthly refresh — copied by hand with their date shown, so a stale month is visible rather than silent.</p>
-    </div>
-
-    <div class="step-divider"></div>
-
-    <div class="field-note" style="margin-top: 0;">
-      <p class="eyebrow">What this took to learn</p>
-      <p style="margin-bottom:10px;">A recommendation is only as trustworthy as the labels on its numbers. Presenting a reference range as a live quote would be worse than not building the feature at all.</p>
-      <p>Authorization precedes any expenditure. A domain name, a paid API key, or any real spend is a decision left to Susan, never delegated.</p>
     </div>
 
   </div>
