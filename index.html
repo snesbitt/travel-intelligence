@@ -783,6 +783,13 @@
       if (!r.ok) return;
       const j = await r.json();
       renderWatched(j.trips);
+      // health: silent when fine, loud when the last scheduled check failed
+      if (j.health && j.health.ok === false) {
+        const card = document.getElementById("watched");
+        card.classList.remove("ti-hidden");
+        document.getElementById("watched-rows").insertAdjacentHTML("afterbegin",
+          `<p class="form-hint" style="color:var(--bad,#a24a3f);">⚠ The last scheduled health check failed (${new Date(j.health.at).toLocaleDateString("en-US", { month: "short", day: "numeric" })}) — the fares backend may be down; watched-trip checks may have been skipped.</p>`);
+      }
     } catch (e) { /* backend absent — card stays hidden */ }
   })();
 

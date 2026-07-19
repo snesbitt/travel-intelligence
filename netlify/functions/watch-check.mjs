@@ -15,11 +15,34 @@ import { getStore } from "@netlify/blobs";
 export const config = { schedule: "0 14 * * *" };
 
 export default async () => {
+  const store = getStore({ name: "watched-trips", consistency: "strong" });
+
+  // Health check (sibling-site parity, kept radically simple): ping our
+  // own fares backend and record the result. The frontend stays silent
+  // when healthy and warns only when the last check failed.
+  try {
+    const site = process.env.URL || "https://travelintelligence.org";
+    const r = await fetch(site + "/api/fares?ping=1");
+    const j = r.ok ? await r.json() : {};
+    await store.setJSON("health", { at: new Date().toISOString(), ok: Boolean(r.ok && j.live), live: Boolean(j.live) });
+  } catch (e) {
+    await store.setJSON("health", { at: new Date().toISOString(), ok: false, live: false });
+  }
+
   const key = process.env.SERPAPI_KEY;
   if (!key) return new Response("not configured", { status: 200 }); // scheduled fn: never crash, just no-op
 
-  const store = getStore({ name: "watched-trips", consistency: "strong" });
   const trips = (await store.get("list", { type: "json" })) || [];
+
+  // Daily backup of the watched-trips list (sibling-site parity), keep 7.
+  try {
+    const day = new Date().toISOString().slice(0, 10);
+    await store.setJSON("backup-" + day, trips);
+    const { blobs } = await store.list({ prefix: "backup-" });
+    const old = blobs.map((b) => b.key).sort().slice(0, -7);
+    for (const k of old) await store.delete(k);
+  } catch (e) { /* backup failure never blocks the checks */ }
+
   if (!trips.length) return new Response("no trips", { status: 200 });
 
   const now = Date.now();

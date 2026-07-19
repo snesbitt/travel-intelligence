@@ -32,7 +32,8 @@ export default async (req) => {
 
   if (req.method === "GET") {
     const trips = (await store.get("list", { type: "json" })) || [];
-    return json({ trips, max: MAX_TRIPS });
+    const health = (await store.get("health", { type: "json" })) || null;
+    return json({ trips, max: MAX_TRIPS, health });
   }
 
   if (req.method === "POST") {
