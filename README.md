@@ -47,10 +47,10 @@ example of what an agentic build looks like, not a one-off demo.
 - Collapsible density: long cards (13 loyalty programs, 18 TPG valuation
   rows, the 9-step upgrade timeline) open collapsed to their high-signal
   rows with explicit "Show all N" toggles.
-- The fare watcher: "Watch this trip" saves a route (max 3, stored in
+- The fare watcher: "Watch this trip" saves a route (max 2, stored in
   Netlify Blobs via `/api/watch`); a scheduled function
   (`watch-check.mjs`, daily 14:00 UTC) re-searches each watched trip —
-  one live search per trip per day, ~90/month at the cap — and the
+  one live search per trip per day, ~60/month at the cap — and the
   homepage Watched Trips card shows the live fare floor with day-over-day
   deltas. Alerts are in-app; email/push would need a new credential and
   is deliberately unwired.
@@ -100,6 +100,7 @@ No build step. Serve the directory and open it:
 
 ```bash
 npm run dev     # serves on :8888
+npm test        # runs tests/app.test.js against app.js's pure scoring functions
 ```
 
 ## Deploy
