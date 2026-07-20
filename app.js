@@ -434,8 +434,8 @@ function seasonalRisk(dateStr) {
 }
 
 /* ---------- live offers → scored candidates ----------
- * Takes REAL fares (from the /api/fares Netlify Function backed by the
- * Amadeus Flight Offers API) and runs them through the exact same
+ * Takes REAL fares (from the /api/fares Netlify Function, a proxy to
+ * SerpApi's Google Flights engine) and runs them through the exact same
  * six-dimension scoring the model uses — the weighting framework is the
  * product; the data source upgraded underneath it. Prices are real; the
  * miles estimate stays a distance-scaled planning range (award SPACE is
