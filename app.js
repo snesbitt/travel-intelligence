@@ -821,5 +821,8 @@ if (typeof window !== "undefined") {
     runOptimization, computeWeights, upgradeTactics, bestPointsAnswers, toIATA, carrierSite, suggestPriorities,
     ALLIANCES, ALL_CARRIERS, TRANSFER_PARTNERS, POINT_VALUATIONS, TRANSFER_BONUSES,
     DIMENSIONS, DIM_LABEL, fmtUSD,
+    // exposed 2026-07-20 for tests/app.test.js — these were already pure,
+    // just not on the public surface (nothing here is DOM-touching).
+    awardRecommendation, buildLiveCandidates, ASIA_COMFORT_BONUS, ASIAN_CARRIERS,
   };
 }
