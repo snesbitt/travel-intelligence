@@ -56,30 +56,19 @@
 
     <div class="about-section" id="the-stack">
       <div class="about-section-head"><span class="about-num-badge">02</span><h3>the stack</h3></div>
-      <p>Static HTML with a deterministic, client-side scoring engine, plus one Netlify Function: <code>/api/fares</code>, which searches real Google Flights fares (via SerpApi) on every run and hands them to the same scoring framework. Trip inputs go to that function only when you run a search; your saved wallet never leaves the browser. Mileage and award figures remain hand-maintained, distance-scaled planning ranges — award availability is not yet searched, and the UI labels them as such wherever they appear. The comparison below shows where this site stands relative to its siblings.</p>
+      <p>Static HTML with a deterministic, client-side scoring engine, plus one Netlify Function: <code>/api/fares</code>, which searches real Google Flights fares (via SerpApi) on every run and hands them to the same scoring framework. Trip inputs go to that function only when you run a search; your saved wallet never leaves the browser. Mileage and award figures remain hand-maintained, distance-scaled planning ranges — award availability is not yet searched, and the UI labels them as such wherever they appear. Here's what that adds up to today:</p>
 
-      <div class="stack-compare">
-        <div class="stack-col this-site">
-          <h4>This site, today</h4>
-          <ul>
-            <li>Static pages + three single-file Netlify Functions, no build step</li>
-            <li>Live Google Flights fares (SerpApi) with an honest modeled fallback</li>
-            <li>Daily scheduled health check &amp; watched-trips backups</li>
-            <li>GitHub repo, auto-deploy on push</li>
-          </ul>
-        </div>
-        <div class="stack-col siblings">
-          <h4>Vinyl Scout &amp; The Fitness Log</h4>
-          <ul>
-            <li>Full Netlify Functions backend</li>
-            <li>Live data sources (WHOOP API, Discogs pricing)</li>
-            <li>Automated backups &amp; health checks</li>
-            <li>GitHub repo, auto-deploy on push</li>
-          </ul>
-        </div>
+      <div class="stack-col this-site">
+        <h4>This site, today</h4>
+        <ul>
+          <li>Static pages + three single-file Netlify Functions, no build step</li>
+          <li>Live Google Flights fares (SerpApi) with an honest modeled fallback</li>
+          <li>Daily scheduled health check &amp; watched-trips backups</li>
+          <li>GitHub repo, auto-deploy on push</li>
+        </ul>
       </div>
 
-      <p>Live award-space search — seats.aero-style availability — is the remaining data gap on the roadmap. Until it ships, mileage figures are labeled planning ranges, never presented as bookable award quotes. The other sites in this portfolio hold themselves to the same standard.</p>
+      <p>Live award-space search — seats.aero-style availability — is the remaining data gap on the roadmap. Until it ships, mileage figures are labeled planning ranges, never presented as bookable award quotes.</p>
     </div>
 
     <div class="about-section" id="on-the-page">
