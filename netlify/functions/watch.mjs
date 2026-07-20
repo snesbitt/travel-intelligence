@@ -1,8 +1,8 @@
 // netlify/functions/watch.mjs
-// version: 1 (2026-07-19)
+// version: 2 (2026-07-20)
 // The fare watcher's storage API — the audit's "one big bet." Watched
 // trips persist in a Netlify Blobs store; watch-check.mjs re-searches
-// them on a daily schedule. Capped at MAX_TRIPS=3 because each watched
+// them on a daily schedule. Capped at MAX_TRIPS=2 because each watched
 // trip spends one SerpApi search per day — raising the cap is a
 // quota/spend decision that belongs to Susan, per CLAUDE.md. Alerts are
 // in-app deltas (the homepage Watched Trips card); email/push would need
@@ -10,22 +10,26 @@
 // Same open POST/DELETE model as streaming-scout's dismiss.mjs — no auth,
 // nothing sensitive stored (routes and dates only, never wallet data).
 //
-// QUOTA MATH (2026-07-20 correction — this comment previously said the
-// free tier was 250/month; it's actually 100/month, matching the figure
-// already correct in fares.mjs and CLAUDE.md's top section):
+// QUOTA MATH (2026-07-20, second correction — MAX_TRIPS lowered from 3
+// to 2 after fixing the prior comment's wrong 250/month figure; real cap
+// is 100/month, matching fares.mjs and CLAUDE.md's top section):
 //   - watch-check.mjs runs once/day on a schedule and re-searches each
 //     watched trip at most once/day, skipping trips already checked in
-//     the last 20h. At the MAX_TRIPS=3 cap that's <=3 searches/day, i.e.
-//     <=90 searches/month (3 x ~30 days).
+//     the last 20h. At the MAX_TRIPS=2 cap that's <=2 searches/day, i.e.
+//     <=60 searches/month (2 x ~30 days).
 //   - Real free-tier cap: 100 searches/month.
-//   - Headroom left for manual "Run the optimization" calls: ~10/month
-//     (100 - 90) — thin. If Susan wants more room for manual runs,
-//     lowering MAX_TRIPS or the check cadence are the two levers; this
-//     file intentionally does not change either on its own.
+//   - Headroom left for manual "Run the optimization" calls: ~40/month
+//     (100 - 60) — comfortable. Chose to lower MAX_TRIPS (fewer trips,
+//     still checked daily/fresh) over stretching the check cadence
+//     (same trips, staler data) as the more conservative of the two
+//     levers described in the prior version of this comment. If Susan
+//     wants 3 trips watched again, raising MAX_TRIPS back to 3 costs
+//     ~30 more searches/month, leaving ~10/month for manual runs — her
+//     call, not something to change without her sign-off.
 
 import { getStore } from "@netlify/blobs";
 
-const MAX_TRIPS = 3; // see quota math in the header comment above before changing this
+const MAX_TRIPS = 2; // see quota math in the header comment above before changing this
 
 function json(body, status) {
   return new Response(JSON.stringify(body), {
