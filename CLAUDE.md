@@ -40,7 +40,12 @@ not just a demo. Hold every future change to that standard.
   devalues) by re-copying — never let the shown as-of date go silently
   stale, and never present them as a live feed. Transfer bonuses expire:
   drop entries whose end date has passed when refreshing.
-- Backend: none yet — fully static, scoring runs client-side.
+- Backend: three live Netlify Functions, not static-only —
+  `netlify/functions/fares.mjs` (live fare search proxy to SerpApi),
+  `watch.mjs` (Blobs-backed watched-trips store), and `watch-check.mjs`
+  (daily scheduled re-search of watched trips). Scoring itself still
+  runs client-side in `app.js` against either live offers or the
+  modeled reference data — the Functions supply data, not scoring.
 - Frontend: `index.html` is the Input Card + results, importing the pure
   scoring logic from `app.js` via a plain `<script>` tag (no build step,
   no bundler).
