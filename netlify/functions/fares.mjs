@@ -78,14 +78,28 @@ export default async (req) => {
   const j = await res.json();
   if (j.error) return json({ live: false, reason: "upstream_error", detail: String(j.error).slice(0, 400) }, 502);
 
+  // Google Flights normally returns price as a number, but has been
+  // observed to send a currency-prefixed string (e.g. "$1,234") for some
+  // itineraries. parseFloat("$1,234") is NaN, which silently dropped the
+  // offer below with no signal that anything was lost. Strip everything
+  // but digits and a decimal point before parsing so those offers survive.
+  function parsePrice(v) {
+    if (typeof v === "number") return v;
+    if (typeof v !== "string") return null;
+    const cleaned = v.replace(/[^0-9.]/g, "");
+    if (!cleaned) return null;
+    const n = parseFloat(cleaned);
+    return Number.isFinite(n) ? n : null;
+  }
+
   const raw = [...(j.best_flights || []), ...(j.other_flights || [])];
-  const offers = raw.slice(0, 20).map((o, idx) => {
+  const mapped = raw.slice(0, 20).map((o, idx) => {
     const segs = o.flights || [];
     return {
       id: idx,
       carrier: titleCaseCarrier(segs.map((s) => s.airline)),
       carrierCode: (segs[0] && s0code(segs[0])) || "",
-      priceTotal: typeof o.price === "number" ? o.price : parseFloat(o.price) || null, // TOTAL for all travelers, USD
+      priceTotal: parsePrice(o.price), // TOTAL for all travelers, USD
       stops: Math.max(0, segs.length - 1),
       durationMinutes: o.total_duration || null, // whole itinerary as returned by Google Flights
       cabins: [],
@@ -93,12 +107,18 @@ export default async (req) => {
       aircraft: segs[0] && segs[0].airplane ? segs[0].airplane : null,
       isBest: idx < (j.best_flights || []).length,
     };
-  }).filter((o) => o.priceTotal);
+  });
+  const offers = mapped.filter((o) => o.priceTotal);
+  const droppedForUnparseablePrice = mapped.length - offers.length; // visible, not silent
 
   function s0code(seg) {
     const fn = seg.flight_number || "";
     const m = /^([A-Z0-9]{2})\s/.exec(fn);
     return m ? m[1] : "";
+  }
+
+  if (droppedForUnparseablePrice > 0) {
+    console.warn(`fares.mjs: dropped ${droppedForUnparseablePrice} offer(s) with an unparseable price for ${origin}->${destination} ${departDate}`);
   }
 
   return json({
@@ -107,5 +127,6 @@ export default async (req) => {
     provider: "Google Flights (SerpApi)",
     origin, destination, departDate, returnDate: returnDate || null, adults,
     offers,
+    droppedForUnparseablePrice,
   });
 };
