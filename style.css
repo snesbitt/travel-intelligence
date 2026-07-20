@@ -254,11 +254,15 @@ figure.diagram figcaption { font-family: var(--sans); font-size: 10px; letter-sp
 }
 .form-field textarea { resize: vertical; min-height: 44px; }
 .form-field input:focus, .form-field select:focus, .form-field textarea:focus { outline: 2px solid var(--accent); outline-offset: 1px; }
+/* Cabin/purpose/date-flex pills — padding bumped 2026-07-20 so the
+   button box clears the 44px touch-target guideline (was ~26-30px tall);
+   min-height is the floor, flex centering keeps the compact pill look. */
 .pill-toggle { display: flex; flex-wrap: wrap; gap: 6px; }
 .pill-toggle button {
   font-family: var(--sans); font-size: 11.5px; color: #565b6e;
   background: var(--bg); border: 1px solid var(--border); border-radius: 20px;
-  padding: 6px 12px; cursor: pointer;
+  padding: 13px 14px; min-height: 44px; display: inline-flex; align-items: center;
+  cursor: pointer;
 }
 .pill-toggle button.sel { background: var(--accent); color: #fff; border-color: var(--accent); }
 .check-grid { display: grid; grid-template-columns: 1fr; gap: 7px; }
@@ -365,7 +369,7 @@ table.alt-table td.rank-cell { font-family: var(--serif); font-style: italic; co
    expand/collapse control, styled to read as an action, not a link. */
 .ti-hidden { display: none !important; }
 .ti-toggle {
-  display: inline-block; margin-top: 10px; padding: 7px 14px;
+  display: inline-flex; align-items: center; margin-top: 10px; padding: 13px 16px; min-height: 44px;
   font-size: 12px; font-weight: 600; letter-spacing: 0.02em;
   color: var(--accent, #1f3a5f); background: transparent;
   border: 1px solid var(--line, #d8d0bf); border-radius: 999px;
