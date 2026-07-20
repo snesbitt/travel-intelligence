@@ -150,10 +150,12 @@ Trip purpose is Vacation / Business / Both only.
 ### The watcher spends quota on a schedule — cap is a spend decision
 
 `watch.mjs` caps watched trips at 3 and `watch-check.mjs` re-searches
-each at most once per day (~90 searches/month at the cap, inside the
-250/month free tier alongside manual runs). Raising the cap, adding
-email/push alerts (needs a new credential), or increasing frequency are
-quota/spend decisions — Susan's call, never the agent's. The watcher
+each at most once per day (~90 searches/month at the cap, against the
+real 100/month free tier — see the quota-math comment at the top of
+watch.mjs for the exact accounting; that leaves thin headroom for manual
+runs). Raising the cap, adding email/push alerts (needs a new
+credential), or increasing frequency are quota/spend decisions — Susan's
+call, never the agent's. The watcher
 records the live fare FLOOR (cheapest offer), not the engine's weighted
 winner, and the UI labels it exactly that way — don't blur that line.
 Watched trips store routes and dates only, never wallet data.
