@@ -1,4 +1,5 @@
 [build]
+  ignore = "bash scripts/netlify-ignore.sh"
   publish = "."
   functions = "netlify/functions"
 
@@ -24,3 +25,13 @@
   for = "/"
   [headers.values]
     Cache-Control = "no-cache, no-store, must-revalidate"
+
+[[headers]]
+  for = "/style.css"
+  [headers.values]
+    Cache-Control = "public, max-age=600, must-revalidate"
+
+[[headers]]
+  for = "/app.js"
+  [headers.values]
+    Cache-Control = "public, max-age=600, must-revalidate"

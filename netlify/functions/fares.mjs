@@ -14,6 +14,14 @@
 // frontend states plainly that it's running the documented model instead
 // — honest fallback, never a silent one.
 
+// Quota guard (added 2026-07-20): identical searches (same origin/dest/
+// dates/adults/cabin) within a 15-minute window are served from a
+// @netlify/blobs cache instead of re-hitting SerpApi. This protects the
+// 100/month quota from repeat page loads or re-comparing cabin classes
+// in one sitting, without ever staling a genuinely new search.
+
+import { getStore } from "@netlify/blobs";
+
 function json(body, status) {
   return new Response(JSON.stringify(body), {
     status: status || 200,
@@ -50,6 +58,21 @@ export default async (req) => {
     return json({ live: false, reason: "bad_request", detail: "origin/destination must be IATA codes, depart must be YYYY-MM-DD" }, 400);
   }
   if (!key) return json({ live: false, reason: "not_configured" }, 503);
+
+  const CACHE_TTL_MS = 15 * 60 * 1000; // 15 min - protects quota, short enough fares never feel stale
+  // Reuses the existing "watched-trips" blob store (key-prefixed "farecache-")
+  // rather than a second store, per the radical-simplicity rule in CLAUDE.md.
+  const cacheKey = "farecache-" + ["v1", origin, destination, departDate, returnDate, adults, cabin].join("|");
+  const store = getStore({ name: "watched-trips", consistency: "strong" });
+
+  try {
+    const hit = await store.get(cacheKey, { type: "json" });
+    if (hit && Date.now() - hit.cachedAt < CACHE_TTL_MS) {
+      return json({ ...hit.payload, cached: true }, 200);
+    }
+  } catch (e) {
+    console.warn("fares.mjs: cache read failed", e && e.message);
+  }
 
   const q = new URLSearchParams({
     engine: "google_flights",
@@ -121,12 +144,20 @@ export default async (req) => {
     console.warn(`fares.mjs: dropped ${droppedForUnparseablePrice} offer(s) with an unparseable price for ${origin}->${destination} ${departDate}`);
   }
 
-  return json({
+  const payload = {
     live: true,
     retrievedAt: new Date().toISOString(),
     provider: "Google Flights (SerpApi)",
     origin, destination, departDate, returnDate: returnDate || null, adults,
     offers,
     droppedForUnparseablePrice,
-  });
+  };
+
+  try {
+    await store.setJSON(cacheKey, { cachedAt: Date.now(), payload });
+  } catch (e) {
+    console.warn("fares.mjs: cache write failed", e && e.message);
+  }
+
+  return json({ ...payload, cached: false });
 };

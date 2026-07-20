@@ -41,11 +41,14 @@ not just a demo. Hold every future change to that standard.
   stale, and never present them as a live feed. Transfer bonuses expire:
   drop entries whose end date has passed when refreshing.
 - Backend: three live Netlify Functions, not static-only —
-  `netlify/functions/fares.mjs` (live fare search proxy to SerpApi),
-  `watch.mjs` (Blobs-backed watched-trips store), and `watch-check.mjs`
-  (daily scheduled re-search of watched trips). Scoring itself still
-  runs client-side in `app.js` against either live offers or the
-  modeled reference data — the Functions supply data, not scoring.
+  `netlify/functions/fares.mjs` (live fare search proxy to SerpApi, with
+  a 15-min result cache keyed by search params — reuses the
+  `watched-trips` blob store under a `farecache-` prefix to protect the
+  SerpApi quota without adding a second store), `watch.mjs`
+  (Blobs-backed watched-trips store), and `watch-check.mjs` (daily
+  scheduled re-search of watched trips). Scoring itself still runs
+  client-side in `app.js` against either live offers or the modeled
+  reference data — the Functions supply data, not scoring.
 - Frontend: `index.html` is the Input Card + results, importing the pure
   scoring logic from `app.js` via a plain `<script>` tag (no build step,
   no bundler).
