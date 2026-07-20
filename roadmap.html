@@ -129,6 +129,7 @@
       <ul class="phase-log">
         <li><span class="lg-date">JUL 2026</span>First slice shipped early by direct request: the saved wallet (credit cards + 13 loyalty balances) now persists in the browser via localStorage and reloads automatically — the first piece of cross-session memory, ahead of the fuller preference profile this phase describes.</li>
         <li><span class="lg-date">JUL 2026</span>The fare watcher shipped — the audit's "one big bet." Watch a trip (max 3) and a scheduled backend re-searches it daily, with day-over-day fare-floor deltas on the homepage. The cap exists because each watched trip spends one metered search per day; raising it, or adding email/push alerts (which need a new credential), stays an explicit approval decision. Shipped alongside: the upgrade timeline exports to calendar (.ics), the winning itinerary links straight to the carrier's booking site, and a service worker gives the installed app an offline shell.</li>
+        <li><span class="lg-date">JUL 2026</span>Watched-trip cap lowered from 3 to 2, for quota safety: a fixed doc error found the real SerpApi free tier is 100 searches/month, not 250 — at the old cap of 3, the daily watcher alone spent ~90 of those, leaving only ~10/month for manual "Run the optimization" calls. At 2, the watcher spends ~60/month, leaving a comfortable ~40/month of headroom. Fewer trips can be watched at once as a direct result; nothing else about the watcher changed.</li>
       </ul>
     </div>
 
