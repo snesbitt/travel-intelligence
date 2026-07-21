@@ -523,8 +523,72 @@ function suggestPriorities(inputs) {
         ? `premium cabins are where redemptions run strongest — with ${biggestBalance.toLocaleString()} miles saved, value and miles are the right two lenses.`
         : `${inputs.cabin} fares vary wildly for near-identical products on this route — value comparison beats any single dimension.` };
   }
+  // Saved "typical travel style" preference — applied ONLY as a fallback,
+  // after every trip-specific signal above has had a chance to fire, so a
+  // saved default never overrides what this particular trip's own numbers
+  // say. Kept as a small lookup table + pure function (travelStyleFallback)
+  // so it's testable without the rest of suggestPriorities' context.
+  const styleFallback = travelStyleFallback(inputs.travelStyle);
+  if (styleFallback) {
+    return { primary: styleFallback.primary, secondary: styleFallback.secondary,
+      reason: `${styleFallback.note} — nothing about this specific trip overrides it.` };
+  }
+
   return { primary: "Best Overall Experience", secondary: "Best Value",
     reason: `nothing about this trip forces a single dimension — the balanced lens with a value runner-up fits.` };
+}
+
+// 2026-07-21: saved preferences & trip memory, phase 07's fuller slice
+// (the wallet shipped first, 2026-07-14, ahead of this). Three small pure
+// functions, each reading a saved-preference field from `inputs` — never
+// touching the six-dimension scores themselves, per "radical simplicity":
+// these personalize the SUGGESTION and the INSIGHTS, not the scoring math.
+const TRAVEL_STYLE_FALLBACK = {
+  Relaxed: { primary: "Most Comfortable", secondary: "Best Overall Experience", note: `your saved travel style is "Relaxed" — fewer connections and more buffer over price` },
+  Efficient: { primary: "Fastest", secondary: "Best Overall Experience", note: `your saved travel style is "Efficient" — minimizing total travel time` },
+  Luxury: { primary: "Best Upgrade Opportunity", secondary: "Most Comfortable", note: `your saved travel style is "Luxury" — comfort and upgrade potential over price` },
+};
+
+function travelStyleFallback(travelStyle) {
+  return TRAVEL_STYLE_FALLBACK[travelStyle] || null;
+}
+
+// Saved "airports to avoid" preference, checked against the fields that
+// are honest to check: origin, destination, preferred/nearby airports,
+// and the via city. The candidate model only generates a STOP COUNT per
+// itinerary, never a specific connection airport — so this deliberately
+// does NOT claim to catch a disliked airport used as a connection, and
+// buildInsights says so explicitly when it fires (never a silent or
+// overclaimed match).
+function flagsDislikedAirport(inputs) {
+  const disliked = (inputs.dislikedAirports || "").split(",").map((s) => s.trim().toLowerCase()).filter(Boolean);
+  if (!disliked.length) return null;
+  const rawFields = [inputs.origin, inputs.destination, inputs.preferredAirport, inputs.viaCity]
+    .concat((inputs.airportFlexibility || "").split(","))
+    .map((s) => (s || "").trim())
+    .filter(Boolean);
+  // Check both the raw text (a saved city name) and its resolved IATA code
+  // (toIATA, the same city→code table the live search uses) — a saved
+  // "LHR" needs to match a trip field of "London" and vice versa.
+  const fields = rawFields.flatMap((f) => {
+    const code = toIATA(f);
+    return [f.toLowerCase(), code ? code.toLowerCase() : null].filter(Boolean);
+  });
+  for (const d of disliked) {
+    if (fields.some((f) => f.includes(d) || d.includes(f))) return d;
+  }
+  return null;
+}
+
+// Saved "upgrade wins" log — free-text history the user adds to after a
+// successful upgrade. If any past entry mentions the recommended
+// itinerary's carrier, that's surfaced as a reason to try the same play
+// again. Substring match on free text only, same fuzziness as the rest of
+// this file's carrier matching — never scored, just surfaced.
+function matchUpgradeWinCarrier(upgradeWins, carrierName) {
+  if (!Array.isArray(upgradeWins) || !carrierName) return null;
+  const c = carrierName.toLowerCase();
+  return upgradeWins.find((w) => w && typeof w.text === "string" && w.text.toLowerCase().includes(c)) || null;
 }
 
 /* ---------- weighting from the ranked priority list ---------- */
@@ -759,6 +823,16 @@ function buildInsights(inputs, candidates, best, weights, timing, usingLive) {
     insights.push(`Asia route: Asia-based carriers (ANA, JAL, Singapore, Cathay, EVA…) receive a +${ASIA_COMFORT_BONUS} Comfort bonus here — your standing preference for their home-market product quality, set 2026-07-19. It's visible in the Comfort scores, not a hidden adjustment.`);
   }
 
+  const dislikedMatch = flagsDislikedAirport(inputs);
+  if (dislikedMatch) {
+    insights.push(`You've saved "${dislikedMatch}" as an airport to avoid, and it shows up in this trip's origin/destination/via/nearby-airport fields — double-check the itinerary. (Stop count is modeled here, not specific connection airports, so this can't check a mid-trip connection — only the fields above.)`);
+  }
+
+  const upgradeWinMatch = matchUpgradeWinCarrier(inputs.upgradeWins, best.carrier);
+  if (upgradeWinMatch) {
+    insights.push(`You've logged a past upgrade win mentioning ${best.carrier} — worth trying the same play again: "${upgradeWinMatch.text}"`);
+  }
+
   // Purchase timing is covered by its own Purchase Strategy card — no
   // duplicate insight here (audit finding: verbatim repetition).
 
@@ -824,5 +898,8 @@ if (typeof window !== "undefined") {
     // exposed 2026-07-20 for tests/app.test.js — these were already pure,
     // just not on the public surface (nothing here is DOM-touching).
     awardRecommendation, buildLiveCandidates, ASIA_COMFORT_BONUS, ASIAN_CARRIERS,
+    // exposed 2026-07-21 for tests/app.test.js — saved preferences & trip
+    // memory (phase 07's fuller slice, after the wallet).
+    travelStyleFallback, flagsDislikedAirport, matchUpgradeWinCarrier,
   };
 }

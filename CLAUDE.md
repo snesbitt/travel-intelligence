@@ -199,12 +199,50 @@ it — this is the primary way Susan will open the site.
 
 ### Brand mark
 
-The ringed-dot mark (`•` in the nav, a stroked ring + filled center dot
+The ringed-dot mark (`⦿` in the nav, a stroked ring + filled center dot
 in `icons/`) matches the family style used by Vinyl Scout and The Fitness
 Log exactly — same shape, sized to this site's `--accent` navy instead of
 their maroon/teal. Don't replace it with an illustrative icon (a plane, a
 compass, etc.) — the whole portfolio deliberately uses the same abstract
-mark in a different accent color, not a bespoke logo per site.
+mark in a different accent color, not a bespoke logo per site. (2026-07-21:
+unified from a plain `•` to `⦿` across all pages of this site and
+Streaming Scout so the mark actually matches Vinyl Scout/Fitness Log's
+bullseye, per Susan's cross-site logo-consistency request — this doc's
+description of the mark was accurate, the glyph in source just hadn't
+caught up.)
+
+### Saved preferences & trip memory (roadmap phase 07)
+
+2026-07-21: the "Flight preferences" card now auto-saves to `localStorage`
+(`tiPreferences` key) exactly like the wallet does — cabin, max stops,
+preferred/avoided airlines, preferred alliances, departure/arrival time
+preferences, airports to avoid, preferred seat, preferred hotel brand(s),
+typical travel style, and the upgrade-wins log all persist across
+sessions. Trip-specific fields (origin, destination, dates, budget, bags)
+deliberately do NOT persist — those vary trip to trip, and defaulting them
+would be wrong, not helpful. Three small pure functions in `app.js` use
+these saved fields, each personalizing a suggestion or an insight, never
+the six-dimension scoring math itself (radical simplicity: this
+personalizes what the agent SAYS, not what it computes):
+
+- `travelStyleFallback` — a saved "Relaxed"/"Efficient"/"Luxury" style is
+  the LAST fallback `suggestPriorities` checks, after every trip-specific
+  signal (tight budget, long-haul Economy, business/exact-date, premium
+  cabin) has had a chance to fire. A saved default must never override
+  what this specific trip's own numbers say.
+- `flagsDislikedAirport` — checks saved "airports to avoid" against
+  origin/destination/preferred-airport/nearby-airports/via only (both the
+  raw city name and its resolved IATA code via `toIATA`). It does NOT
+  claim to catch a disliked airport used as a connection — the candidate
+  model only generates a stop COUNT, never a specific connection airport
+  — and the insight text says so explicitly when it fires.
+- `matchUpgradeWinCarrier` — if the saved upgrade-wins log mentions the
+  recommended itinerary's carrier, that's surfaced as a reason to try the
+  same play again. Free-text substring match only, never scored.
+
+Preferred seat and preferred hotel brand are saved for reference only —
+this site doesn't have a seat map or a hotel-scoring engine, so don't let
+either field's copy imply they affect the recommendation.
 
 ## Working principles
 

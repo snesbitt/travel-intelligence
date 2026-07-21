@@ -20,6 +20,13 @@ example of what an agentic build looks like, not a one-off demo.
 - A saved wallet: credit cards and loyalty balances persist in the
   browser (localStorage) and reload automatically — update the figures
   as they change and re-save.
+- Saved preferences & trip memory: cabin, stops, preferred/avoided
+  airlines, alliances, times, airports to avoid, preferred seat/hotel,
+  typical travel style, and a logged upgrade-wins history all persist the
+  same way the wallet does — a saved travel style nudges the suggested
+  optimization lens (only when the trip's own signals don't already pick
+  one), and the insights check the saved airport/upgrade-win lists
+  against each result.
 - A deterministic scoring engine (`app.js`) — six dimensions (Cost,
   Comfort, Upgrade Potential, Award Value, Flexibility, Risk), weighted by
   your priority choice, computed entirely in the browser.

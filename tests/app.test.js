@@ -113,4 +113,76 @@ test("computeWeights: every dimension is present and non-negative", () => {
   }
 });
 
+/* ---------- saved preferences & trip memory (2026-07-21) ---------- */
+
+test("travelStyleFallback: known styles return a primary+secondary+note", () => {
+  const relaxed = T.travelStyleFallback("Relaxed");
+  assert.equal(relaxed.primary, "Most Comfortable");
+  assert.equal(relaxed.secondary, "Best Overall Experience");
+  assert.ok(relaxed.note.includes("Relaxed"));
+
+  const efficient = T.travelStyleFallback("Efficient");
+  assert.equal(efficient.primary, "Fastest");
+
+  const luxury = T.travelStyleFallback("Luxury");
+  assert.equal(luxury.primary, "Best Upgrade Opportunity");
+});
+
+test("travelStyleFallback: unset or unknown style returns null (no override)", () => {
+  assert.equal(T.travelStyleFallback("No preference"), null);
+  assert.equal(T.travelStyleFallback(undefined), null);
+  assert.equal(T.travelStyleFallback(""), null);
+  assert.equal(T.travelStyleFallback("Fancy"), null);
+});
+
+test("suggestPriorities: a saved travel style only applies when no stronger trip signal fires", () => {
+  // Tight budget still wins over a saved "Luxury" style — trip-specific
+  // signals must never be silently overridden by a saved default. (Uses a
+  // long-haul route so the modeled typical fare is well above the budget.)
+  const tightBudget = T.suggestPriorities({
+    cabin: "Economy", maxBudget: 300, origin: "San Francisco", destination: "Tokyo",
+    departDate: "2026-09-01", tripPurpose: "Vacation", dateFlexibility: "Exact",
+    programBalances: [], travelStyle: "Luxury",
+  });
+  assert.equal(tightBudget.primary, "Cheapest");
+
+  // With no other signal able to fire, the saved style is the tiebreaker.
+  const noOtherSignal = T.suggestPriorities({
+    cabin: "Premium Economy", maxBudget: 999999, origin: "New York", destination: "Chicago",
+    departDate: "2026-09-01", tripPurpose: "Vacation", dateFlexibility: "±3 days",
+    programBalances: [], travelStyle: "Efficient",
+  });
+  assert.equal(noOtherSignal.primary, "Fastest");
+});
+
+test("flagsDislikedAirport: matches origin/destination/preferred/nearby/via fields, case-insensitively", () => {
+  const inputs = { origin: "London", destination: "Tokyo", preferredAirport: "SFO", airportFlexibility: "SFO, SJC, OAK", viaCity: "", dislikedAirports: "lhr" };
+  assert.equal(T.flagsDislikedAirport(inputs), "lhr");
+});
+
+test("flagsDislikedAirport: no match returns null", () => {
+  const inputs = { origin: "San Francisco", destination: "Tokyo", preferredAirport: "SFO", airportFlexibility: "SFO, SJC, OAK", viaCity: "", dislikedAirports: "ORD, LHR" };
+  assert.equal(T.flagsDislikedAirport(inputs), null);
+});
+
+test("flagsDislikedAirport: empty/unset preference returns null", () => {
+  assert.equal(T.flagsDislikedAirport({ origin: "London", destination: "Tokyo", dislikedAirports: "" }), null);
+  assert.equal(T.flagsDislikedAirport({ origin: "London", destination: "Tokyo" }), null);
+});
+
+test("matchUpgradeWinCarrier: finds a logged win mentioning the carrier, case-insensitively", () => {
+  const wins = [{ text: "Delta SFO-JFK, bid $200, landed First", dateLogged: "2026-06-01T00:00:00.000Z" }];
+  const match = T.matchUpgradeWinCarrier(wins, "delta");
+  assert.ok(match);
+  assert.equal(match.text, wins[0].text);
+});
+
+test("matchUpgradeWinCarrier: no match returns null/falsy", () => {
+  const wins = [{ text: "United SFO-NRT, bid $400, landed Business", dateLogged: "2026-06-01T00:00:00.000Z" }];
+  assert.ok(!T.matchUpgradeWinCarrier(wins, "ANA"));
+  assert.ok(!T.matchUpgradeWinCarrier([], "United"));
+  assert.ok(!T.matchUpgradeWinCarrier(undefined, "United"));
+  assert.ok(!T.matchUpgradeWinCarrier(wins, ""));
+});
+
 console.log(`\n${passed} passed`);

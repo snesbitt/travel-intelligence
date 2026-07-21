@@ -17,7 +17,7 @@
 
 <header class="site-nav">
   <div class="nav-inner">
-    <a class="brand" href="/"><span class="dot">•</span><span class="word">Travel Intelligence</span></a>
+    <a class="brand" href="/"><span class="dot">⦿</span><span class="word">Travel Intelligence</span></a>
     <nav class="links">
       <a href="/#optimize">Optimize</a>
       <a class="active" href="/roadmap">Roadmap</a>
@@ -122,7 +122,7 @@
       <div class="phase-head">
         <span class="phase-num">07</span>
         <span class="phase-title">saved preferences &amp; trip memory</span>
-        <span class="phase-status planned">Planned</span>
+        <span class="phase-status live">Live</span>
       </div>
       <p class="phase-body">Remembering preferred airlines, seats, hotels, upgrade successes, disliked airports, connection tolerance, and typical travel style across sessions, so later recommendations get more personalized instead of starting from the same defaults every time — matching the North Star in the original agent brief.</p>
       <p class="phase-value">The agent gets better at optimizing for you specifically, trip over trip.</p>
@@ -130,6 +130,7 @@
         <li><span class="lg-date">JUL 2026</span>First slice shipped early by direct request: the saved wallet (credit cards + 13 loyalty balances) now persists in the browser via localStorage and reloads automatically — the first piece of cross-session memory, ahead of the fuller preference profile this phase describes.</li>
         <li><span class="lg-date">JUL 2026</span>The fare watcher shipped — the audit's "one big bet." Watch a trip (max 3) and a scheduled backend re-searches it daily, with day-over-day fare-floor deltas on the homepage. The cap exists because each watched trip spends one metered search per day; raising it, or adding email/push alerts (which need a new credential), stays an explicit approval decision. Shipped alongside: the upgrade timeline exports to calendar (.ics), the winning itinerary links straight to the carrier's booking site, and a service worker gives the installed app an offline shell.</li>
         <li><span class="lg-date">JUL 2026</span>Watched-trip cap lowered from 3 to 2, for quota safety: a fixed doc error found the real SerpApi free tier is 100 searches/month, not 250 — at the old cap of 3, the daily watcher alone spent ~90 of those, leaving only ~10/month for manual "Run the optimization" calls. At 2, the watcher spends ~60/month, leaving a comfortable ~40/month of headroom. Fewer trips can be watched at once as a direct result; nothing else about the watcher changed.</li>
+        <li><span class="lg-date">JUL 2026</span>The fuller preference profile shipped: cabin, max stops, preferred/avoided airlines, preferred alliances, departure/arrival time preferences, airports to avoid, preferred seat, preferred hotel brand(s), and typical travel style all now auto-save and reload, same as the wallet. A saved travel style (Relaxed/Efficient/Luxury) only steers the suggested optimization lens when nothing about the specific trip already picked one — a saved default never overrides real trip signals like a tight budget. A saved "airports to avoid" list is checked against the trip's own fields (origin, destination, preferred/nearby airports, via city) — honestly, it can't check a specific connection airport, since the model only tracks a stop count, not named connection airports. A new "upgrade wins" log lets you record past successful upgrades; if one mentions the recommended carrier, the insights say so. Preferred seat and hotel brand are saved for reference only — this site doesn't score seats or hotels.</li>
       </ul>
     </div>
 

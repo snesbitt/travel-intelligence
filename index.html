@@ -18,7 +18,7 @@
 
 <header class="site-nav">
   <div class="nav-inner">
-    <a class="brand" href="/"><span class="dot">•</span><span class="word">Travel Intelligence</span></a>
+    <a class="brand" href="/"><span class="dot">⦿</span><span class="word">Travel Intelligence</span></a>
     <nav class="links">
       <a class="active" href="/#optimize">Optimize</a>
       <a href="/#results">Results</a>
@@ -77,8 +77,9 @@
         </div>
       </section>
 
-      <section class="block card">
-        <h2 class="card-title">Flight preferences</h2>
+      <section class="block card" id="preferences">
+        <h2 class="card-title">Flight preferences <span class="form-hint" id="prefs-status" style="font-weight:400;"></span></h2>
+        <p class="form-hint" style="margin-bottom:10px;">Everything in this card auto-saves to this browser and reloads next visit — nothing leaves your device. Cabin, stops, airlines, alliances, times, and travel style all feed the optimizer and its suggestions; preferred seat and hotel brand are saved for reference only (this site doesn't score seats or hotels).</p>
         <div class="form-field">
           <label>Cabin</label>
           <div class="pill-toggle" data-group="cabin">
@@ -107,6 +108,15 @@
           <div class="form-field"><label for="preferredArrivalTime">Preferred arrival time</label>
             <select id="preferredArrivalTime"><option>No preference</option><option>Early morning</option><option>Morning</option><option>Afternoon</option><option>Evening</option><option>Late night</option></select>
           </div>
+          <div class="form-field"><label for="dislikedAirports">Airports to avoid (comma-separated, optional)</label><input type="text" id="dislikedAirports" placeholder="e.g. LHR, ORD"></div>
+          <div class="form-field"><label for="preferredSeat">Preferred seat</label>
+            <select id="preferredSeat"><option>No preference</option><option>Aisle</option><option>Window</option><option>Extra legroom</option></select>
+          </div>
+          <div class="form-field"><label for="preferredHotel">Preferred hotel brand(s)</label><input type="text" id="preferredHotel" placeholder="e.g. Marriott, Hyatt"></div>
+          <div class="form-field">
+            <label for="travelStyle">Typical travel style</label>
+            <select id="travelStyle"><option>No preference</option><option>Relaxed</option><option>Efficient</option><option>Luxury</option></select>
+          </div>
         </div>
         <div class="form-field" style="margin-top:12px;">
           <label>Preferred alliances (optional — leave all unselected to consider every carrier)</label>
@@ -116,6 +126,15 @@
             <label class="check-row"><input type="checkbox" class="alliance-check" value="SkyTeam"> SkyTeam <span class="form-hint">(Delta, Air France, KLM, Korean Air)</span></label>
             <label class="check-row"><input type="checkbox" class="alliance-check" value="Unaligned"> Unaligned <span class="form-hint">(Alaska, Emirates, JetBlue)</span></label>
           </div>
+        </div>
+        <div class="form-field" style="margin-top:12px;">
+          <label for="upgradeWinInput">Log an upgrade win (optional) — a saved history the insights check against future recommendations</label>
+          <div style="display:flex;gap:8px;flex-wrap:wrap;">
+            <input type="text" id="upgradeWinInput" placeholder="e.g. United SFO–NRT, bid $400, landed Business" style="flex:1;min-width:220px;">
+            <button type="button" class="ti-toggle" id="log-upgrade-win">Log it</button>
+          </div>
+          <ul id="upgrade-win-list" class="phase-log" style="margin-top:8px;"></ul>
+          <button type="button" class="ti-toggle ti-hidden" id="upgrade-win-toggle" style="margin-top:6px;"></button>
         </div>
       </section>
 
@@ -312,6 +331,133 @@
   document.querySelectorAll(".prog-bal").forEach((el) => { el.value = fmtNum(parseNum(el.value)); });
   loadWallet();
 
+  /* ---------- saved preferences & trip memory (localStorage, this browser
+     only) ----------
+   * Roadmap phase 07's fuller slice, after the wallet (2026-07-14). Persists
+   * the durable fields in the "Flight preferences" card — cabin, stops,
+   * airlines, alliances, times, disliked airports, seat/hotel, travel style,
+   * and the upgrade-wins log — across sessions, same auto-save-on-edit
+   * pattern as the wallet above. Trip-specific fields (origin, destination,
+   * dates, budget, bags) deliberately do NOT persist; those vary trip to
+   * trip and defaulting them would be wrong, not helpful. */
+  const PREFS_KEY = "tiPreferences";
+  const prefsStatus = document.getElementById("prefs-status");
+  let upgradeWins = [];
+  let upgradeWinsCollapsed = true;
+
+  function setPillVal(group, val) {
+    const el = document.querySelector(`.pill-toggle[data-group="${group}"]`);
+    if (!el || !val) return;
+    const btn = Array.from(el.querySelectorAll("button")).find((b) => b.dataset.val === val);
+    if (!btn) return;
+    el.querySelectorAll("button").forEach((b) => { b.classList.remove("sel"); b.setAttribute("aria-pressed", "false"); });
+    btn.classList.add("sel");
+    btn.setAttribute("aria-pressed", "true");
+  }
+  function escapeHtml(s) {
+    return String(s).replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+  }
+  function savePreferences(silent) {
+    const prefs = {
+      savedAt: new Date().toISOString(),
+      cabin: pillVal("cabin"),
+      maxStops: document.getElementById("maxStops").value,
+      preferredAirlines: document.getElementById("preferredAirlines").value,
+      avoidAirlines: document.getElementById("avoidAirlines").value,
+      preferredAlliances: Array.from(document.querySelectorAll(".alliance-check:checked")).map((el) => el.value),
+      preferredDepartTime: document.getElementById("preferredDepartTime").value,
+      preferredArrivalTime: document.getElementById("preferredArrivalTime").value,
+      dislikedAirports: document.getElementById("dislikedAirports").value,
+      preferredSeat: document.getElementById("preferredSeat").value,
+      preferredHotel: document.getElementById("preferredHotel").value,
+      travelStyle: document.getElementById("travelStyle").value,
+      upgradeWins,
+    };
+    try { localStorage.setItem(PREFS_KEY, JSON.stringify(prefs)); } catch (e) { return; }
+    showPrefsStatus(prefs.savedAt, silent ? "auto-saved" : "saved");
+  }
+  function loadPreferences() {
+    let prefs;
+    try { prefs = JSON.parse(localStorage.getItem(PREFS_KEY) || "null"); } catch (e) { return; }
+    if (!prefs) return;
+    if (prefs.cabin) setPillVal("cabin", prefs.cabin);
+    if (prefs.maxStops != null && prefs.maxStops !== "") document.getElementById("maxStops").value = prefs.maxStops;
+    if (prefs.preferredAirlines) document.getElementById("preferredAirlines").value = prefs.preferredAirlines;
+    if (prefs.avoidAirlines) document.getElementById("avoidAirlines").value = prefs.avoidAirlines;
+    (prefs.preferredAlliances || []).forEach((v) => {
+      const el = document.querySelector(`.alliance-check[value="${CSS.escape(v)}"]`);
+      if (el) el.checked = true;
+    });
+    if (prefs.preferredDepartTime) document.getElementById("preferredDepartTime").value = prefs.preferredDepartTime;
+    if (prefs.preferredArrivalTime) document.getElementById("preferredArrivalTime").value = prefs.preferredArrivalTime;
+    if (prefs.dislikedAirports) document.getElementById("dislikedAirports").value = prefs.dislikedAirports;
+    if (prefs.preferredSeat) document.getElementById("preferredSeat").value = prefs.preferredSeat;
+    if (prefs.preferredHotel) document.getElementById("preferredHotel").value = prefs.preferredHotel;
+    if (prefs.travelStyle) document.getElementById("travelStyle").value = prefs.travelStyle;
+    upgradeWins = Array.isArray(prefs.upgradeWins) ? prefs.upgradeWins : [];
+    renderUpgradeWins();
+    showPrefsStatus(prefs.savedAt, "loaded from");
+  }
+  function showPrefsStatus(iso, verb) {
+    const d = new Date(iso);
+    prefsStatus.textContent = isNaN(d) ? "" : `· ${verb} ${d.toLocaleDateString("en-US", { month: "short", day: "numeric" })} — edit anytime, changes save automatically`;
+  }
+
+  /* ---------- upgrade wins: small append-only log, newest first, collapses
+     past 3 entries (same density convention as the rest of the site) ---------- */
+  function renderUpgradeWins() {
+    const list = document.getElementById("upgrade-win-list");
+    const toggle = document.getElementById("upgrade-win-toggle");
+    if (!upgradeWins.length) {
+      list.innerHTML = `<li style="border-top:none;">No upgrade wins logged yet — log one after a successful bid, miles+copay, or gate upgrade, and future insights will check for it.</li>`;
+      toggle.classList.add("ti-hidden");
+      return;
+    }
+    const ordered = upgradeWins.map((w, i) => ({ ...w, i })).reverse(); // newest first, keep the real array index for delete
+    const shown = upgradeWinsCollapsed ? ordered.slice(0, 3) : ordered;
+    list.innerHTML = shown.map((w) => {
+      const d = new Date(w.dateLogged);
+      const dateStr = isNaN(d) ? "" : d.toLocaleDateString("en-US", { month: "short", day: "numeric" });
+      return `<li><span class="lg-date">${dateStr}</span>${escapeHtml(w.text)} <button type="button" class="win-del" data-idx="${w.i}" aria-label="Delete this entry" style="background:none;border:none;color:var(--ink-faint);cursor:pointer;font-size:11px;">✕</button></li>`;
+    }).join("");
+    if (ordered.length > 3) {
+      toggle.classList.remove("ti-hidden");
+      toggle.textContent = upgradeWinsCollapsed ? `Show all ${ordered.length} entries ▾` : "Show only recent ▴";
+    } else {
+      toggle.classList.add("ti-hidden");
+    }
+    list.querySelectorAll(".win-del").forEach((btn) => {
+      btn.addEventListener("click", () => {
+        upgradeWins.splice(parseInt(btn.dataset.idx, 10), 1);
+        renderUpgradeWins();
+        savePreferences(true);
+      });
+    });
+  }
+  document.getElementById("upgrade-win-toggle").addEventListener("click", () => {
+    upgradeWinsCollapsed = !upgradeWinsCollapsed;
+    renderUpgradeWins();
+  });
+  document.getElementById("log-upgrade-win").addEventListener("click", () => {
+    const input = document.getElementById("upgradeWinInput");
+    const text = input.value.trim();
+    if (!text) return;
+    upgradeWins.push({ text, dateLogged: new Date().toISOString() });
+    input.value = "";
+    renderUpgradeWins();
+    savePreferences(false);
+    setTimeout(updateSuggestion, 0);
+  });
+
+  const PREFS_FIELD_IDS = ["maxStops", "preferredAirlines", "avoidAirlines", "preferredDepartTime", "preferredArrivalTime", "dislikedAirports", "preferredSeat", "preferredHotel", "travelStyle"];
+  PREFS_FIELD_IDS.forEach((id) => {
+    const el = document.getElementById(id);
+    el.addEventListener(el.tagName === "SELECT" ? "change" : "blur", () => savePreferences(true));
+  });
+  document.querySelectorAll(".alliance-check").forEach((el) => el.addEventListener("change", () => savePreferences(true)));
+  document.querySelector('.pill-toggle[data-group="cabin"]').addEventListener("click", () => setTimeout(() => savePreferences(true), 0));
+  loadPreferences();
+
   /* ---------- collapsible balances: show only funded programs by default ---------- */
   let balancesCollapsed = true;
   function applyBalanceCollapse() {
@@ -389,6 +535,11 @@
       preferredAlliances,
       preferredDepartTime: document.getElementById("preferredDepartTime").value,
       preferredArrivalTime: document.getElementById("preferredArrivalTime").value,
+      dislikedAirports: document.getElementById("dislikedAirports").value,
+      preferredSeat: document.getElementById("preferredSeat").value,
+      preferredHotel: document.getElementById("preferredHotel").value,
+      travelStyle: document.getElementById("travelStyle").value,
+      upgradeWins,
       priorityRanks,
       creditCards,
       programBalances,
