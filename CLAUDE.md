@@ -209,7 +209,12 @@ unified from a plain `•` to `⦿` across all pages of this site and
 Streaming Scout so the mark actually matches Vinyl Scout/Fitness Log's
 bullseye, per Susan's cross-site logo-consistency request — this doc's
 description of the mark was accurate, the glyph in source just hadn't
-caught up.)
+caught up. Same day, second pass: the glyph alone wasn't enough — Susan
+flagged the two families still read as different sizes. `.brand .dot`
+and `.brand .word` went from 15px/17px to 19px/24px (mobile) and
+17px/19px to 22px/30px (desktop, `min-width:640px`), matching Vinyl
+Scout's/Fitness Log's actual mark+wordmark proportions, not just their
+glyph.)
 
 ### Saved preferences & trip memory (roadmap phase 07)
 
