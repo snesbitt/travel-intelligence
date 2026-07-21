@@ -20,7 +20,12 @@
 // 100/month quota from repeat page loads or re-comparing cabin classes
 // in one sitting, without ever staling a genuinely new search.
 
-import { getStore } from "@netlify/blobs";
+// @netlify/blobs is imported dynamically inside the handler, not at module
+// top-level, so this file's pure, dependency-free exports (buildFareCacheKey,
+// isCacheFresh, CACHE_TTL_MS) can be imported and unit-tested without
+// needing @netlify/blobs installed/resolvable — Netlify's own runtime always
+// has it available when the handler actually runs, so this changes nothing
+// about production behavior.
 
 function json(body, status) {
   return new Response(JSON.stringify(body), {
@@ -30,6 +35,23 @@ function json(body, status) {
 }
 
 const CABIN_CLASS = { Economy: "1", "Premium Economy": "2", Business: "3", First: "4" };
+
+export const CACHE_TTL_MS = 15 * 60 * 1000; // 15 min - protects quota, short enough fares never feel stale
+
+// Pure, no I/O — exported so the quota-cache logic is directly unit-testable
+// without mocking fetch/@netlify/blobs (same pattern as audio-preview.mjs's
+// named exports in the vinyl-scout repo). Stable/deterministic: same search
+// params always produce the same key, order matters (that's fine, callers
+// always build it from the same fixed field order below).
+export function buildFareCacheKey(origin, destination, departDate, returnDate, adults, cabin) {
+  return "farecache-" + ["v1", origin, destination, departDate, returnDate, adults, cabin].join("|");
+}
+
+// Pure — given a cache entry's stored timestamp and "now", is it still
+// within the TTL window? Exported for the same reason as buildFareCacheKey.
+export function isCacheFresh(cachedAt, now, ttlMs) {
+  return typeof cachedAt === "number" && (now - cachedAt) < ttlMs;
+}
 
 function titleCaseCarrier(list) {
   // an itinerary can mix carriers across segments; report the distinct set
@@ -59,15 +81,15 @@ export default async (req) => {
   }
   if (!key) return json({ live: false, reason: "not_configured" }, 503);
 
-  const CACHE_TTL_MS = 15 * 60 * 1000; // 15 min - protects quota, short enough fares never feel stale
   // Reuses the existing "watched-trips" blob store (key-prefixed "farecache-")
   // rather than a second store, per the radical-simplicity rule in CLAUDE.md.
-  const cacheKey = "farecache-" + ["v1", origin, destination, departDate, returnDate, adults, cabin].join("|");
+  const cacheKey = buildFareCacheKey(origin, destination, departDate, returnDate, adults, cabin);
+  const { getStore } = await import("@netlify/blobs");
   const store = getStore({ name: "watched-trips", consistency: "strong" });
 
   try {
     const hit = await store.get(cacheKey, { type: "json" });
-    if (hit && Date.now() - hit.cachedAt < CACHE_TTL_MS) {
+    if (hit && isCacheFresh(hit.cachedAt, Date.now(), CACHE_TTL_MS)) {
       return json({ ...hit.payload, cached: true }, 200);
     }
   } catch (e) {

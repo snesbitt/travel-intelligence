@@ -44,10 +44,15 @@ not just a demo. Hold every future change to that standard.
   `netlify/functions/fares.mjs` (live fare search proxy to SerpApi, with
   a 15-min result cache keyed by search params — reuses the
   `watched-trips` blob store under a `farecache-` prefix to protect the
-  SerpApi quota without adding a second store), `watch.mjs`
-  (Blobs-backed watched-trips store), and `watch-check.mjs` (daily
-  scheduled re-search of watched trips). Scoring itself still runs
-  client-side in `app.js` against either live offers or the modeled
+  SerpApi quota without adding a second store; the cache-key and TTL
+  logic is exported as pure functions — `buildFareCacheKey`,
+  `isCacheFresh`, `CACHE_TTL_MS` — and covered by `tests/fares.test.mjs`,
+  12 assertions, no network/blobs mocking needed since `@netlify/blobs`
+  is imported dynamically inside the handler rather than at module
+  top-level), `watch.mjs` (Blobs-backed watched-trips store), and
+  `watch-check.mjs` (daily scheduled re-search of watched trips).
+  Scoring itself still runs client-side in `app.js` against either live
+  offers or the modeled
   reference data — the Functions supply data, not scoring.
 - Frontend: `index.html` is the Input Card + results, importing the pure
   scoring logic from `app.js` via a plain `<script>` tag (no build step,
