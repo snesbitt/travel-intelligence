@@ -156,7 +156,7 @@ function routeDistanceKm(origin, destination) {
 
 // City → primary IATA code, for the live fare search. Same coverage as
 // CITY_COORDS; a raw 3-letter input is used as-is.
-// Top 100 countries → airport (2026-07-22)
+// Top 100 travel destinations: country/region → primary IATA
 const COUNTRY_TO_IATA = {
   "united states": "ORD", "usa": "ORD", "us": "ORD", "canada": "YYZ", "mexico": "MEX",
   "costa rica": "SJO", "panama": "PTY", "belize": "BZE", "bahamas": "NAS", "jamaica": "MBJ", "puerto rico": "SJU", "dominican republic": "PUJ",
