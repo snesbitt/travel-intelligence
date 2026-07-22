@@ -156,6 +156,24 @@ function routeDistanceKm(origin, destination) {
 
 // City → primary IATA code, for the live fare search. Same coverage as
 // CITY_COORDS; a raw 3-letter input is used as-is.
+// Top 100 countries → airport (2026-07-22)
+const COUNTRY_TO_IATA = {
+  "united states": "ORD", "usa": "ORD", "us": "ORD", "canada": "YYZ", "mexico": "MEX",
+  "costa rica": "SJO", "panama": "PTY", "belize": "BZE", "bahamas": "NAS", "jamaica": "MBJ", "puerto rico": "SJU", "dominican republic": "PUJ",
+  "barbados": "BGI", "trinidad and tobago": "POS", "aruba": "AUA", "curacao": "CUR",
+  "argentina": "EZE", "brazil": "GIG", "chile": "SCL", "colombia": "BOG", "peru": "LIM", "ecuador": "UIO", "venezuela": "CCS", "bolivia": "VVI", "paraguay": "ASU", "uruguay": "MVD",
+  "united kingdom": "LHR", "uk": "LHR", "england": "LHR", "ireland": "DUB", "france": "CDG", "germany": "FRA", "spain": "MAD", "italy": "FCO",
+  "netherlands": "AMS", "belgium": "BRU", "luxembourg": "LUX", "switzerland": "ZRH", "austria": "VIE", "portugal": "LIS",
+  "greece": "ATH", "iceland": "KEF", "norway": "OSL", "sweden": "ARN", "denmark": "CPH", "finland": "HEL", "poland": "WAW", "czechia": "PRG", "czech republic": "PRG", "hungary": "BUD", "romania": "OTP",
+  "israel": "TLV", "united arab emirates": "DXB", "uae": "DXB", "saudi arabia": "RUH", "qatar": "DOH", "bahrain": "BAH", "oman": "MCT", "turkey": "IST", "egypt": "CAI", "lebanon": "BEY", "jordan": "AMM", "iran": "IKA", "iraq": "BGW",
+  "india": "DEL", "pakistan": "KHI", "bangladesh": "DAC", "sri lanka": "CMB", "nepal": "KTM", "afghanistan": "KBL",
+  "thailand": "BKK", "vietnam": "SGN", "cambodia": "PNH", "laos": "VTE", "myanmar": "RGN", "malaysia": "KUL", "singapore": "SIN", "indonesia": "CGK", "philippines": "MNL", "east timor": "DIL",
+  "china": "PEK", "japan": "HND", "south korea": "ICN", "korea": "ICN", "north korea": "FNJ", "taiwan": "TPE", "mongolia": "ULN",
+  "australia": "SYD", "new zealand": "AKL", "fiji": "SUV", "samoa": "APW", "tonga": "NAN", "vanuatu": "VLI", "solomon islands": "HIR", "png": "POM", "papua new guinea": "POM",
+  "south africa": "JNB", "kenya": "NBO", "morocco": "CMN", "nigeria": "LOS", "ethiopia": "ADD", "tanzania": "DAR", "uganda": "EBB",
+  "ghana": "ACC", "senegal": "DSS", "ivory coast": "ABJ", "cameroon": "NSI", "botswana": "GBE", "namibia": "WDH", "zambia": "LUN", "zimbabwe": "HRE", "madagascar": "TNR", "mauritius": "MRU", "seychelles": "SEZ",
+};
+
 const CITY_IATA = {
   "san francisco": "SFO", "los angeles": "LAX", "san diego": "SAN", seattle: "SEA", portland: "PDX",
   denver: "DEN", phoenix: "PHX", "las vegas": "LAS", dallas: "DFW", austin: "AUS", houston: "IAH",
@@ -178,9 +196,13 @@ function toIATA(name) {
   if (!name) return null;
   const n = name.trim().toLowerCase();
   if (/^[a-z]{3}$/.test(n)) return n.toUpperCase();
+  if (COUNTRY_TO_IATA[n]) return COUNTRY_TO_IATA[n];
   if (CITY_IATA[n]) return CITY_IATA[n];
   for (const key of Object.keys(CITY_IATA)) {
     if (n.includes(key) || key.includes(n)) return CITY_IATA[key];
+  }
+  for (const key of Object.keys(COUNTRY_TO_IATA)) {
+    if (n.includes(key) || key.includes(n)) return COUNTRY_TO_IATA[key];
   }
   return null;
 }
