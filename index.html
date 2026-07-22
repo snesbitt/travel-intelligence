@@ -886,10 +886,37 @@
     } catch (e) { btn.textContent = "Watch failed — offline?"; }
   };
 
-  function renderWatched(trips) {
+    function renderWatched(trips) {
     const card = document.getElementById("watched");
     const rows = document.getElementById("watched-rows");
-    if (!trips || !trips.length) { card.classList.add("ti-hidden"); return; }
+    if (!trips || !trips.length) { card.style.display = "none"; return; }
+    card.style.display = "block";
+    rows.innerHTML = trips.map((t) => {
+      const checks = t.checks || [];
+      const latest = checks[checks.length - 1];
+      const prev = checks.length > 1 ? checks[checks.length - 2] : null;
+      let delta = "";
+      if (latest && prev && prev.price) {
+        const diff = latest.price - prev.price;
+        const pct = Math.round((diff / prev.price) * 100);
+        const deltaClass = diff < 0 ? "down" : diff > 0 ? "up" : "";
+        delta = diff === 0 ? '' : `<span class="watched-delta ${deltaClass}">${diff < 0 ? '▼' : '▲'} $${fmtNum(Math.abs(diff))} (${Math.abs(pct)}%)</span>`;
+      }
+      const price = latest ? fmtNum(latest.price) : fmtNum(t.baseline.price);
+      const carrier = latest?.carrier ? ` · ${latest.carrier}` : '';
+      const priceLabel = latest ? `$${price}${carrier} ${delta}` : `$${price} baseline`;
+      const dateStr = t.returnDate ? `${t.departDate} – ${t.returnDate}` : t.departDate;
+      const lastChecked = latest ? 'Just checked' : 'First check tonight';
+      return `<div class="watched-item">
+        <div class="watched-route-card">
+          <div class="watched-route-main">${t.origin} → ${t.destination}</div>
+          <div class="watched-route-meta"><span>${dateStr}</span><span>·</span><span>${t.cabin}</span><span>·</span><span>${t.travelers} pax</span></div>
+        </div>
+        <div class="watched-price-block"><div class="watched-price-amount">${priceLabel}</div><div class="watched-price-meta">${lastChecked}</div></div>
+        <div class="watched-actions"><button type="button" class="watched-unwatch" onclick="tiUnwatch('${t.id.replace(/'/g, '')}')" aria-label="Stop watching">×</button></div>
+      </div>`;
+    }).join("");
+  }
     card.classList.remove("ti-hidden");
     rows.innerHTML = trips.map((t) => {
       const checks = t.checks || [];
