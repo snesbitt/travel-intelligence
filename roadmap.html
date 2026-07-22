@@ -108,6 +108,33 @@
     <div class="phase">
       <div class="phase-head">
         <span class="phase-num">06</span>
+
+    <div class="phase">
+      <div class="phase-head">
+        <span class="phase-num">05b</span>
+        <span class="phase-title">region-to-region search</span>
+        <span class="phase-status">Roadmap</span>
+      </div>
+      <p class="phase-body">Allow destination as region name ("Europe", "East Asia", "Caribbean"). Engine scores against 2–3 hub options rather than forcing a single city.</p>
+      <p class="phase-value">A planner can ask "how much to go to Europe?" without picking one specific city first.</p>
+      <ul class="phase-log">
+        <li><span class="lg-date">ROADMAP</span>Scope: 5–8 major regions (Europe, East Asia, Southeast Asia, Middle East, Caribbean, South America, Southern Africa) mapped to 2–3 primary hubs each.</li>
+      </ul>
+    </div>
+
+    <div class="phase">
+      <div class="phase-head">
+        <span class="phase-num">05c</span>
+        <span class="phase-title">date-range score sweep</span>
+        <span class="phase-status">Roadmap</span>
+      </div>
+      <p class="phase-body">Show how the top itinerary's score and price shift across a 30–60 day window. A lightweight chart displays "this trip scores 8.2 on July 15, drops to 6.9 on July 20".</p>
+      <p class="phase-value">A planner can spot the sweet spot for departure timing at a glance instead of re-running the optimizer 10 times.</p>
+      <ul class="phase-log">
+        <li><span class="lg-date">ROADMAP</span>Sample best candidate's scores at 3–5 day intervals across date range. One lightweight chart, no re-run needed.</li>
+      </ul>
+    </div>
+
         <span class="phase-title">a real domain</span>
         <span class="phase-status live">Live</span>
       </div>
@@ -119,10 +146,16 @@
     </div>
 
     <div class="phase">
-      <div class="phase-head"><span class="phase-num">07a</span><span class="phase-title">loyalty program balance integration</span><span class="phase-status">Roadmap</span></div>
-      <p class="phase-body">Optional context layer: surface user's saved loyalty-program balances against the recommended redemption. Show "You have 150k Amex points; this is 2.1¢/point" without complicating the scoring math.</p>
+      <div class="phase-head">
+        <span class="phase-num">07a</span>
+        <span class="phase-title">loyalty program balance integration</span>
+        <span class="phase-status">Roadmap</span>
+      </div>
+      <p class="phase-body">Optional context layer: surface user's saved loyalty-program balances against the recommended redemption. Show "You have 150k Amex points; this is 2.1¢/point" or "You have X miles — short by ~Y".</p>
       <p class="phase-value">A planner sees at a glance whether they're sitting on enough miles to book this trip.</p>
-      <ul class="phase-log"><li><span class="lg-date">ROADMAP</span>Check whether user's balance in recommended alliance meets low end of range.</li></ul>
+      <ul class="phase-log">
+        <li><span class="lg-date">ROADMAP</span>Placement: in the Award Strategy card. Check whether user's balance in recommended alliance meets low end of estimated range.</li>
+      </ul>
     </div>
 
     <div class="phase">
