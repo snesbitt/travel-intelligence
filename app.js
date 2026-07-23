@@ -165,7 +165,8 @@ const COUNTRY_TO_IATA = {
   "united kingdom": "LHR", "uk": "LHR", "england": "LHR", "ireland": "DUB", "france": "CDG", "germany": "FRA", "spain": "MAD", "italy": "FCO",
   "netherlands": "AMS", "belgium": "BRU", "luxembourg": "LUX", "switzerland": "ZRH", "austria": "VIE", "portugal": "LIS",
   "greece": "ATH", "iceland": "KEF", "norway": "OSL", "sweden": "ARN", "denmark": "CPH", "finland": "HEL", "poland": "WAW", "czechia": "PRG", "czech republic": "PRG", "hungary": "BUD", "romania": "OTP",
-  "israel": "TLV", "united arab emirates": "DXB", "uae": "DXB", "saudi arabia": "RUH", "qatar": "DOH", "bahrain": "BAH", "oman": "MCT", "turkey": "IST", "egypt": "CAI", "lebanon": "BEY", "jordan": "AMM", "iran": "IKA", "iraq": "BGW",
+  "ukraine": "KBP", "belarus": "MSQ", "cyprus": "LCA",
+  "israel": "TLV", "united arab emirates": "DXB", "uae": "DXB", "saudi arabia": "RUH", "qatar": "DOH", "bahrain": "BAH", "oman": "MCT", "turkey": "IST", "egypt": "CAI", "lebanon": "BEY", "jordan": "AMM", "iran": "IKA", "iraq": "BGW", "syria": "DAM",
   "india": "DEL", "pakistan": "KHI", "bangladesh": "DAC", "sri lanka": "CMB", "nepal": "KTM", "afghanistan": "KBL",
   "thailand": "BKK", "vietnam": "SGN", "cambodia": "PNH", "laos": "VTE", "myanmar": "RGN", "malaysia": "KUL", "singapore": "SIN", "indonesia": "CGK", "philippines": "MNL", "east timor": "DIL",
   "china": "PEK", "japan": "HND", "south korea": "ICN", "korea": "ICN", "north korea": "FNJ", "taiwan": "TPE", "mongolia": "ULN",
@@ -190,7 +191,18 @@ const CITY_IATA = {
   auckland: "AKL", "buenos aires": "EZE", "sao paulo": "GRU", "rio de janeiro": "GIG", lima: "LIM",
   bogota: "BOG", santiago: "SCL", johannesburg: "JNB", "cape town": "CPT", cairo: "CAI",
   nairobi: "NBO", casablanca: "CMN", reykjavik: "KEF",
+  muscat: "MCT", damascus: "DAM", minsk: "MSQ", nicosia: "LCA", kiev: "KBP", kyiv: "KBP",
 };
+
+// Whole-word substring test: true if `needle` appears in `haystack` as a
+// complete word/phrase (flanked by non-letters or the string edges), not
+// merely as a run of matching characters. Prevents short keys like "us"
+// or "uk" from matching inside an unrelated word ("Muscat", "Kuwait").
+function wholeWordIncludes(haystack, needle) {
+  if (!needle) return false;
+  const esc = needle.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+  return new RegExp(`(^|[^a-z])${esc}([^a-z]|$)`).test(haystack);
+}
 
 function toIATA(name) {
   if (!name) return null;
@@ -198,13 +210,19 @@ function toIATA(name) {
   if (/^[a-z]{3}$/.test(n)) return n.toUpperCase();
   if (COUNTRY_TO_IATA[n]) return COUNTRY_TO_IATA[n];
   if (CITY_IATA[n]) return CITY_IATA[n];
-  for (const key of Object.keys(CITY_IATA)) {
-    if (n.includes(key) || key.includes(n)) return CITY_IATA[key];
-  }
-  for (const key of Object.keys(COUNTRY_TO_IATA)) {
-    if (n.includes(key) || key.includes(n)) return COUNTRY_TO_IATA[key];
-  }
-  return null;
+  // Fuzzy fallback: scan every key for a whole-word match in either
+  // direction, and prefer the longest matching key so a specific entry
+  // ("north korea") wins over a shorter, more general one ("korea").
+  const bestMatch = (table) => {
+    let bestKey = null;
+    for (const key of Object.keys(table)) {
+      if (wholeWordIncludes(n, key) || wholeWordIncludes(key, n)) {
+        if (!bestKey || key.length > bestKey.length) bestKey = key;
+      }
+    }
+    return bestKey ? table[bestKey] : null;
+  };
+  return bestMatch(CITY_IATA) || bestMatch(COUNTRY_TO_IATA);
 }
 
 // Direct booking sites per carrier — the "book it" handoff the audit

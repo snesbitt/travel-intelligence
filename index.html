@@ -880,7 +880,7 @@
         } }),
       });
       const j = await r.json();
-      if (!r.ok) { btn.textContent = j.error && j.error.includes("cap") ? "Watch cap reached (3)" : "Watch failed — retry"; return; }
+      if (!r.ok) { btn.textContent = j.error && j.error.includes("cap") ? "Watch cap reached (2)" : "Watch failed — retry"; return; }
       btn.textContent = "Watching ✓";
       renderWatched(j.trips);
     } catch (e) { btn.textContent = "Watch failed — offline?"; }
@@ -899,16 +899,29 @@
       if (latest && prev && prev.price) {
         const diff = latest.price - prev.price;
         const pct = Math.round((diff / prev.price) * 100);
-        delta = diff === 0 ? '<span class="form-hint">unchanged</span>'
-          : diff < 0 ? `<span style="color:var(--good,#3f6b4f);font-weight:600;">▼ $${fmtNum(Math.abs(diff))} (${Math.abs(pct)}%)</span>`
-          : `<span style="color:var(--bad,#a24a3f);font-weight:600;">▲ $${fmtNum(diff)} (${pct}%)</span>`;
+        delta = diff === 0 ? '<span class="watched-delta">unchanged</span>'
+          : diff < 0 ? `<span class="watched-delta down">▼ $${fmtNum(Math.abs(diff))} (${Math.abs(pct)}%)</span>`
+          : `<span class="watched-delta up">▲ $${fmtNum(diff)} (${pct}%)</span>`;
       }
-      const priceLine = latest
-        ? `$${fmtNum(latest.price)} total · ${latest.carrier || "—"} · checked ${new Date(latest.at).toLocaleDateString("en-US", { month: "short", day: "numeric" })} ${delta}`
-        : t.baseline ? `baseline $${fmtNum(t.baseline.price)} · first check runs tonight` : `first check runs tonight`;
-      return `<div class="watching-row" data-id="${t.id}">
-        <span><span class="watching-title">${t.origin} → ${t.destination}</span><span class="watching-meta">${t.departDate}${t.returnDate ? " – " + t.returnDate : ""} · ${t.cabin} · ${t.travelers} trav</span></span>
-        <span style="text-align:right;font-size:12px;">${priceLine} <button type="button" class="pick-dismiss" aria-label="Stop watching ${t.origin} to ${t.destination}" onclick="tiUnwatch('${t.id.replace(/'/g, "")}')">×</button></span>
+      const priceAmount = latest ? `$${fmtNum(latest.price)} total` : t.baseline ? `baseline $${fmtNum(t.baseline.price)}` : "first check runs tonight";
+      const priceMeta = latest
+        ? `${latest.carrier || "—"} · checked ${new Date(latest.at).toLocaleDateString("en-US", { month: "short", day: "numeric" })}`
+        : t.baseline ? "first check runs tonight" : "";
+      return `<div class="watched-item" data-id="${t.id}">
+        <div class="watched-route-card">
+          <span class="watched-route-main">${t.origin} → ${t.destination}</span>
+          <span class="watched-route-meta">${t.departDate}${t.returnDate ? " – " + t.returnDate : ""} · ${t.cabin} · ${t.travelers} trav</span>
+        </div>
+        <div style="display:flex;align-items:center;gap:8px;">
+          <div class="watched-price-block">
+            <span class="watched-price-amount">${priceAmount}</span>
+            <span class="watched-price-meta">${priceMeta}</span>
+            ${delta}
+          </div>
+          <div class="watched-actions">
+            <button type="button" class="watched-unwatch" aria-label="Stop watching ${t.origin} to ${t.destination}" onclick="tiUnwatch('${t.id.replace(/'/g, "")}')">×</button>
+          </div>
+        </div>
       </div>`;
     }).join("");
   }

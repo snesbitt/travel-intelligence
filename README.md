@@ -107,7 +107,7 @@ No build step. Serve the directory and open it:
 
 ```bash
 npm run dev     # serves on :8888
-npm test        # runs tests/app.test.js against app.js's pure scoring functions
+npm test        # runs tests/app.test.js (scoring functions) and tests/fares.test.mjs (fare cache/TTL)
 ```
 
 ## Deploy

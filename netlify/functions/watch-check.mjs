@@ -3,7 +3,7 @@
 // Daily scheduled re-search for watched trips — the half of the fare
 // watcher that "does the watching" the Purchase Strategy used to
 // outsource to the user. Runs once a day at 14:00 UTC (morning US),
-// spends AT MOST one SerpApi search per watched trip (≤3), skips trips
+// spends AT MOST one SerpApi search per watched trip (≤2), skips trips
 // checked in the last 20h (idempotent on retries) and trips whose
 // departure has passed. It records the LIVE FARE FLOOR (cheapest offer's
 // total price + carrier) — not the engine's weighted winner, which is
@@ -48,8 +48,9 @@ export default async () => {
   const now = Date.now();
   const CABIN_CLASS = { Economy: "1", "Premium Economy": "2", Business: "3", First: "4" };
   let searched = 0;
+  const MAX_TRIPS = 2; // must match watch.mjs's MAX_TRIPS — that file is the source of truth
 
-  for (const trip of trips.slice(0, 3)) {
+  for (const trip of trips.slice(0, MAX_TRIPS)) {
     const last = trip.checks && trip.checks.length ? Date.parse(trip.checks[trip.checks.length - 1].at) : 0;
     if (now - last < 20 * 3600 * 1000) continue;               // already checked today
     if (Date.parse(trip.departDate + "T23:59:00Z") < now) continue; // trip departed

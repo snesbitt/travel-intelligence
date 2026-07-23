@@ -3,3 +3,7 @@ _to_delete/
 
 # Local Netlify folder
 .netlify
+
+# Scratch backups / one-off fix scripts — not deployed
+*.backup
+fix-*.py

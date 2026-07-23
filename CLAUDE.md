@@ -33,6 +33,15 @@ not just a demo. Hold every future change to that standard.
   fare scaling in model mode derive from great-circle distances via the
   hand-maintained `CITY_COORDS`/`CITY_IATA` tables — when adding a city
   to one, add it to both.
+- Destination/origin text (city or country name, free-typed) resolves to
+  an IATA code via `toIATA()` in `app.js`: exact match against `CITY_IATA`
+  or `COUNTRY_TO_IATA` first, then a whole-word fuzzy fallback that scans
+  both tables and prefers the longest matching key. Fixed 2026-07-23: the
+  original fallback used raw substring matching (`n.includes(key)`),
+  which silently matched short keys like `"us"` or `"uk"` inside
+  unrelated words (`"Muscat"` resolved to Chicago) — every match must
+  now land on a whole word/phrase boundary. When adding a country or
+  city, add it to whichever table fits; no need to duplicate across both.
 - One exception to "modeled": `POINT_VALUATIONS` and `TRANSFER_BONUSES`
   in `app.js` are real published figures hand-copied from The Points
   Guy's monthly valuations / current-transfer-bonuses pages, each dated
