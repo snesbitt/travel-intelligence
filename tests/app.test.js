@@ -185,4 +185,30 @@ test("matchUpgradeWinCarrier: no match returns null/falsy", () => {
   assert.ok(!T.matchUpgradeWinCarrier(wins, ""));
 });
 
+
+/* ---------- 2026-07-24: unknown-destination honesty (SFO->Greenville) ---------- */
+
+test("toIATA: Greenville/Spartanburg resolve to GSP (incl. fuzzy)", () => {
+  assert.equal(T.toIATA("greenville, south carolina"), "GSP");
+  assert.equal(T.toIATA("Greenville"), "GSP");
+  assert.equal(T.toIATA("Spartanburg"), "GSP");
+});
+
+test("runOptimization: known route (SFO->GSP) is ~3,600 km, not the 7,500 km default", () => {
+  const r = T.runOptimization({ origin: "San Francisco", destination: "Greenville, South Carolina",
+    departDate: "2026-08-10", returnDate: "2026-08-11", cabin: "Economy", maxStops: 2, priorityRanks: {},
+    preferredAlliances: [], preferredAirlines: [], avoidAirlines: [], programBalances: [], dateFlexibility: "Exact", travelers: 1 });
+  assert.equal(r.routeKnown, true);
+  // 9h34m was the giveaway: 7,500km default. Real GSP geometry must model well under 6h nonstop air time.
+  const nonstops = r.candidates.filter((c) => c.stops === 0);
+  for (const c of nonstops) assert.ok(c.travelMinutes < 360, "nonstop modeled over 6h: " + c.travelMinutes);
+});
+
+test("runOptimization: unresolved city reports routeKnown=false", () => {
+  const r = T.runOptimization({ origin: "San Francisco", destination: "Atlantis, Lost Continent",
+    departDate: "2026-08-10", cabin: "Economy", maxStops: 2, priorityRanks: {},
+    preferredAlliances: [], preferredAirlines: [], avoidAirlines: [], programBalances: [], dateFlexibility: "Exact", travelers: 1 });
+  assert.equal(r.routeKnown, false);
+});
+
 console.log(`\n${passed} passed`);

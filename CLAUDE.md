@@ -42,6 +42,17 @@ not just a demo. Hold every future change to that standard.
   unrelated words (`"Muscat"` resolved to Chicago) — every match must
   now land on a whole word/phrase boundary. When adding a country or
   city, add it to whichever table fits; no need to duplicate across both.
+  2026-07-24 (the SFO→Greenville incident): `lookupCoords()` received the
+  identical whole-word fix — its raw substring scan had the same bug class
+  toIATA's had. Same session: Greenville/Spartanburg → GSP added to both
+  `CITY_IATA` and `CITY_COORDS`, and `runOptimization` now returns
+  `routeKnown`. When a destination never resolves, the model previously
+  fell back to a silent generic 7,500 km long-haul and the results card
+  presented fully invented specifics ("Nonstop · 9h 34m · A330-300 ·
+  Book on American ↗") as a bookable itinerary — Susan caught it against
+  a real aa.com search (no nonstop SFO→GSP exists). The card now drops
+  the booking link and shows an inline warning naming the unresolved
+  city whenever `routeKnown` is false; the banner alone was not enough.
 - One exception to "modeled": `POINT_VALUATIONS` and `TRANSFER_BONUSES`
   in `app.js` are real published figures hand-copied from The Points
   Guy's monthly valuations / current-transfer-bonuses pages, each dated

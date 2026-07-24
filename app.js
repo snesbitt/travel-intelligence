@@ -129,16 +129,23 @@ const CITY_COORDS = {
   "sao paulo": [-23.43, -46.47], "rio de janeiro": [-22.81, -43.25], lima: [-12.02, -77.11],
   bogota: [4.70, -74.15], santiago: [-33.39, -70.79], johannesburg: [-26.14, 28.25], "cape town": [-33.96, 18.60],
   cairo: [30.12, 31.41], nairobi: [-1.32, 36.93], casablanca: [33.37, -7.59], reykjavik: [63.99, -22.61],
+  greenville: [34.90, -82.22], gsp: [34.90, -82.22], spartanburg: [34.90, -82.22],
 };
 
 function lookupCoords(name) {
   if (!name) return null;
   const n = name.trim().toLowerCase();
   if (CITY_COORDS[n]) return CITY_COORDS[n];
+  // 2026-07-24: same whole-word fix toIATA received on 2026-07-23 — the
+  // raw substring scan here had the identical bug class, silently
+  // matching short keys inside unrelated words. Longest key wins.
+  let bestKey = null;
   for (const key of Object.keys(CITY_COORDS)) {
-    if (n.includes(key) || key.includes(n)) return CITY_COORDS[key];
+    if (wholeWordIncludes(n, key) || wholeWordIncludes(key, n)) {
+      if (!bestKey || key.length > bestKey.length) bestKey = key;
+    }
   }
-  return null;
+  return bestKey ? CITY_COORDS[bestKey] : null;
 }
 
 function haversineKm(a, b) {
@@ -192,6 +199,7 @@ const CITY_IATA = {
   bogota: "BOG", santiago: "SCL", johannesburg: "JNB", "cape town": "CPT", cairo: "CAI",
   nairobi: "NBO", casablanca: "CMN", reykjavik: "KEF",
   muscat: "MCT", damascus: "DAM", minsk: "MSQ", nicosia: "LCA", kiev: "KBP", kyiv: "KBP",
+  greenville: "GSP", spartanburg: "GSP",
 };
 
 // Whole-word substring test: true if `needle` appears in `haystack` as a
@@ -927,7 +935,13 @@ function runOptimization(inputs, liveOffers) {
   const insights = buildInsights(inputs, candidates, best, weights, timing, usingLive);
   const tactics = upgradeTactics(best, inputs);
   const pointsIntel = bestPointsAnswers(inputs);
-  return { candidates, weights, best, alternatives, timing, award, insights, tactics, pointsIntel, usingLive };
+  // 2026-07-24: routeKnown lets the UI refuse to present modeled figures
+  // for an UNRESOLVED city as if they were a bookable itinerary (the
+  // SFO->Greenville incident: unknown dest -> generic 7,500 km default ->
+  // an invented "nonstop on American, 9h 34m, A330" card with a real
+  // booking link). Live results are real by definition.
+  const routeKnown = usingLive || routeContext(inputs).route.known;
+  return { candidates, weights, best, alternatives, timing, award, insights, tactics, pointsIntel, usingLive, routeKnown };
 }
 
 if (typeof window !== "undefined") {

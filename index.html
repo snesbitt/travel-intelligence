@@ -707,7 +707,7 @@
         <div class="rec-hero-top">
           <div>
             <div class="rec-route">${inputs.origin} → ${inputs.viaCity ? inputs.viaCity + " → " : ""}${inputs.destination}</div>
-            <div class="rec-airline">${best.carrier} · ${best.alliance} · ${best.aircraft}${(() => { const site = T.carrierSite(best.carrier); return site ? ` · <a class="pick-open" href="${site}" target="_blank" rel="noopener">Book on ${best.carrier} ↗</a>` : ""; })()}</div>
+            <div class="rec-airline">${best.carrier} · ${best.alliance} · ${best.aircraft}${(() => { if (!result.routeKnown) return ""; const site = T.carrierSite(best.carrier); return site ? ` · <a class="pick-open" href="${site}" target="_blank" rel="noopener">Book on ${best.carrier} ↗</a>` : ""; })()}</div>${result.routeKnown ? "" : `<div class="form-hint" style="color:#8a3b2e;margin-top:6px">⚠ “${inputs.destination}” didn’t resolve to a known city or airport — every figure on this card is a generic long-haul model, not a real flight, and there is nothing to book. Check the spelling or use a 3-letter airport code (e.g. GSP), then re-run.</div>`}
           </div>
           <div class="rec-price-block">
             <div class="rec-price">${best.payWith === "miles" ? `~${(best.milesEst / 1000).toFixed(0)}k mi + ${T.fmtUSD(best.feesEst)}` : T.fmtUSD(best.price)}</div>
