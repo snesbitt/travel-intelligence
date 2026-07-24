@@ -174,6 +174,16 @@
       </ul>
     </div>
 
+    <div class="phase">
+      <div class="phase-head">
+        <span class="phase-num">08</span>
+        <span class="phase-title">protect watched trips</span>
+        <span class="phase-status">Roadmap</span>
+      </div>
+      <p class="phase-body">Watching a trip (max 2) spends a metered daily search and persists to the shared store the scheduled watcher reads from &mdash; currently open to anyone with the link, no auth, the same model Streaming Scout's dismiss endpoint uses. Worth gating behind a shared edit key so a shared link can't quietly add or drop a watched trip and spend the limited daily quota &mdash; remembered per device after one entry, the same pattern across the portfolio. Everything else — running the optimizer, browsing results — stays open.</p>
+      <p class="phase-value">A shared link can't quietly spend your watched-trip slots or swap what's being tracked.</p>
+    </div>
+
     <p class="phase-value" style="margin-top:1.5rem;">Phases are sequential. A later phase isn't started early, and nothing gets added to an earlier phase just because it would be easy to slot in.</p>
 
   </div>
