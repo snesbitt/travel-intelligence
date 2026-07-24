@@ -211,4 +211,49 @@ test("runOptimization: unresolved city reports routeKnown=false", () => {
   assert.equal(r.routeKnown, false);
 });
 
+
+/* ---------- 2026-07-24: route-prefilled booking deep links ---------- */
+
+const DEEPLINK_INPUTS = { origin: "San Francisco", destination: "Greenville, South Carolina",
+  departDate: "2026-08-10", returnDate: "2026-08-11", travelers: 1 };
+
+test("liveSearchUrls: American gets the verified aa.com slices deep link with both dates", () => {
+  const u = T.liveSearchUrls(DEEPLINK_INPUTS, "American");
+  assert.ok(u.carrierDeep.startsWith("https://www.aa.com/booking/search?"));
+  assert.ok(u.carrierDeep.includes("type=RoundTrip"));
+  const slices = JSON.parse(decodeURIComponent(u.carrierDeep.split("slices=")[1]));
+  assert.equal(slices.length, 2);
+  assert.deepEqual([slices[0].orig, slices[0].dest, slices[0].date], ["SFO", "GSP", "2026-08-10"]);
+  assert.deepEqual([slices[1].orig, slices[1].dest, slices[1].date], ["GSP", "SFO", "2026-08-11"]);
+});
+
+test("liveSearchUrls: non-AA carrier gets Google Flights only, with route and dates", () => {
+  const u = T.liveSearchUrls(DEEPLINK_INPUTS, "United");
+  assert.equal(u.carrierDeep, null);
+  assert.ok(u.googleFlights.startsWith("https://www.google.com/travel/flights?q="));
+  const q = decodeURIComponent(u.googleFlights.split("q=")[1]);
+  assert.equal(q, "Flights from SFO to GSP on 2026-08-10 through 2026-08-11");
+});
+
+test("liveSearchUrls: one-way AA link uses a single slice and type=OneWay", () => {
+  const u = T.liveSearchUrls({ origin: "SFO", destination: "BNA", departDate: "2026-09-01" }, "American Airlines");
+  assert.ok(u.carrierDeep.includes("type=OneWay"));
+  assert.equal(JSON.parse(decodeURIComponent(u.carrierDeep.split("slices=")[1])).length, 1);
+});
+
+test("liveSearchUrls: unresolved city or missing date produces NO links (never a link to an unnamed route)", () => {
+  assert.deepEqual(T.liveSearchUrls({ origin: "SFO", destination: "Atlantis", departDate: "2026-09-01" }, "American"), { carrierDeep: null, googleFlights: null });
+  assert.deepEqual(T.liveSearchUrls({ origin: "SFO", destination: "BNA" }, "American"), { carrierDeep: null, googleFlights: null });
+});
+
+test("expanded city tables: new US regionals resolve with real geometry (no 7,500 km default)", () => {
+  for (const [city, code] of [["Nashville", "BNA"], ["Savannah", "SAV"], ["Charleston", "CHS"], ["fort lauderdale", "FLL"]]) {
+    assert.equal(T.toIATA(city), code);
+  }
+  const r = T.runOptimization({ origin: "San Francisco", destination: "Nashville",
+    departDate: "2026-08-10", cabin: "Economy", maxStops: 2, priorityRanks: {},
+    preferredAlliances: [], preferredAirlines: [], avoidAirlines: [], programBalances: [], dateFlexibility: "Exact", travelers: 1 });
+  assert.equal(r.routeKnown, true);
+});
+
 console.log(`\n${passed} passed`);

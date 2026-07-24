@@ -52,7 +52,18 @@ not just a demo. Hold every future change to that standard.
   Book on American ↗") as a bookable itinerary — Susan caught it against
   a real aa.com search (no nonstop SFO→GSP exists). The card now drops
   the booking link and shows an inline warning naming the unresolved
-  city whenever `routeKnown` is false; the banner alone was not enough.
+  city whenever `routeKnown` is false; the banner alone was not enough. Same-day follow-up at Susan's request: (1) an
+  unresolved route now renders NO results at all — an honest error state
+  naming the field that failed — instead of a modeled card with a warning;
+  (2) ~50 US regional cities/airports added to both tables (name + code
+  keys; ambiguous names go to the biggest US airport: charleston→CHS,
+  columbia→CAE, rochester→ROC); (3) `liveSearchUrls()` in app.js builds
+  route+date-prefilled deep links for the rec card — American's
+  `/booking/search?slices=` format (verified live on aa.com before
+  shipping) plus a prefilled Google Flights query for every carrier
+  (also verified live). It returns no URL unless origin, destination and
+  date all resolve, so a booking link can never point at a route the
+  engine couldn't name.
 - One exception to "modeled": `POINT_VALUATIONS` and `TRANSFER_BONUSES`
   in `app.js` are real published figures hand-copied from The Points
   Guy's monthly valuations / current-transfer-bonuses pages, each dated

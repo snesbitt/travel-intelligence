@@ -631,6 +631,19 @@
 
   function renderResults(inputs, result) {
     const T = window.TravelIntel;
+    // 2026-07-24: an unresolved route renders NO results — not a modeled
+    // card with a warning. The SFO->Greenville incident proved a warning
+    // next to invented specifics still reads as a bookable itinerary.
+    if (!result.routeKnown) {
+      const oCode = T.toIATA(inputs.preferredAirport || inputs.origin);
+      const dCode = T.toIATA(inputs.destination);
+      const badField = !dCode ? `destination “${inputs.destination}”` : (!oCode ? `origin “${inputs.preferredAirport || inputs.origin}”` : null);
+      resultsEl.innerHTML = `<div class="empty-state"><div class="es-icon">⚠</div>
+        <p><strong>${badField ? `The ${badField} didn’t resolve to a known city or airport.` : `This route (${oCode} → ${dCode}) resolved, but it isn’t in the reference tables and the live search returned nothing — so there’s no real data to score.`}</strong></p>
+        <p class="form-hint">No figures are shown because none would be real. ${badField ? "Check the spelling or use a 3-letter airport code (e.g. GSP for Greenville, SC), then re-run." : "Re-run to retry the live search, or double-check the airport codes."}</p></div>`;
+      document.getElementById("results").scrollIntoView({ behavior: "smooth", block: "start" });
+      return;
+    }
     const best = result.best;
     const alts = result.alternatives;
     const w = result.weights;
@@ -707,7 +720,7 @@
         <div class="rec-hero-top">
           <div>
             <div class="rec-route">${inputs.origin} → ${inputs.viaCity ? inputs.viaCity + " → " : ""}${inputs.destination}</div>
-            <div class="rec-airline">${best.carrier} · ${best.alliance} · ${best.aircraft}${(() => { if (!result.routeKnown) return ""; const site = T.carrierSite(best.carrier); return site ? ` · <a class="pick-open" href="${site}" target="_blank" rel="noopener">Book on ${best.carrier} ↗</a>` : ""; })()}</div>${result.routeKnown ? "" : `<div class="form-hint" style="color:#8a3b2e;margin-top:6px">⚠ “${inputs.destination}” didn’t resolve to a known city or airport — every figure on this card is a generic long-haul model, not a real flight, and there is nothing to book. Check the spelling or use a 3-letter airport code (e.g. GSP), then re-run.</div>`}
+            <div class="rec-airline">${best.carrier} · ${best.alliance} · ${best.aircraft}${(() => { const urls = T.liveSearchUrls(inputs, best.carrier); const parts = []; if (urls.carrierDeep) { parts.push(` · <a class="pick-open" href="${urls.carrierDeep}" target="_blank" rel="noopener">Book this route on ${best.carrier} ↗</a>`); } else { const site = T.carrierSite(best.carrier); if (site) parts.push(` · <a class="pick-open" href="${site}" target="_blank" rel="noopener">Book on ${best.carrier} ↗</a>`); } if (urls.googleFlights) parts.push(` · <a class="pick-open" href="${urls.googleFlights}" target="_blank" rel="noopener">Live results on Google Flights ↗</a>`); return parts.join(""); })()}</div>
           </div>
           <div class="rec-price-block">
             <div class="rec-price">${best.payWith === "miles" ? `~${(best.milesEst / 1000).toFixed(0)}k mi + ${T.fmtUSD(best.feesEst)}` : T.fmtUSD(best.price)}</div>

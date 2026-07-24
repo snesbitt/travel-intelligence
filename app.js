@@ -130,6 +130,34 @@ const CITY_COORDS = {
   bogota: [4.70, -74.15], santiago: [-33.39, -70.79], johannesburg: [-26.14, 28.25], "cape town": [-33.96, 18.60],
   cairo: [30.12, 31.41], nairobi: [-1.32, 36.93], casablanca: [33.37, -7.59], reykjavik: [63.99, -22.61],
   greenville: [34.90, -82.22], gsp: [34.90, -82.22], spartanburg: [34.90, -82.22],
+  // 2026-07-24 US regional coverage pass (paired with CITY_IATA below):
+  sacramento: [38.70, -121.59], smf: [38.70, -121.59], burbank: [34.20, -118.36], bur: [34.20, -118.36],
+  "santa ana": [33.68, -117.87], "orange county": [33.68, -117.87], sna: [33.68, -117.87],
+  "palm springs": [33.83, -116.51], psp: [33.83, -116.51], fresno: [36.78, -119.72], fat: [36.78, -119.72],
+  reno: [39.50, -119.77], rno: [39.50, -119.77], boise: [43.56, -116.22], boi: [43.56, -116.22],
+  spokane: [47.62, -117.53], geg: [47.62, -117.53], "salt lake city": [40.79, -111.98], slc: [40.79, -111.98],
+  tucson: [32.12, -110.94], tus: [32.12, -110.94], albuquerque: [35.04, -106.61], abq: [35.04, -106.61],
+  "el paso": [31.81, -106.38], elp: [31.81, -106.38], "san antonio": [29.53, -98.47], sat: [29.53, -98.47],
+  "kansas city": [39.30, -94.71], mci: [39.30, -94.71], "st louis": [38.75, -90.37], "saint louis": [38.75, -90.37], stl: [38.75, -90.37],
+  "new orleans": [29.99, -90.26], msy: [29.99, -90.26], memphis: [35.04, -89.98], mem: [35.04, -89.98],
+  nashville: [36.12, -86.68], bna: [36.12, -86.68], louisville: [38.17, -85.74], sdf: [38.17, -85.74],
+  lexington: [38.04, -84.61], lex: [38.04, -84.61], cincinnati: [39.05, -84.66], cvg: [39.05, -84.66],
+  columbus: [40.00, -82.89], cmh: [40.00, -82.89], cleveland: [41.41, -81.85], cle: [41.41, -81.85],
+  pittsburgh: [40.49, -80.23], pit: [40.49, -80.23], indianapolis: [39.72, -86.29], ind: [39.72, -86.29],
+  milwaukee: [42.95, -87.90], mke: [42.95, -87.90], omaha: [41.30, -95.89], oma: [41.30, -95.89],
+  "des moines": [41.53, -93.66], dsm: [41.53, -93.66], "oklahoma city": [35.39, -97.60], okc: [35.39, -97.60],
+  tulsa: [36.20, -95.89], tul: [36.20, -95.89], baltimore: [39.18, -76.67], bwi: [39.18, -76.67],
+  hartford: [41.94, -72.68], bdl: [41.94, -72.68], providence: [41.72, -71.43], pvd: [41.72, -71.43],
+  buffalo: [42.94, -78.73], buf: [42.94, -78.73], rochester: [43.12, -77.67], roc: [43.12, -77.67],
+  syracuse: [43.11, -76.11], syr: [43.11, -76.11], albany: [42.75, -73.80], alb: [42.75, -73.80],
+  raleigh: [35.88, -78.79], durham: [35.88, -78.79], rdu: [35.88, -78.79], richmond: [37.51, -77.32], ric: [37.51, -77.32],
+  norfolk: [36.89, -76.20], orf: [36.89, -76.20], columbia: [33.94, -81.12], cae: [33.94, -81.12],
+  charleston: [32.90, -80.04], chs: [32.90, -80.04], savannah: [32.13, -81.20], sav: [32.13, -81.20],
+  asheville: [35.44, -82.54], avl: [35.44, -82.54], knoxville: [35.81, -83.99], tys: [35.81, -83.99],
+  chattanooga: [35.04, -85.20], cha: [35.04, -85.20], birmingham: [33.56, -86.75], bhm: [33.56, -86.75],
+  jacksonville: [30.49, -81.69], jax: [30.49, -81.69], "fort lauderdale": [26.07, -80.15], fll: [26.07, -80.15],
+  "west palm beach": [26.68, -80.10], pbi: [26.68, -80.10], "fort myers": [26.54, -81.76], rsw: [26.54, -81.76],
+  sarasota: [27.40, -82.55], srq: [27.40, -82.55],
 };
 
 function lookupCoords(name) {
@@ -200,6 +228,26 @@ const CITY_IATA = {
   nairobi: "NBO", casablanca: "CMN", reykjavik: "KEF",
   muscat: "MCT", damascus: "DAM", minsk: "MSQ", nicosia: "LCA", kiev: "KBP", kyiv: "KBP",
   greenville: "GSP", spartanburg: "GSP",
+  // 2026-07-24: US regional coverage pass — after the Greenville incident,
+  // every entry here has a matching CITY_COORDS entry above (name and code).
+  // Ambiguous names resolve to the biggest US airport of that name by
+  // passenger volume: charleston->CHS (SC), columbia->CAE (SC),
+  // rochester->ROC (NY).
+  sacramento: "SMF", "san jose": "SJC", oakland: "OAK", burbank: "BUR",
+  "santa ana": "SNA", "orange county": "SNA", "palm springs": "PSP", fresno: "FAT",
+  reno: "RNO", boise: "BOI", spokane: "GEG", "salt lake city": "SLC",
+  tucson: "TUS", albuquerque: "ABQ", "el paso": "ELP", "san antonio": "SAT",
+  "kansas city": "MCI", "st louis": "STL", "saint louis": "STL", "new orleans": "MSY",
+  memphis: "MEM", nashville: "BNA", louisville: "SDF", lexington: "LEX",
+  cincinnati: "CVG", columbus: "CMH", cleveland: "CLE", pittsburgh: "PIT",
+  indianapolis: "IND", milwaukee: "MKE", omaha: "OMA", "des moines": "DSM",
+  "oklahoma city": "OKC", tulsa: "TUL", baltimore: "BWI", hartford: "BDL",
+  providence: "PVD", buffalo: "BUF", rochester: "ROC", syracuse: "SYR",
+  albany: "ALB", raleigh: "RDU", durham: "RDU", richmond: "RIC",
+  norfolk: "ORF", columbia: "CAE", charleston: "CHS", savannah: "SAV",
+  asheville: "AVL", knoxville: "TYS", chattanooga: "CHA", birmingham: "BHM",
+  jacksonville: "JAX", "fort lauderdale": "FLL", "west palm beach": "PBI",
+  "fort myers": "RSW", sarasota: "SRQ",
 };
 
 // Whole-word substring test: true if `needle` appears in `haystack` as a
@@ -261,6 +309,33 @@ function isAsianCarrier(name) {
 function destinationInAsia(inputs) {
   const c = lookupCoords(inputs.destination);
   return Boolean(c && c[1] >= 60 && c[1] <= 150 && c[0] >= -10 && c[0] <= 60);
+}
+
+// 2026-07-24: deep links that land ON THE ROUTE'S RESULTS, not a carrier
+// homepage. American's slices format was verified live against aa.com
+// (SFO<->GSP round trip) before shipping; every other carrier gets a
+// prefilled Google Flights query, which reliably resolves any IATA pair.
+// Pure function, null-safe: no URL is produced unless origin, destination
+// AND departure date all resolve — never a link to a route we can't name.
+function liveSearchUrls(inputs, carrier) {
+  const o = toIATA(inputs.preferredAirport || inputs.origin);
+  const d = toIATA(inputs.destination);
+  if (!o || !d || !inputs.departDate) return { carrierDeep: null, googleFlights: null };
+  const gq = "Flights from " + o + " to " + d + " on " + inputs.departDate +
+    (inputs.returnDate ? " through " + inputs.returnDate : "");
+  const googleFlights = "https://www.google.com/travel/flights?q=" + encodeURIComponent(gq);
+  let carrierDeep = null;
+  if (/american/i.test(carrier || "")) {
+    const slice = (a, b, dt) => ({ orig: a, origNearby: false, dest: b, destNearby: false, date: dt });
+    const slices = [slice(o, d, inputs.departDate)];
+    let type = "OneWay";
+    if (inputs.returnDate) { slices.push(slice(d, o, inputs.returnDate)); type = "RoundTrip"; }
+    const pax = inputs.travelers || 1;
+    carrierDeep = "https://www.aa.com/booking/search?locale=en_US&pax=" + pax + "&adult=" + pax +
+      "&type=" + type + "&searchType=Revenue&cabin=&carriers=ALL&slices=" +
+      encodeURIComponent(JSON.stringify(slices));
+  }
+  return { carrierDeep, googleFlights };
 }
 
 function carrierSite(name) {
@@ -946,7 +1021,7 @@ function runOptimization(inputs, liveOffers) {
 
 if (typeof window !== "undefined") {
   window.TravelIntel = {
-    runOptimization, computeWeights, upgradeTactics, bestPointsAnswers, toIATA, carrierSite, suggestPriorities,
+    runOptimization, computeWeights, upgradeTactics, bestPointsAnswers, toIATA, carrierSite, liveSearchUrls, suggestPriorities,
     ALLIANCES, ALL_CARRIERS, TRANSFER_PARTNERS, POINT_VALUATIONS, TRANSFER_BONUSES,
     DIMENSIONS, DIM_LABEL, fmtUSD,
     // exposed 2026-07-20 for tests/app.test.js — these were already pure,
