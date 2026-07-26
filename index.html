@@ -61,7 +61,30 @@
               <option selected>Best Overall Experience</option>
             </select>
           </div>
+          <div class="form-field">
+            <label for="prioritySecondary">Then weigh (optional)</label>
+            <select id="prioritySecondary">
+              <option>None</option>
+              <option selected>Best Value</option>
+              <option>Cheapest</option>
+              <option>Fastest</option>
+              <option>Most Comfortable</option>
+              <option>Best Upgrade Opportunity</option>
+              <option>Best Use of Miles</option>
+              <option>Best Overall Experience</option>
+            </select>
+          </div>
         </div>
+        <div class="form-field" style="margin-top:10px;">
+          <label>Date flexibility</label>
+          <div class="pill-toggle" data-group="dateFlexibility">
+            <button type="button" data-val="Exact" class="sel">Exact</button>
+            <button type="button" data-val="±1 day">± 1 day</button>
+            <button type="button" data-val="±3 days">± 3 days</button>
+            <button type="button" data-val="±7 days">± 7 days</button>
+          </div>
+        </div>
+        <p class="form-hint" id="prio-suggest" style="margin-top:10px;"></p>
       </section>
 
       <!-- 2026-07-26 radical simplicity: four essential fields above; every
@@ -83,15 +106,6 @@
               <input type="hidden" id="travelers" value="1">
             </div>
           </div>        </div>
-        <div class="form-field" style="margin-top:10px;">
-          <label>Date flexibility</label>
-          <div class="pill-toggle" data-group="dateFlexibility">
-            <button type="button" data-val="Exact" class="sel">Exact</button>
-            <button type="button" data-val="±1 day">± 1 day</button>
-            <button type="button" data-val="±3 days">± 3 days</button>
-            <button type="button" data-val="±7 days">± 7 days</button>
-          </div>
-        </div>
         <div class="form-field" style="margin-top:10px;">
           <label>Trip purpose</label>
           <div class="pill-toggle" data-group="tripPurpose">
@@ -163,26 +177,6 @@
         </div>
       </section>
 
-      <section class="block card">
-        <h2 class="card-title">Priority — fine tuning</h2>
-        <p class="form-hint" style="margin-bottom:10px;">Optionally add a runner-up lens to the “Optimize for” choice you made above. The engine weights every dimension from this — the per-dimension weights stay visible in your results, never collapsed into an opaque number. Use the sort-by control in the results to view the same shortlist through any other lens.</p>
-        <div class="form-grid">
-          <div class="form-field">
-            <label for="prioritySecondary">Also weigh (optional)</label>
-            <select id="prioritySecondary">
-              <option>None</option>
-              <option selected>Best Value</option>
-              <option>Cheapest</option>
-              <option>Fastest</option>
-              <option>Most Comfortable</option>
-              <option>Best Upgrade Opportunity</option>
-              <option>Best Use of Miles</option>
-              <option>Best Overall Experience</option>
-            </select>
-          </div>
-        </div>
-        <p class="form-hint" id="prio-suggest" style="margin-top:10px;"></p>
-      </section>
 
       <section class="block card" id="wallet">
         <h2 class="card-title">Your wallet <span class="form-hint" id="wallet-status" style="font-weight:400;"></span></h2>
