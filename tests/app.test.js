@@ -455,4 +455,43 @@ test("displayCityName: ambiguous regionals carry their state/country (Susan 2026
   assert.equal(T.displayCityName("SFO"), "San Francisco");
 });
 
+
+test("toIATA: Baltic/Balkan/Caucasus/Central Asia countries resolve to their capital's code (Susan: Estonia gap, 2026-07-26)", () => {
+  assert.equal(T.toIATA("Estonia"), "TLL");
+  assert.equal(T.toIATA("estonia"), "TLL");
+  assert.equal(T.toIATA("Latvia"), "RIX");
+  assert.equal(T.toIATA("Lithuania"), "VNO");
+  assert.equal(T.toIATA("Croatia"), "ZAG");
+  assert.equal(T.toIATA("Slovenia"), "LJU");
+  assert.equal(T.toIATA("Slovakia"), "BTS");
+  assert.equal(T.toIATA("Serbia"), "BEG");
+  assert.equal(T.toIATA("Bulgaria"), "SOF");
+  assert.equal(T.toIATA("Malta"), "MLA");
+  assert.equal(T.toIATA("Bosnia and Herzegovina"), "SJJ");
+  assert.equal(T.toIATA("North Macedonia"), "SKP");
+  assert.equal(T.toIATA("Montenegro"), "TGD");
+  assert.equal(T.toIATA("Georgia"), "TBS");
+  assert.equal(T.toIATA("Armenia"), "EVN");
+  assert.equal(T.toIATA("Azerbaijan"), "GYD");
+  assert.equal(T.toIATA("Kazakhstan"), "ALA");
+  assert.equal(T.toIATA("Uzbekistan"), "TAS");
+  // capital-city names resolve directly too, matching the country lookup
+  assert.equal(T.toIATA("Tallinn"), "TLL");
+  assert.equal(T.toIATA("tallinn, estonia"), "TLL");
+});
+
+test("runOptimization: San Francisco -> Estonia resolves with real geometry (routeKnown, no 7,500km default)", () => {
+  const r = T.runOptimization({ origin: "San Francisco", destination: "Estonia",
+    departDate: "2026-09-12", returnDate: "2026-09-24", cabin: "Economy", maxStops: 2, priorityRanks: {},
+    preferredAlliances: [], preferredAirlines: [], avoidAirlines: [], programBalances: [], dateFlexibility: "Exact", travelers: 1 },
+    [{ carrier: "Finnair", priceTotal: 780, stops: 1, durationMinutes: 720 }]);
+  assert.equal(r.routeKnown, true);
+  assert.equal(r.best.routeKm > 8000 && r.best.routeKm < 9500, true, "SFO-TLL great-circle should land roughly 8,000-9,500km, got " + r.best.routeKm);
+});
+
+test("displayCityName: new capitals display cleanly", () => {
+  assert.equal(T.displayCityName("TLL"), "Tallinn");
+  assert.equal(T.displayCityName("estonia"), "Tallinn");
+});
+
 console.log(`\n${passed} passed`);

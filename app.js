@@ -123,6 +123,17 @@ const CITY_COORDS = {
   cairo: [30.12, 31.41], nairobi: [-1.32, 36.93], casablanca: [33.37, -7.59], reykjavik: [63.99, -22.61],
   greenville: [34.90, -82.22], gsp: [34.90, -82.22], spartanburg: [34.90, -82.22],
   gaborone: [-24.56, 25.92], gbe: [-24.56, 25.92],
+  tallinn: [59.41, 24.83], tll: [59.41, 24.83], riga: [56.92, 23.97], rix: [56.92, 23.97],
+  vilnius: [54.63, 25.29], vno: [54.63, 25.29], chisinau: [46.93, 28.93], kiv: [46.93, 28.93],
+  zagreb: [45.74, 16.07], zag: [45.74, 16.07], ljubljana: [46.22, 14.46], lju: [46.22, 14.46],
+  bratislava: [48.17, 17.21], bts: [48.17, 17.21], belgrade: [44.82, 20.31], beg: [44.82, 20.31],
+  sofia: [42.70, 23.41], sof: [42.70, 23.41], tirana: [41.41, 19.72], tia: [41.41, 19.72],
+  valletta: [35.86, 14.48], mla: [35.86, 14.48], sarajevo: [43.82, 18.33], sjj: [43.82, 18.33],
+  skopje: [41.96, 21.62], skp: [41.96, 21.62], podgorica: [42.36, 19.25], tgd: [42.36, 19.25],
+  pristina: [42.57, 21.04], prn: [42.57, 21.04],
+  tbilisi: [41.67, 44.95], tbs: [41.67, 44.95], yerevan: [40.15, 44.40], evn: [40.15, 44.40],
+  baku: [40.47, 50.05], gyd: [40.47, 50.05], almaty: [43.35, 77.04], ala: [43.35, 77.04],
+  tashkent: [41.26, 69.28], tas: [41.26, 69.28],
   // 2026-07-24 US regional coverage pass (paired with CITY_IATA below):
   sacramento: [38.70, -121.59], smf: [38.70, -121.59], burbank: [34.20, -118.36], bur: [34.20, -118.36],
   "santa ana": [33.68, -117.87], "orange county": [33.68, -117.87], sna: [33.68, -117.87],
@@ -166,7 +177,17 @@ function lookupCoords(name) {
       if (!bestKey || key.length > bestKey.length) bestKey = key;
     }
   }
-  return bestKey ? CITY_COORDS[bestKey] : null;
+  if (bestKey) return CITY_COORDS[bestKey];
+  // 2026-07-26 (Susan: "Estonia" resolved to a real IATA code via toIATA's
+  // COUNTRY_TO_IATA table, but geometry still came back null): toIATA and
+  // lookupCoords used to be two separate lookups that could disagree —
+  // a bare country name could resolve to a bookable code while its
+  // distance/flight-time estimate silently failed. Falling back through
+  // toIATA's resolution keeps them in lockstep: whatever code the trip
+  // will actually search on is the same code geometry is estimated from.
+  const code = toIATA(n);
+  if (code && CITY_COORDS[code.toLowerCase()]) return CITY_COORDS[code.toLowerCase()];
+  return null;
 }
 
 function haversineKm(a, b) {
@@ -201,6 +222,16 @@ const COUNTRY_TO_IATA = {
   "australia": "SYD", "new zealand": "AKL", "fiji": "SUV", "samoa": "APW", "tonga": "NAN", "vanuatu": "VLI", "solomon islands": "HIR", "png": "POM", "papua new guinea": "POM",
   "south africa": "JNB", "kenya": "NBO", "morocco": "CMN", "nigeria": "LOS", "ethiopia": "ADD", "tanzania": "DAR", "uganda": "EBB",
   "ghana": "ACC", "senegal": "DSS", "ivory coast": "ABJ", "cameroon": "NSI", "botswana": "GBE", "namibia": "WDH", "zambia": "LUN", "zimbabwe": "HRE", "madagascar": "TNR", "mauritius": "MRU", "seychelles": "SEZ",
+  // 2026-07-26 (Susan: Estonia didn't resolve): the whole Baltic/Balkan/
+  // Caucasus/Central Asia region was silently unmapped — same bug class as
+  // the SFO->Greenville incident. Capital-city IATA codes, matched with
+  // CITY_IATA + CITY_COORDS entries below (same pattern as botswana/gaborone).
+  "estonia": "TLL", "latvia": "RIX", "lithuania": "VNO", "moldova": "KIV",
+  "croatia": "ZAG", "slovenia": "LJU", "slovakia": "BTS", "serbia": "BEG", "bulgaria": "SOF",
+  "albania": "TIA", "malta": "MLA", "bosnia": "SJJ", "bosnia and herzegovina": "SJJ",
+  "north macedonia": "SKP", "macedonia": "SKP", "montenegro": "TGD", "kosovo": "PRN",
+  "georgia": "TBS", "armenia": "EVN", "azerbaijan": "GYD",
+  "kazakhstan": "ALA", "uzbekistan": "TAS",
 };
 
 const CITY_IATA = {
@@ -221,6 +252,10 @@ const CITY_IATA = {
   nairobi: "NBO", casablanca: "CMN", reykjavik: "KEF",
   muscat: "MCT", damascus: "DAM", minsk: "MSQ", nicosia: "LCA", kiev: "KBP", kyiv: "KBP",
   greenville: "GSP", spartanburg: "GSP", gaborone: "GBE",
+  tallinn: "TLL", riga: "RIX", vilnius: "VNO", chisinau: "KIV",
+  zagreb: "ZAG", ljubljana: "LJU", bratislava: "BTS", belgrade: "BEG", sofia: "SOF",
+  tirana: "TIA", valletta: "MLA", sarajevo: "SJJ", skopje: "SKP", podgorica: "TGD",
+  pristina: "PRN", tbilisi: "TBS", yerevan: "EVN", baku: "GYD", almaty: "ALA", tashkent: "TAS",
   // 2026-07-24: US regional coverage pass — after the Greenville incident,
   // every entry here has a matching CITY_COORDS entry above (name and code).
   // Ambiguous names resolve to the biggest US airport of that name by
