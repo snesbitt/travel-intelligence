@@ -295,27 +295,27 @@ test("expanded city tables: new US regionals resolve with real geometry (no 7,50
 /* ---------- 2026-07-24: displayCity — code or name in, city out ---------- */
 
 test("displayCity: airport code in, city name out", () => {
-  assert.equal(T.displayCity("GSP"), "Greenville (GSP)");
-  assert.equal(T.displayCity("gsp"), "Greenville (GSP)");
+  assert.equal(T.displayCity("GSP"), "Greenville, SC (GSP)");
+  assert.equal(T.displayCity("gsp"), "Greenville, SC (GSP)");
   assert.equal(T.displayCity("SFO"), "San Francisco (SFO)");
 });
 
 test("displayCity: city name in, canonical 'City (CODE)' out (incl. multiword title-case)", () => {
   assert.equal(T.displayCity("san francisco"), "San Francisco (SFO)");
-  assert.equal(T.displayCity("Greenville, South Carolina"), "Greenville (GSP)");
+  assert.equal(T.displayCity("Greenville, South Carolina"), "Greenville, SC (GSP)");
   assert.equal(T.displayCity("salt lake city"), "Salt Lake City (SLC)");
 });
 
 test("displayCityName: city only, no code suffix (watched-row rendering)", () => {
   assert.equal(T.displayCityName("SFO"), "San Francisco");
-  assert.equal(T.displayCityName("GBE"), "Gaborone");
+  assert.equal(T.displayCityName("GBE"), "Gaborone, Botswana");
   assert.equal(T.displayCityName("Atlantis"), "Atlantis");
 });
 
 test("displayCity: Gaborone resolves from code, city, or country (watched-trip fix)", () => {
-  assert.equal(T.displayCity("GBE"), "Gaborone (GBE)");
-  assert.equal(T.displayCity("gaborone"), "Gaborone (GBE)");
-  assert.equal(T.displayCity("Botswana"), "Gaborone (GBE)");
+  assert.equal(T.displayCity("GBE"), "Gaborone, Botswana (GBE)");
+  assert.equal(T.displayCity("gaborone"), "Gaborone, Botswana (GBE)");
+  assert.equal(T.displayCity("Botswana"), "Gaborone, Botswana (GBE)");
 });
 
 test("displayCity: unresolved input passes through exactly as typed", () => {
@@ -446,6 +446,13 @@ test("scanSourceUrl returns null when the route does not resolve", () => {
   assert.equal(T.scanSourceUrl(
     { origin: "Narnia", destination: "Gaborone", departDate: "2027-05-31" },
     "Kayak · scanned 2h ago"), null);
+});
+
+test("displayCityName: ambiguous regionals carry their state/country (Susan 2026-07-26)", () => {
+  assert.equal(T.displayCityName("GSP"), "Greenville, SC");
+  assert.equal(T.displayCityName("greenville"), "Greenville, SC");
+  assert.equal(T.displayCityName("GBE"), "Gaborone, Botswana");
+  assert.equal(T.displayCityName("SFO"), "San Francisco");
 });
 
 console.log(`\n${passed} passed`);

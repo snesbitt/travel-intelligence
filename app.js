@@ -282,6 +282,15 @@ const IATA_DISPLAY = {};
 for (const [name, code] of Object.entries(CITY_IATA)) {
   if (!IATA_DISPLAY[code]) IATA_DISPLAY[code] = name.replace(/(^|[\s-])[a-z]/g, (m) => m.toUpperCase());
 }
+// 2026-07-26 (Susan): ambiguous or lesser-known city names display with
+// their state/country so a watched row reads unambiguously.
+Object.assign(IATA_DISPLAY, {
+  GSP: "Greenville, SC",
+  GBE: "Gaborone, Botswana",
+  CHS: "Charleston, SC",
+  CAE: "Columbia, SC",
+  SAV: "Savannah, GA",
+});
 function displayCityName(nameOrCode) {
   if (!nameOrCode) return nameOrCode;
   const code = toIATA(nameOrCode);

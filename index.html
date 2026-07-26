@@ -37,7 +37,7 @@
     <h1 class="page-title" style="margin-bottom:0.4rem;">Every travel decision, optimized — not just the fare.</h1>
 
     <section class="block card ti-hidden" id="watched" aria-live="polite">
-      <h2 class="card-title">Watched trips <span class="form-hint" style="font-weight:400;">· re-checked nightly ~7am PT · shows the cheapest live fare</span></h2>
+      <h2 class="card-title">Watched trips</h2>
       <div id="watched-rows"></div>
     </section>
 
@@ -1053,6 +1053,12 @@
       const oCode = T.toIATA(t.origin), dCode = T.toIATA(t.destination);
       const codeChip = oCode && dCode ? ` <span class="watched-codes">${oCode}–${dCode}</span>` : "";
       const travLabel = `${t.travelers} traveler${String(t.travelers) === "1" ? "" : "s"}`;
+      // 2026-07-26 (Susan): every watched trip links out to buy. American
+      // rows get the verified aa.com deep link; everything else gets the
+      // route+dates-prefilled Google Flights search.
+      const wCarrier = (checks.length && checks[checks.length - 1] && checks[checks.length - 1].carrier) || (t.baseline && t.baseline.carrier) || "";
+      const wUrls = T.liveSearchUrls({ origin: t.origin, destination: t.destination, departDate: t.departDate, returnDate: t.returnDate, travelers: t.travelers }, /american|\bAA\b/i.test(wCarrier) ? "American" : "");
+      const wBook = wUrls.carrierDeep || wUrls.googleFlights;
       return `<div class="watched-item" data-id="${t.id}">
         <div class="watched-route-card">
           <span class="watched-route-main">${T.displayCityName(t.origin)} → ${T.displayCityName(t.destination)}${codeChip}</span>
@@ -1061,7 +1067,7 @@
         <div class="watched-side" style="display:flex;align-items:center;gap:12px;">
           ${spark}
           <div class="watched-price-col">
-            <span class="watched-price-line"><span class="watched-price-amount">${priceAmount}</span>${delta}</span>
+            <span class="watched-price-line">${wBook ? `<a class="watched-book" href="${wBook}" target="_blank" rel="noopener" aria-label="Book ${t.origin} to ${t.destination}"><span class="watched-price-amount">${priceAmount}</span> ↗</a>` : `<span class="watched-price-amount">${priceAmount}</span>`}${delta}</span>
             <span class="watched-price-meta">${priceMeta}</span>
           </div>
           <div class="watched-actions">

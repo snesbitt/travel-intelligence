@@ -465,3 +465,8 @@ details.refine > summary::before { content: "▸"; font-size: 11px; transition: 
 details.refine[open] > summary::before { transform: rotate(90deg); }
 details.refine > summary:hover { color: var(--accent); }
 @media (prefers-reduced-motion: reduce) { details.refine > summary::before { transition: none; } }
+
+/* 2026-07-26: watched fares link straight out to buy */
+.watched-book { display: inline-flex; align-items: baseline; gap: 3px; color: inherit; text-decoration: none; }
+.watched-book:hover .watched-price-amount { text-decoration: underline; text-underline-offset: 3px; }
+.watched-book::after { content: none; }
