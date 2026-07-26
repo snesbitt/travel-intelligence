@@ -288,4 +288,52 @@ test("displayCity: unresolved input passes through exactly as typed", () => {
   assert.equal(T.displayCity(""), "");
 });
 
+
+/* ---------- 2026-07-25: Time is a real scored dimension ---------- */
+
+const LENS_INPUTS = { origin: "San Francisco", destination: "Greenville, South Carolina",
+  departDate: "2026-08-10", returnDate: "2026-08-11", cabin: "Economy", maxStops: 2,
+  maxBudget: 1200, preferredAlliances: [], preferredAirlines: [], avoidAirlines: [],
+  programBalances: [], dateFlexibility: "Exact", travelers: 1 };
+// Two real-shaped live offers, both 1 stop (the case that exposed the bug):
+// A is cheap and slow, B is pricey and fast. Before the Time dimension,
+// every lens picked the same one because stops were identical.
+const OFFER_A = { carrier: "American", priceTotal: 400, stops: 1, durationMinutes: 900, aircraft: "A321" };
+const OFFER_B = { carrier: "United",   priceTotal: 800, stops: 1, durationMinutes: 480, aircraft: "737" };
+
+test("Fastest vs Cheapest now pick different itineraries when stops are equal", () => {
+  const cheap = T.runOptimization({ ...LENS_INPUTS, priorityRanks: { Cheapest: 1 } }, [OFFER_A, OFFER_B]);
+  const fast  = T.runOptimization({ ...LENS_INPUTS, priorityRanks: { Fastest: 1 } },  [OFFER_A, OFFER_B]);
+  assert.equal(cheap.best.carrier, "American", "Cheapest should take the $400 slow itinerary");
+  assert.equal(fast.best.carrier, "United", "Fastest should take the 8h itinerary over the 15h one");
+});
+
+test("Time scores: shorter duration scores higher; missing duration is neutral", () => {
+  const r = T.runOptimization({ ...LENS_INPUTS, priorityRanks: { Cheapest: 1 } },
+    [OFFER_A, OFFER_B, { carrier: "Delta", priceTotal: 600, stops: 1, durationMinutes: null }]);
+  const by = Object.fromEntries(r.candidates.map((c) => [c.carrier, c.scores.Time]));
+  assert.ok(by.United > by.American, "8h must out-score 15h on Time");
+  assert.equal(by.Delta, 55, "unknown duration scores neutral 55");
+});
+
+test("computeWeights still normalizes to 1 with the Time dimension present", () => {
+  const w = T.computeWeights({ Fastest: 1 });
+  const sum = T.DIMENSIONS.reduce((s2, d) => s2 + w[d], 0);
+  assert.ok(Math.abs(sum - 1) < 1e-9);
+  assert.ok(w.Time > w.Cost, "Fastest must weight Time above Cost");
+});
+
+test("charter regression (2026-07-19): Best Overall still prefers ANA ~half-price 1-stop over United nonstop", () => {
+  const tokyo = { origin: "San Francisco", destination: "Tokyo", departDate: "2026-09-12",
+    returnDate: "2026-09-24", cabin: "Economy", maxStops: 2, maxBudget: 2000,
+    preferredAlliances: [], preferredAirlines: [], avoidAirlines: [], programBalances: [],
+    dateFlexibility: "Exact", travelers: 1, priorityRanks: { "Best Overall Experience": 1 } };
+  const offers = [
+    { carrier: "United", priceTotal: 1512, stops: 0, durationMinutes: 660 },
+    { carrier: "ANA",    priceTotal: 761,  stops: 1, durationMinutes: 900 },
+  ];
+  const r = T.runOptimization(tokyo, offers);
+  assert.equal(r.best.carrier, "ANA", "the tuned value-conscious call must keep holding after Time was added");
+});
+
 console.log(`\n${passed} passed`);

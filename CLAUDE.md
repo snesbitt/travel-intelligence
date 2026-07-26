@@ -143,7 +143,13 @@ is genuinely strong.
 ruled the cheaper fare should win. The BOE priority vector's Cost weight
 went 0.3 → 1.4 — the minimal value that flips that case (verified
 against the real candidate scores) while a nonstop still beats a
-modestly-cheaper connection. Known remaining blindspots, declined for
+modestly-cheaper connection. 2026-07-25 addendum to this tuning: a seventh scored dimension, Time,
+was added after Susan reported Fastest and Cheapest returning the same
+pick — Risk only counts stops, so all-1-stop offer sets gave "Fastest"
+nothing to rank by (duration was displayed, never scored). Fastest is
+now Time-dominated (1.2); Best Overall gets a deliberately small Time
+0.2 so this ANA-vs-United call keeps holding — pinned by a regression
+test in tests/app.test.js. Known remaining blindspots, declined for
 now: Comfort ignores carrier product quality (ANA economy > United
 economy, invisible to the model) and the upgrade-friendliness table is
 editorial — revisit only with Susan.

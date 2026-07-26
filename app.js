@@ -370,22 +370,29 @@ function carrierSite(name) {
   return null;
 }
 
+// 2026-07-25: Time added as a real scored dimension (Susan's report: Fastest
+// vs Cheapest returned the same pick — Risk only counts STOPS, so among
+// all-1-stop offer sets "Fastest" had nothing to rank by; duration was
+// displayed but never scored). Fastest is now dominated by Time; every
+// other lens gets a small Time term. Best Overall gets a deliberately
+// small 0.2 so the tuned ANA-vs-United value case (v-2026-07-19, Cost 1.4)
+// keeps holding — pinned by a regression test.
 const PRIORITY_WEIGHTS = {
-  Cheapest:                 { Cost: 1.0, Comfort: 0.1, Upgrade: 0.1, Award: 0.2, Flexibility: 0.1, Risk: 0.2 },
-  "Best Value":              { Cost: 0.6, Comfort: 0.4, Upgrade: 0.2, Award: 0.3, Flexibility: 0.3, Risk: 0.3 },
-  Fastest:                   { Cost: 0.1, Comfort: 0.3, Upgrade: 0.1, Award: 0.0, Flexibility: 0.1, Risk: 0.7 },
-  "Most Comfortable":        { Cost: 0.1, Comfort: 1.0, Upgrade: 0.2, Award: 0.1, Flexibility: 0.2, Risk: 0.2 },
-  "Best Upgrade Opportunity": { Cost: 0.1, Comfort: 0.3, Upgrade: 1.0, Award: 0.1, Flexibility: 0.1, Risk: 0.1 },
-  "Best Use of Miles":        { Cost: 0.1, Comfort: 0.1, Upgrade: 0.2, Award: 1.0, Flexibility: 0.1, Risk: 0.1 },
+  Cheapest:                 { Cost: 1.0, Comfort: 0.1, Upgrade: 0.1, Award: 0.2, Flexibility: 0.1, Risk: 0.2, Time: 0.1 },
+  "Best Value":              { Cost: 0.6, Comfort: 0.4, Upgrade: 0.2, Award: 0.3, Flexibility: 0.3, Risk: 0.3, Time: 0.3 },
+  Fastest:                   { Cost: 0.1, Comfort: 0.2, Upgrade: 0.1, Award: 0.0, Flexibility: 0.1, Risk: 0.5, Time: 1.2 },
+  "Most Comfortable":        { Cost: 0.1, Comfort: 1.0, Upgrade: 0.2, Award: 0.1, Flexibility: 0.2, Risk: 0.2, Time: 0.2 },
+  "Best Upgrade Opportunity": { Cost: 0.1, Comfort: 0.3, Upgrade: 1.0, Award: 0.1, Flexibility: 0.1, Risk: 0.1, Time: 0.1 },
+  "Best Use of Miles":        { Cost: 0.1, Comfort: 0.1, Upgrade: 0.2, Award: 1.0, Flexibility: 0.1, Risk: 0.1, Time: 0.1 },
   // Cost raised 0.3 → 1.4 (2026-07-19, Susan's call after the ANA-vs-United
   // case): under "Best Overall", a fare at ~half price now outranks a
   // nonstop, while modest price gaps still lose to the better-rounded
   // itinerary. Tuned against that real case — see CLAUDE.md.
-  "Best Overall Experience":  { Cost: 1.4, Comfort: 0.5, Upgrade: 0.4, Award: 0.3, Flexibility: 0.3, Risk: 0.3 },
+  "Best Overall Experience":  { Cost: 1.4, Comfort: 0.5, Upgrade: 0.4, Award: 0.3, Flexibility: 0.3, Risk: 0.3, Time: 0.2 },
 };
 
-const DIMENSIONS = ["Cost", "Comfort", "Upgrade", "Award", "Flexibility", "Risk"];
-const DIM_LABEL = { Cost: "Cost", Comfort: "Comfort", Upgrade: "Upgrade Potential", Award: "Award Value", Flexibility: "Flexibility", Risk: "Risk (inverted — higher = lower risk)" };
+const DIMENSIONS = ["Cost", "Comfort", "Upgrade", "Award", "Flexibility", "Risk", "Time"];
+const DIM_LABEL = { Cost: "Cost", Comfort: "Comfort", Upgrade: "Upgrade Potential", Award: "Award Value", Flexibility: "Flexibility", Risk: "Risk (inverted — higher = lower risk)", Time: "Travel time (higher = faster)" };
 
 /* ---------- small deterministic RNG so re-running the same inputs
    reproduces the same result, like a real model would ---------- */
@@ -544,6 +551,7 @@ function generateCandidates(inputs) {
     // travel time from route geometry: nonstop air time, plus per-stop
     // layover and routing detour — never a constant.
     const travelMinutes = airMinutesNonstop + stops * (105 + Math.round(rng() * 30)) + Math.round(stops * airMinutesNonstop * 0.08);
+    scores.Time = clamp(100 - ((travelMinutes - airMinutesNonstop) / 60) * 9, 5, 100);
 
     candidates.push({
       id: i, carrier, alliance: allianceOf(carrier), stops, fareTier, price, dateOffset,
@@ -588,7 +596,7 @@ function seasonalRisk(dateStr) {
  * still not searched — that's labeled in the UI).
  */
 function buildLiveCandidates(inputs, offers) {
-  const { route, effKm, milesFactor, distFactor } = routeContext(inputs);
+  const { route, effKm, milesFactor, distFactor, airMinutesNonstop } = routeContext(inputs);
   const travelers = inputs.travelers || 1;
   const avoid = (inputs.avoidAirlines || []).map((a) => a.toLowerCase());
   const range = AWARD_RANGES[inputs.cabin] || AWARD_RANGES.Economy;
@@ -614,6 +622,10 @@ function buildLiveCandidates(inputs, offers) {
       scores.Award = clamp(candCpp * 42, 2, 100);
       scores.Flexibility = clamp(55 + (cabin === "Business" || cabin === "First" ? 8 : 0), 5, 100);
       scores.Risk = clamp(100 - stops * 18 - seasonalRisk(inputs.departDate), 5, 100);
+      // Time: each hour over the route's modeled nonstop air time costs 9
+      // points; a real nonstop scores ~100. Unknown duration scores a
+      // neutral 55 so it neither wins nor loses on missing data.
+      scores.Time = o.durationMinutes == null ? 55 : clamp(100 - ((o.durationMinutes - airMinutesNonstop) / 60) * 9, 5, 100);
 
       return {
         id: i, carrier: o.carrier || o.carrierCode, alliance: fuzzyAlliance(o.carrier), stops,
@@ -742,7 +754,7 @@ function matchUpgradeWinCarrier(upgradeWins, carrierName) {
 function computeWeights(priorityRanks) {
   // priorityRanks: { "Cheapest": 1, "Best Value": 2, ... } rank 1 = most important
   const total = Object.keys(priorityRanks).length || 1;
-  const dimWeights = { Cost: 0, Comfort: 0, Upgrade: 0, Award: 0, Flexibility: 0, Risk: 0 };
+  const dimWeights = { Cost: 0, Comfort: 0, Upgrade: 0, Award: 0, Flexibility: 0, Risk: 0, Time: 0 };
   for (const [priority, rank] of Object.entries(priorityRanks)) {
     const rankWeight = (total + 1 - rank) / total; // rank 1 -> heaviest
     const vec = PRIORITY_WEIGHTS[priority];

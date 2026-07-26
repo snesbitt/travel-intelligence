@@ -752,7 +752,7 @@
       <h3 class="eyebrow" style="margin:0 0 0.5rem;">Decision framework</h3>
       <div class="card block">
         <div class="score-grid">
-          ${["Cost","Comfort","Upgrade","Award","Flexibility","Risk"].map((d) => scoreBar(d, best.scores[d], w[d])).join("")}
+          ${["Cost","Comfort","Upgrade","Award","Flexibility","Risk","Time"].map((d) => scoreBar(d, best.scores[d], w[d])).join("")}
         </div>
         <p class="form-hint" style="margin-top:10px;">Weights come directly from the priority ranking you set: higher-ranked priorities pull more weight onto the dimensions they care about most. Nothing here is optimized for a single variable.</p>
       </div>
