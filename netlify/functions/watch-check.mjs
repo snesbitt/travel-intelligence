@@ -48,7 +48,7 @@ export default async () => {
   const now = Date.now();
   const CABIN_CLASS = { Economy: "1", "Premium Economy": "2", Business: "3", First: "4" };
   let searched = 0;
-  const MAX_TRIPS = 2; // must match watch.mjs's MAX_TRIPS — that file is the source of truth
+  const MAX_TRIPS = 3; // must match watch.mjs's MAX_TRIPS — that file is the source of truth (raised 2026-07-26, Susan)
 
   for (const trip of trips.slice(0, MAX_TRIPS)) {
     const last = trip.checks && trip.checks.length ? Date.parse(trip.checks[trip.checks.length - 1].at) : 0;

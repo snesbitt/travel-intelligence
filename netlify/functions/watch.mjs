@@ -1,8 +1,8 @@
 // netlify/functions/watch.mjs
-// version: 2 (2026-07-20)
+// version: 3 (2026-07-26)
 // The fare watcher's storage API — the audit's "one big bet." Watched
 // trips persist in a Netlify Blobs store; watch-check.mjs re-searches
-// them on a daily schedule. Capped at MAX_TRIPS=2 because each watched
+// them on a daily schedule. Capped at MAX_TRIPS=3 because each watched
 // trip spends one SerpApi search per day — raising the cap is a
 // quota/spend decision that belongs to Susan, per CLAUDE.md. Alerts are
 // in-app deltas (the homepage Watched Trips card); email/push would need
@@ -10,26 +10,28 @@
 // Same open POST/DELETE model as streaming-scout's dismiss.mjs — no auth,
 // nothing sensitive stored (routes and dates only, never wallet data).
 //
-// QUOTA MATH (2026-07-20, second correction — MAX_TRIPS lowered from 3
-// to 2 after fixing the prior comment's wrong 250/month figure; real cap
-// is 100/month, matching fares.mjs and CLAUDE.md's top section):
+// QUOTA MATH (2026-07-26, Susan's explicit request to raise the cap back
+// to 3, superseding the 2026-07-20 decision below):
 //   - watch-check.mjs runs once/day on a schedule and re-searches each
 //     watched trip at most once/day, skipping trips already checked in
-//     the last 20h. At the MAX_TRIPS=2 cap that's <=2 searches/day, i.e.
-//     <=60 searches/month (2 x ~30 days).
+//     the last 20h. At the MAX_TRIPS=3 cap that's <=3 searches/day, i.e.
+//     <=90 searches/month (3 x ~30 days).
 //   - Real free-tier cap: 100 searches/month.
-//   - Headroom left for manual "Run the optimization" calls: ~40/month
-//     (100 - 60) — comfortable. Chose to lower MAX_TRIPS (fewer trips,
-//     still checked daily/fresh) over stretching the check cadence
-//     (same trips, staler data) as the more conservative of the two
-//     levers described in the prior version of this comment. If Susan
-//     wants 3 trips watched again, raising MAX_TRIPS back to 3 costs
-//     ~30 more searches/month, leaving ~10/month for manual runs — her
-//     call, not something to change without her sign-off.
+//   - Headroom left for manual "Run the optimization" calls: ~10/month
+//     (100 - 90) — tight. If manual runs start hitting the monthly limit,
+//     the lever is here: drop back to MAX_TRIPS=2 (~40/month headroom)
+//     or stretch the check cadence to every-other-day (more headroom,
+//     staler watched data) — either is a one-line change plus this
+//     comment, and either is Susan's call, not something to change
+//     without her sign-off.
+//   - Prior state (2026-07-20 → 2026-07-26): MAX_TRIPS=2, ~60/month for
+//     the watcher, ~40/month headroom. Lowered from 3 at the time because
+//     manual-run headroom felt too thin; raised back to 3 now at Susan's
+//     request, with the tighter headroom stated plainly above.
 
 import { getStore } from "@netlify/blobs";
 
-const MAX_TRIPS = 2; // see quota math in the header comment above before changing this
+const MAX_TRIPS = 3; // see quota math in the header comment above before changing this
 
 function json(body, status) {
   return new Response(JSON.stringify(body), {

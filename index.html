@@ -1034,7 +1034,7 @@
         } }),
       });
       const j = await r.json();
-      if (!r.ok) { btn.textContent = j.error && j.error.includes("cap") ? "Watch cap reached (2)" : "Watch failed — retry"; return; }
+      if (!r.ok) { btn.textContent = j.error && j.error.includes("cap") ? "Watch cap reached (3)" : "Watch failed — retry"; return; }
       btn.textContent = "Watching ✓";
       renderWatched(j.trips);
     } catch (e) { btn.textContent = "Watch failed — offline?"; }
