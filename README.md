@@ -75,18 +75,21 @@ example of what an agentic build looks like, not a one-off demo.
 
 - A live-fare backend (`netlify/functions/fares.mjs`): a Google Flights
   proxy (via SerpApi) the frontend queries on every run, scoring real
-  prices through the same engine. Activates automatically once
-  `SERPAPI_KEY` is set in Netlify env vars; until then the site states
-  it's in demo mode and uses the model. (Amadeus Self-Service was the
+  prices through the same engine — plus `/api/scan-offers`, a small
+  store for fares scanned from Susan's own logged-in Kayak/Booking
+  searches, merged into the same shortlist with a labeled source pill.
+  Since 2026-07-26 this is the ONLY data path: with no real offers the
+  site renders an honest "no real data" state naming the reason. The
+  old synthetic demo model was deleted. (Amadeus Self-Service was the
   original provider; that portal was decommissioned 2026-07-17.)
 
 ## What's not real yet (see `roadmap.html`)
 
-Award-space search. Mileage figures in both modes are distance-scaled
-planning ranges, not a seats.aero-style availability check — the UI says
-so wherever they appear. In demo mode (no API credential yet), fares too
-are modeled from hand-maintained, distance-scaled reference ranges; the
-banner and results header always state which mode produced the numbers.
+Award-space search. Mileage figures are distance-scaled planning
+ranges, not a seats.aero-style availability check — the UI says so
+wherever they appear. Fares themselves are never modeled: they're live
+quotes (Google Flights feed and/or Susan's own Kayak/Booking scans, as
+labeled), or the site says plainly that it has no real data.
 
 ## Repository layout
 

@@ -23,16 +23,24 @@ not just a demo. Hold every future change to that standard.
   credential lives ONLY in the Netlify env var `SERPAPI_KEY`, never in
   source. Free tier is 100 searches/month — each "Run the optimization"
   costs one search, so don't add auto-refresh loops without Susan's
-  sign-off. When unconfigured or
-  unreachable, the frontend falls back to the deterministic scoring
-  model on hand-maintained reference ranges and SAYS SO in the banner
-  and results header — the fallback must never be silent. Live offers
-  are scored through the same six-dimension engine (`buildLiveCandidates`
-  in `app.js`); mileage figures remain distance-scaled planning ranges
-  in both modes (award space is not yet searched). Flight times and
-  fare scaling in model mode derive from great-circle distances via the
+  sign-off. 2026-07-26 (radical-simplicity pass, Susan's sign-off): the
+  seeded-RNG synthetic model that used to back unconfigured/unreachable
+  runs was DELETED — there is ONE data path now. Offers come from the
+  live feed (`/api/fares`) plus Susan's own browser scans
+  (`/api/scan-offers`, Kayak/Booking); `runOptimization` with no offers
+  returns `{ noLiveData: true, routeKnown: false, best: null }` and the
+  UI renders an honest empty state naming the reason
+  (`FALLBACK_REASONS`) — never synthetic figures. Do not reintroduce a
+  synthetic fallback. Live offers are scored by `buildLiveCandidates`
+  in `app.js`; mileage figures remain distance-scaled planning ranges
+  (award space is not yet searched). Flight-time estimates for offers
+  that omit a duration derive from great-circle distances via the
   hand-maintained `CITY_COORDS`/`CITY_IATA` tables — when adding a city
-  to one, add it to both.
+  to one, add it to both. Note `routeKnown` semantics since the
+  deletion: live offers are real by definition, so top-level
+  `routeKnown` is true whenever offers exist (candidate-level
+  `routeKnown` still flags unresolved geometry); false now means
+  "no real data at all".
 - Destination/origin text (city or country name, free-typed) resolves to
   an IATA code via `toIATA()` in `app.js`: exact match against `CITY_IATA`
   or `COUNTRY_TO_IATA` first, then a whole-word fuzzy fallback that scans
@@ -305,9 +313,9 @@ personalizes what the agent SAYS, not what it computes):
 - `flagsDislikedAirport` — checks saved "airports to avoid" against
   origin/destination/preferred-airport/nearby-airports/via only (both the
   raw city name and its resolved IATA code via `toIATA`). It does NOT
-  claim to catch a disliked airport used as a connection — the candidate
-  model only generates a stop COUNT, never a specific connection airport
-  — and the insight text says so explicitly when it fires.
+  claim to catch a disliked airport used as a connection — live offers
+  carry a stop COUNT, never a specific connection airport — and the
+  insight text says so explicitly when it fires.
 - `matchUpgradeWinCarrier` — if the saved upgrade-wins log mentions the
   recommended itinerary's carrier, that's surfaced as a reason to try the
   same play again. Free-text substring match only, never scored.
@@ -350,3 +358,26 @@ git push           # Netlify auto-deploys main (pages + Functions)
 Claude sessions commit; Susan runs the push (the cloud bridge has no
 network) — and per the standing rule in ~/Projects/CLAUDE.md, every
 "commit is ready" message must end with the exact push command block.
+
+## 2026-07-26 — radical-simplicity pass (MANGO-style, Susan's sign-off)
+
+- **Form**: four essential fields (origin, destination, dates, optimize-for)
+  visible; every other control lives in `<details id="refine">` ("Refine —
+  airports, travelers, cabin, airlines, budget, wallet"). The open/closed
+  state persists in `localStorage["ti-refine-open"]`. All field IDs are
+  unchanged — `collectInputs()` was not touched. When testing visibility of
+  folded fields use `checkVisibility()`, not `offsetParent` (closed
+  `<details>` hides content via content-visibility, so offsetParent lies).
+- **Fonts**: self-hosted in `/fonts` (Fraunces variable latin-full
+  normal+italic, from the official Fontsource releases); the Google Fonts
+  link tags are gone and `netlify.toml` serves `/fonts/*` immutable for a
+  year. Rendering verified headless with zero external requests.
+- **Link-outs**: every alternatives row links out (Google Flights always,
+  aa.com deep link on American rows, Kayak deep link on Kayak-scanned rows
+  via `scanSourceUrl()`). Booking.com flight deep links were tested live in
+  Susan's browser in three formats and none prefill (their bot-challenge
+  strips the route) — Booking-scanned rows deliberately fall back to the
+  Google Flights link. Never ship an unverified deep-link format.
+- **Tests**: 61 green (app 44, fares 12, scan 5) — the old model-mode tests
+  now exercise the live path; new tests pin the `noLiveData` contract and
+  the offers-all-filtered case.

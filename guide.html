@@ -60,7 +60,7 @@
         </div>
         <div class="mode-card tint-c">
           <div class="mode-name">Your browser</div>
-          <div class="mode-role">run the model</div>
+          <div class="mode-role">run the engine</div>
           <ul><li>reads your Input Card</li><li>computes scores locally</li><li>wallet stays local</li></ul>
         </div>
         <div class="mode-card tint-d">
@@ -94,7 +94,7 @@
 
             <rect x="372" y="14" width="158" height="118" rx="8" fill="#dde3ea" stroke="#1f3a5f"/>
             <text x="451" y="38" text-anchor="middle" font-size="13" font-weight="600" fill="#24262b">Your browser</text>
-            <text x="451" y="55" text-anchor="middle" font-size="10.5" font-style="italic" fill="#1f3a5f">run the model</text>
+            <text x="451" y="55" text-anchor="middle" font-size="10.5" font-style="italic" fill="#1f3a5f">run the engine</text>
             <text x="451" y="78" text-anchor="middle" font-size="10.5" fill="#182c47">reads Input Card</text>
             <text x="451" y="94" text-anchor="middle" font-size="10.5" fill="#182c47">computes locally</text>
             <text x="451" y="110" text-anchor="middle" font-size="10.5" fill="#182c47">wallet stays local</text>
@@ -119,7 +119,7 @@
 
     <div class="step" id="data">
       <div><span class="step-num">02</span><span class="step-title">Reference ranges, not a live search — and labeled as such</span></div>
-      <p class="step-body">Fares now have two modes, and the banner on the homepage always states which one you're in. When live flight-search access is configured, every run pulls real Google Flights fares through the site's own backend and scores them with the engine below — real prices, same framework. Without it, fares come from the documented model: a per-cabin base price scaled by the route's actual great-circle distance (from a hand-maintained city coordinates table), plus variation for stops, fare tier, and date flexibility. Mileage figures in both modes are hand-maintained, distance-scaled planning ranges — award availability is not searched yet. Upgrade-friendliness scores are a general reputation judgment per carrier, not a live seat map.</p>
+      <p class="step-body">Fares have exactly one mode: real. Every run pulls live Google Flights fares through the site's own backend, merges in any fares scanned from your own Kayak or Booking searches (each carries a labeled source pill), and scores them with the engine below. If nothing real comes back, the site says so and shows no figures at all — the old synthetic fallback model was deleted in July 2026, on the principle that a plausible invented number is worse than an honest empty state. Flight-time estimates for offers that omit a duration come from real great-circle geometry (a hand-maintained city coordinates table). Mileage figures are hand-maintained, distance-scaled planning ranges — award availability is not searched yet. Upgrade-friendliness scores are a general reputation judgment per carrier, not a live seat map.</p>
       <p class="step-body">One class of numbers is different, and labeled differently: the Points Intelligence panel. Point valuations (which airline's miles are worth the most in cents per point) and active transfer bonuses are real published figures from The Points Guy's monthly valuations, hand-copied with their date shown in the UI, and refreshed by hand each month. They're facts with a timestamp, not a model output — and not a live feed either, which is why the as-of date is always displayed next to them.</p>
     </div>
 
@@ -141,7 +141,7 @@
 
     <div class="step" id="snapshot">
       <div><span class="step-num">04</span><span class="step-title">One class of numbers is still a model</span></div>
-      <p class="step-body">This site states plainly what's real. Fares are live Google Flights data when the backend is connected (the banner says which mode you're in). Mileage and award figures are NOT live — they're hand-maintained, distance-scaled planning ranges, because award availability isn't searched yet — and the scoring model itself is deterministic: the same inputs and the same fares produce the same result, by design, not randomized.</p>
+      <p class="step-body">This site states plainly what's real. Fare prices are always real — the live Google Flights feed and/or your own Kayak/Booking scans, as labeled — or absent. Mileage and award figures are NOT live: they're hand-maintained, distance-scaled planning ranges, because award availability isn't searched yet. And the scoring itself is deterministic: the same inputs and the same fares produce the same result, by design, not randomized.</p>
     </div>
 
     <div class="step" id="deploy">
