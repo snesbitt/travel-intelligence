@@ -574,6 +574,32 @@
     } catch (e) { return { data: null, reason: "api-fail" }; }
   }
 
+  // Deep-scan feed: browser-collected Kayak/Booking offers stored via
+  // /api/scan-offers. Best-effort — absence or errors merge nothing.
+  const SCAN_TTL_H = 24;
+  async function fetchScanOffers(inputs) {
+    const T = window.TravelIntel;
+    const o = T.toIATA(inputs.preferredAirport) || T.toIATA(inputs.origin);
+    const d = T.toIATA(inputs.destination);
+    if (!o || !d || !inputs.departDate) return { offers: [], label: "" };
+    const key = o + "-" + d + "-" + inputs.departDate + (inputs.returnDate ? "-" + inputs.returnDate : "");
+    try {
+      const r = await fetch("/api/scan-offers?key=" + encodeURIComponent(key), { signal: AbortSignal.timeout(6000) });
+      if (!r.ok) return { offers: [], label: "" };
+      const j = await r.json();
+      const now = Date.now();
+      const offers = [], labels = [];
+      for (const scan of j.scans || []) {
+        const ageH = (now - new Date(scan.scannedAt).getTime()) / 36e5;
+        if (!(ageH >= 0 && ageH < SCAN_TTL_H)) continue;
+        const ageTxt = ageH < 1 ? "under 1h ago" : Math.round(ageH) + "h ago";
+        labels.push(scan.source + " scan (" + ageTxt + ")");
+        for (const of2 of scan.offers) offers.push({ ...of2, src: scan.source + " · scanned " + ageTxt });
+      }
+      return { offers, label: labels.join(" + ") };
+    } catch (e) { return { offers: [], label: "" }; }
+  }
+
   const FALLBACK_REASONS = {
     "via": (inputs) => `via/stopover routings aren't wired to the live search yet, so this ${inputs.viaCity} routing is scored on real route geometry with a multi-city premium.`,
     "unknown-dest": (inputs) => `"${inputs.destination}" isn't in the city table — check the spelling (e.g. Bangkok, not Bankok) or use a 3-letter airport code. Figures assume a generic long-haul meanwhile.`,
@@ -597,6 +623,17 @@
     }
     resultsEl.innerHTML = '<div class="empty-state"><div class="es-icon">✈</div><p>Searching live fares… <span class="form-hint">usually 3–12 seconds</span></p></div>';
     const live = await fetchLiveOffers(inputs);
+    const scans = await fetchScanOffers(inputs);
+    if (scans.offers.length) {
+      if (live.data && live.data.offers) {
+        live.data = { ...live.data, offers: live.data.offers.concat(scans.offers), provider: (live.data.provider || "live feed") + " + " + scans.label };
+      } else {
+        // no primary live feed this run, but real scanned prices exist —
+        // score them, honestly labeled as the scan feed
+        live.data = { live: true, offers: scans.offers, provider: scans.label, retrievedAt: new Date().toISOString() };
+        live.reason = "ok";
+      }
+    }
     const result = T.runOptimization(inputs, live.data && live.data.offers);
     window.__tiLastInputs = inputs;
     window.__tiLastLive = live.data;
@@ -628,6 +665,24 @@
       <div class="score-track"><div class="score-fill ${cls}" style="width:${pct}%"></div></div>
       <span class="score-val">${pct}</span>
     </div>`;
+  }
+
+  // Tiny inline-SVG sparkline: navy line on transparent, last point marked.
+  // points: array of numbers (chronological). Returns "" for <2 points.
+  function sparkline(points, w, h) {
+    if (!Array.isArray(points)) return "";
+    const vals = points.filter((v) => typeof v === "number" && isFinite(v));
+    if (vals.length < 2) return "";
+    w = w || 120; h = h || 28;
+    const min = Math.min(...vals), max = Math.max(...vals);
+    const span = max - min || 1;
+    const pts = vals.map((v, i) => [
+      (i / (vals.length - 1)) * (w - 4) + 2,
+      h - 3 - ((v - min) / span) * (h - 6),
+    ]);
+    const path = pts.map((p, i) => (i ? "L" : "M") + p[0].toFixed(1) + " " + p[1].toFixed(1)).join(" ");
+    const last = pts[pts.length - 1];
+    return `<svg class="sparkline" width="${w}" height="${h}" viewBox="0 0 ${w} ${h}" role="img" aria-label="price history, ${vals.length} points, low ${Math.round(min)}, high ${Math.round(max)}"><path d="${path}" fill="none" stroke="var(--accent, #1f3a5f)" stroke-width="1.6" stroke-linecap="round"/><circle cx="${last[0].toFixed(1)}" cy="${last[1].toFixed(1)}" r="2.4" fill="var(--accent, #1f3a5f)"/></svg>`;
   }
 
   function timingBadge(timing) {
@@ -683,7 +738,7 @@
     function altRowsHtml(rows) {
       return rows.map((c) => `
       <tr class="${c.id === best.id ? "best-row" : ""}">
-        <td><strong>${c.carrier}</strong><br><span class="form-hint">${c.alliance}</span></td>
+        <td><strong>${c.carrier}</strong><br><span class="form-hint">${c.alliance}</span>${c.src ? `<br><span class="rec-src">${c.src}</span>` : ""}</td>
         <td>${c.cabin}</td>
         <td>${c.stops === 0 ? "Nonstop" : c.stops + " stop" + (c.stops > 1 ? "s" : "")}</td>
         <td>${fmtTime(c.travelMinutes)}</td>
@@ -727,7 +782,7 @@
         <div class="rec-hero-top">
           <div>
             <div class="rec-route">${T.displayCity(inputs.origin)} → ${inputs.viaCity ? T.displayCity(inputs.viaCity) + " → " : ""}${T.displayCity(inputs.destination)}</div>
-            <div class="rec-airline">${best.carrier} · ${best.alliance} · ${best.aircraft}</div><div class="rec-links">${(() => { const urls = T.liveSearchUrls(inputs, best.carrier); const parts = []; if (urls.carrierDeep) { parts.push(`<a class="pick-open" href="${urls.carrierDeep}" target="_blank" rel="noopener">Book this route on ${best.carrier} ↗</a>`); } else { const site = T.carrierSite(best.carrier); if (site) parts.push(`<a class="pick-open" href="${site}" target="_blank" rel="noopener">Book on ${best.carrier} ↗</a>`); } if (urls.googleFlights) parts.push(`<a class="pick-open" href="${urls.googleFlights}" target="_blank" rel="noopener">Live results on Google Flights ↗</a>`); return parts.join(""); })()}<button type="button" class="ti-toggle rec-watch" onclick="tiWatchTrip(this)">⭑ Watch this trip</button></div>
+            <div class="rec-airline">${best.carrier} · ${best.alliance} · ${best.aircraft}${best.src ? ` · <span class="rec-src">${best.src}</span>` : ""}</div><div class="rec-links">${(() => { const urls = T.liveSearchUrls(inputs, best.carrier); const parts = []; if (urls.carrierDeep) { parts.push(`<a class="pick-open" href="${urls.carrierDeep}" target="_blank" rel="noopener">Book this route on ${best.carrier} ↗</a>`); } else { const site = T.carrierSite(best.carrier); if (site) parts.push(`<a class="pick-open" href="${site}" target="_blank" rel="noopener">Book on ${best.carrier} ↗</a>`); } if (urls.googleFlights) parts.push(`<a class="pick-open" href="${urls.googleFlights}" target="_blank" rel="noopener">Live results on Google Flights ↗</a>`); return parts.join(""); })()}<button type="button" class="ti-toggle rec-watch" onclick="tiWatchTrip(this)">⭑ Watch this trip</button></div>
           </div>
           <div class="rec-price-block">
             <div class="rec-price">${best.payWith === "miles" ? `~${(best.milesEst / 1000).toFixed(0)}k mi + ${T.fmtUSD(best.feesEst)}` : T.fmtUSD(best.price)}</div>
@@ -804,8 +859,19 @@
 
       <h3 class="eyebrow" style="margin:0 0 0.5rem;">Purchase strategy</h3>
       <div class="card block">
-        <div style="margin-bottom:8px;">${timingBadge(timing)}</div>
-        <p style="font-size:12.5px;">${timing.reason}</p>
+        ${(() => {
+          const pi = T.priceIntelligence(window.__tiLastLive && window.__tiLastLive.priceInsights, trav);
+          if (!pi) return `<div style="margin-bottom:8px;">${timingBadge(timing)}</div>
+        <p style="font-size:12.5px;">${timing.reason} <span class="form-hint">(booking-window heuristic — Google published no price insight for this route.)</span></p>`;
+          const rangeTxt = pi.range ? `typical ${fmtUSD(pi.range[0])}–${fmtUSD(pi.range[1])} per person` : "no typical range published";
+          const nowTxt = pi.perPerson != null ? `Today's floor: <strong>${fmtUSD(pi.perPerson)}</strong> per person` : "";
+          const deltaTxt = pi.deltaPct != null ? ` (${pi.deltaPct > 0 ? "+" : ""}${pi.deltaPct}% vs the typical midpoint)` : "";
+          const hist = pi.history ? sparkline(pi.history.map((p) => Array.isArray(p) ? p[1] : null).filter(Boolean), 160, 30) : "";
+          return `<div style="margin-bottom:8px;"><span class="timing-badge ${pi.cls}">${pi.level === "low" ? "Deal — below typical" : pi.level === "high" ? "Above typical" : "Typical price"}</span></div>
+        <p style="font-size:12.5px;"><strong>Google's own price data for this route:</strong> ${nowTxt}${deltaTxt} · ${rangeTxt}. ${pi.verdict}</p>
+        ${hist ? `<div style="margin:2px 0 4px;">${hist} <span class="form-hint">route price history (Google Flights)</span></div>` : ""}
+        <p style="font-size:12px;" class="form-hint">Booking-window heuristic for context: ${timing.reason}</p>`;
+        })()}
         <div class="strategy-block" style="margin-top:10px;">
           <h4>Do this now</h4>
           <p>${(() => {
@@ -947,6 +1013,8 @@
       const priceMeta = latest
         ? `${latest.carrier || "—"} · checked ${new Date(latest.at).toLocaleDateString("en-US", { month: "short", day: "numeric" })}`
         : t.baseline ? "baseline · first check tonight" : "first check runs tonight";
+      const histVals = checks.map((c) => c && c.price).filter((v) => typeof v === "number" && isFinite(v));
+      const spark = histVals.length >= 2 ? `<span class="watched-spark" title="${histVals.length} nightly checks">${sparkline(histVals, 90, 22)}</span>` : "";
       const oCode = T.toIATA(t.origin), dCode = T.toIATA(t.destination);
       const codeChip = oCode && dCode ? ` <span class="watched-codes">${oCode}–${dCode}</span>` : "";
       const travLabel = `${t.travelers} traveler${String(t.travelers) === "1" ? "" : "s"}`;
@@ -958,6 +1026,7 @@
         <div class="watched-side" style="display:flex;align-items:center;gap:8px;">
           <div class="watched-price-block">
             <span class="watched-price-amount">${priceAmount}</span>
+            ${spark}
             <span class="watched-price-meta">${priceMeta}</span>
             ${delta}
           </div>

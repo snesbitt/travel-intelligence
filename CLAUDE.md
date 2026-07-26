@@ -75,6 +75,32 @@ not just a demo. Hold every future change to that standard.
   devalues) by re-copying — never let the shown as-of date go silently
   stale, and never present them as a live feed. Transfer bonuses expire:
   drop entries whose end date has passed when refreshing.
+- 2026-07-25 multi-feed expansion (Susan: "discover more and better
+  flight options", zero new signups, free tiers only):
+  (1) **Price intelligence** — `fares.mjs` now passes through Google
+  Flights' own `price_insights` (lowest price, low/typical/high level,
+  typical range, price history), previously discarded; costs zero extra
+  SerpApi quota. `priceIntelligence()` in app.js (pure, exported,
+  tested) turns it into the Purchase-strategy verdict; the old
+  booking-window heuristic remains as the labeled fallback when Google
+  publishes no insight. (2) **Deep-scan feed** — `scan-offers.mjs`
+  (`/api/scan-offers`, GET/POST, open like watch.mjs, "scanoffers-"
+  keys in the watched-trips store) stores Kayak/Booking.com offers
+  collected in Susan's own logged-in Chrome during a Cowork session
+  (server-side scraping of those sites 403s and violates ToS; her
+  browser doing her own searches doesn't — the Discogs-medians pattern).
+  Frontend merges scans fresher than 24h into the live pool with a
+  visible "Kayak · scanned Nh ago" source pill on rec card and
+  alternatives; scan-only runs are honestly labeled as the scan feed.
+  To run a scan: read Kayak/Booking results for a route in her browser,
+  build {routeKey:"SFO-GBE-YYYY-MM-DD[-YYYY-MM-DD]", source, offers:[
+  {carrier, priceTotal (total, USD), stops, durationMinutes}]} and POST
+  it — sanitizeScan (tested) rejects malformed payloads. (3) Watched
+  rows render their accumulated nightly checks as an inline sparkline.
+  (4) Cost-score floor extended 4 → −80 in both modes: at the old floor
+  every fare beyond ~1.5× budget scored an identical 4, so Cost stopped
+  discriminating on expensive routes (caught in this build's e2e
+  review; regression-tested, charter ANA case still holds).
 - Backend: three live Netlify Functions, not static-only —
   `netlify/functions/fares.mjs` (live fare search proxy to SerpApi, with
   a 15-min result cache keyed by search params — reuses the

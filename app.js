@@ -522,7 +522,7 @@ function generateCandidates(inputs) {
     const price = Math.max(Math.round((CABIN_FLOOR[inputs.cabin] || 200) * distFactor), Math.round(base));
 
     const scores = {};
-    scores.Cost = clamp(100 - (price / Math.max(1, inputs.maxBudget)) * 65, 4, 100);
+    scores.Cost = clamp(100 - (price / Math.max(1, inputs.maxBudget)) * 65, -80, 100); // 2026-07-25: same extended floor as live mode (see buildLiveCandidates)
     scores.Comfort = clamp((CABIN_COMFORT_BASE[inputs.cabin] || 50) - stops * 11 + (stops === 0 ? 6 : 0) + (destinationInAsia(inputs) && isAsianCarrier(carrier) ? ASIA_COMFORT_BONUS : 0), 5, 100);
     const upgradeFriendly = UPGRADE_FRIENDLY[carrier] ?? 50;
     scores.Upgrade = clamp(
@@ -616,7 +616,12 @@ function buildLiveCandidates(inputs, offers) {
       const candCpp = ((price - feesEst) / Math.max(1, milesEst)) * 100;
 
       const scores = {};
-      scores.Cost = clamp(100 - (price / Math.max(1, inputs.maxBudget)) * 65, 4, 100);
+      // 2026-07-25: lower clamp extended 4 -> -80. At the old floor, every
+      // fare beyond ~1.5x budget scored an identical 4, so Cost stopped
+      // discriminating on expensive routes and a pricier-but-faster offer
+      // could win "Best Overall" over one $500 cheaper (caught in the
+      // multi-feed e2e review). Under-budget scoring is unchanged.
+      scores.Cost = clamp(100 - (price / Math.max(1, inputs.maxBudget)) * 65, -80, 100);
       scores.Comfort = clamp((CABIN_COMFORT_BASE[cabin] || 50) - stops * 11 + (stops === 0 ? 6 : 0) + (destinationInAsia(inputs) && isAsianCarrier(o.carrier) ? ASIA_COMFORT_BONUS : 0), 5, 100);
       scores.Upgrade = clamp(fuzzyCarrierScore(o.carrier) - (cabin === "First" ? 35 : cabin === "Business" ? 12 : 0) + (cabin === "Economy" || cabin === "Best Value" ? 6 : 0), 3, 100);
       scores.Award = clamp(candCpp * 42, 2, 100);
@@ -637,6 +642,7 @@ function buildLiveCandidates(inputs, offers) {
         aircraft: o.aircraft || (o.bookableSeats ? `${o.bookableSeats} bookable seats` : "—"),
         availLabel: o.aircraft ? "Aircraft" : "Availability",
         live: true, priceTotal: Math.round(o.priceTotal), lastTicketingDate: o.lastTicketingDate || null,
+        src: o.src || null, // "Kayak (scanned 3h ago)" etc — null for the primary live feed
       };
     });
 }
@@ -771,6 +777,30 @@ function weightedScore(scores, weights) {
 }
 
 /* ---------- purchase timing ---------- */
+
+// 2026-07-25: data-backed verdict from Google Flights' own price
+// insights (current cheapest vs the route's typical range). Pure and
+// null-safe: returns null when insights are absent, and the UI falls
+// back to the modeled purchaseTiming heuristic — clearly labeled as such.
+function priceIntelligence(insights, travelers) {
+  if (!insights || !insights.priceLevel) return null;
+  const trav = travelers || 1;
+  const perPerson = insights.lowestPrice != null ? Math.round(insights.lowestPrice / trav) : null;
+  const range = Array.isArray(insights.typicalRange) && insights.typicalRange.length === 2 &&
+    insights.typicalRange.every((v) => typeof v === "number" && isFinite(v))
+    ? insights.typicalRange.map((v) => Math.round(v / trav)) : null;
+  const level = String(insights.priceLevel).toLowerCase();
+  let verdict, cls;
+  if (level === "low") { verdict = "Below typical for this route — a real deal by Google's own price history. Booking now is defensible."; cls = "buy"; }
+  else if (level === "high") { verdict = "Above typical for this route. Unless the dates are fixed, watching for a dip beats booking today."; cls = "wait"; }
+  else { verdict = "Within the typical range for this route — no urgency signal either way; the booking-window heuristic below still applies."; cls = "monitor"; }
+  let deltaPct = null;
+  if (perPerson != null && range) {
+    const mid = (range[0] + range[1]) / 2;
+    if (mid > 0) deltaPct = Math.round(((perPerson - mid) / mid) * 100);
+  }
+  return { level, verdict, cls, perPerson, range, deltaPct, history: insights.history || null };
+}
 
 function purchaseTiming(inputs) {
   const depart = new Date(inputs.departDate + "T12:00:00");
@@ -1056,7 +1086,7 @@ function runOptimization(inputs, liveOffers) {
 
 if (typeof window !== "undefined") {
   window.TravelIntel = {
-    runOptimization, computeWeights, upgradeTactics, bestPointsAnswers, toIATA, carrierSite, liveSearchUrls, displayCity, displayCityName, suggestPriorities,
+    runOptimization, computeWeights, upgradeTactics, bestPointsAnswers, toIATA, carrierSite, liveSearchUrls, displayCity, displayCityName, priceIntelligence, suggestPriorities,
     ALLIANCES, ALL_CARRIERS, TRANSFER_PARTNERS, POINT_VALUATIONS, TRANSFER_BONUSES,
     DIMENSIONS, DIM_LABEL, fmtUSD,
     // exposed 2026-07-20 for tests/app.test.js — these were already pure,

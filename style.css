@@ -436,3 +436,9 @@ table.alt-table td.rank-cell { font-family: var(--serif); font-style: italic; co
    looks for it. Same handler, per-button state. */
 .rec-links .rec-watch { font-size: 12px; padding: 4px 12px; }
 @media (max-width: 640px) { .rec-links .rec-watch { min-height: 44px; } }
+
+/* 2026-07-25 multi-feed: scanned-offer source tag + price sparklines */
+.rec-src { font-size: 10px; letter-spacing: 0.05em; color: var(--gold-text, #7d5f13); border: 1px solid var(--line, #d8d0bf); border-radius: 999px; padding: 1px 7px; white-space: nowrap; vertical-align: 1px; }
+.sparkline { display: inline-block; vertical-align: middle; }
+.watched-spark { display: block; line-height: 1; margin: 1px 0; }
+@media (prefers-reduced-motion: no-preference) { .sparkline path { transition: none; } }

@@ -336,4 +336,54 @@ test("charter regression (2026-07-19): Best Overall still prefers ANA ~half-pric
   assert.equal(r.best.carrier, "ANA", "the tuned value-conscious call must keep holding after Time was added");
 });
 
+
+/* ---------- 2026-07-25: priceIntelligence (Google price insights) ---------- */
+
+test("priceIntelligence: 'low' level yields a buy-class deal verdict with per-person math", () => {
+  const pi = T.priceIntelligence({ priceLevel: "low", lowestPrice: 1600, typicalRange: [2000, 2400], history: [[1, 2100], [2, 1600]] }, 2);
+  assert.equal(pi.cls, "buy");
+  assert.equal(pi.perPerson, 800);
+  assert.deepEqual(pi.range, [1000, 1200]);
+  assert.ok(pi.deltaPct < 0);
+});
+
+test("priceIntelligence: 'high' warns, 'typical' monitors", () => {
+  assert.equal(T.priceIntelligence({ priceLevel: "high", lowestPrice: 900 }, 1).cls, "wait");
+  assert.equal(T.priceIntelligence({ priceLevel: "typical", lowestPrice: 500 }, 1).cls, "monitor");
+});
+
+test("priceIntelligence: null/absent insights return null (UI falls back to the labeled heuristic)", () => {
+  assert.equal(T.priceIntelligence(null, 1), null);
+  assert.equal(T.priceIntelligence({}, 1), null);
+});
+
+test("buildLiveCandidates: scanned offers keep their src tag; primary-feed offers stay null", () => {
+  const inputs = { origin: "San Francisco", destination: "Greenville, South Carolina", departDate: "2026-08-10",
+    cabin: "Economy", maxStops: 2, maxBudget: 1200, preferredAlliances: [], preferredAirlines: [], avoidAirlines: [],
+    programBalances: [], dateFlexibility: "Exact", travelers: 1, priorityRanks: { Cheapest: 1 } };
+  const r = T.runOptimization(inputs, [
+    { carrier: "American", priceTotal: 500, stops: 1, durationMinutes: 500 },
+    { carrier: "Delta", priceTotal: 480, stops: 1, durationMinutes: 520, src: "Kayak · scanned 2h ago" },
+  ]);
+  const delta = r.candidates.find((c) => c.carrier === "Delta");
+  const aa = r.candidates.find((c) => c.carrier === "American");
+  assert.equal(delta.src, "Kayak · scanned 2h ago");
+  assert.equal(aa.src, null);
+});
+
+
+test("Cost keeps discriminating past the budget cap (the e2e saturation catch)", () => {
+  const inputs = { origin: "San Francisco", destination: "Gaborone", departDate: "2026-09-12", returnDate: "2026-09-24",
+    cabin: "Economy", maxStops: 3, maxBudget: 1000, preferredAlliances: [], preferredAirlines: [], avoidAirlines: [],
+    programBalances: [], dateFlexibility: "Exact", travelers: 1, priorityRanks: { "Best Overall Experience": 1 } };
+  const r = T.runOptimization(inputs, [
+    { carrier: "United", priceTotal: 2100, stops: 2, durationMinutes: 1600 },
+    { carrier: "Ethiopian Airlines", priceTotal: 1610, stops: 2, durationMinutes: 1900 },
+  ]);
+  const eth = r.candidates.find((c) => c.carrier === "Ethiopian Airlines");
+  const ua = r.candidates.find((c) => c.carrier === "United");
+  assert.ok(eth.scores.Cost > ua.scores.Cost, "the $490-cheaper fare must out-score on Cost even when both exceed budget");
+  assert.equal(r.best.carrier, "Ethiopian Airlines", "Best Overall must prefer the much cheaper fare on an over-budget route");
+});
+
 console.log(`\n${passed} passed`);

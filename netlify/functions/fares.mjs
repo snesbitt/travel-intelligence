@@ -173,6 +173,15 @@ export default async (req) => {
     origin, destination, departDate, returnDate: returnDate || null, adults,
     offers,
     droppedForUnparseablePrice,
+    // 2026-07-25: Google Flights' own price intelligence, previously
+    // discarded. Costs zero extra quota — it rides along on the same
+    // search response. null when Google has no insight for the route.
+    priceInsights: j.price_insights ? {
+      lowestPrice: parsePrice(j.price_insights.lowest_price),
+      priceLevel: j.price_insights.price_level || null,
+      typicalRange: Array.isArray(j.price_insights.typical_price_range) ? j.price_insights.typical_price_range.map(parsePrice) : null,
+      history: Array.isArray(j.price_insights.price_history) ? j.price_insights.price_history.slice(-60) : null,
+    } : null,
   };
 
   try {
