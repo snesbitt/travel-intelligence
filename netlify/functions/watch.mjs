@@ -59,6 +59,9 @@ export default async (req) => {
     if (!t || !/^[A-Z]{3}$/.test(t.originIata || "") || !/^[A-Z]{3}$/.test(t.destIata || "") || !/^\d{4}-\d{2}-\d{2}$/.test(t.departDate || "")) {
       return json({ error: "trip needs originIata, destIata (3-letter codes) and departDate (YYYY-MM-DD)" }, 400);
     }
+    if (/^\d{4}-\d{2}-\d{2}$/.test(t.returnDate || "") && t.returnDate < t.departDate) {
+      return json({ error: "returnDate is before departDate — a watch with an impossible range can never search real fares" }, 400);
+    }
     const trips = (await store.get("list", { type: "json" })) || [];
     const id = [t.originIata, t.destIata, t.departDate, t.cabin || "Economy"].join("|");
     if (trips.some((x) => x.id === id)) return json({ ok: true, trips, note: "already watching" });

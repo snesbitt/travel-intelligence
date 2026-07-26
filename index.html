@@ -880,6 +880,10 @@
     const o = T.toIATA(inputs.preferredAirport) || T.toIATA(inputs.origin);
     const d = T.toIATA(inputs.destination);
     if (!o || !d) { btn.textContent = "Can't watch — unknown airport"; return; }
+    if (inputs.returnDate && inputs.departDate && inputs.returnDate < inputs.departDate) {
+      btn.textContent = "Can't watch — return date is before departure";
+      return;
+    }
     const best = window.__tiLastBest;
     btn.textContent = "Saving…";
     try {
