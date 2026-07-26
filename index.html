@@ -37,7 +37,7 @@
     <h1 class="page-title" style="margin-bottom:0.4rem;">Every travel decision, optimized — not just the fare.</h1>
 
     <section class="block card ti-hidden" id="watched" aria-live="polite">
-      <h2 class="card-title">Watched trips <span class="form-hint" style="font-weight:400;">· re-searched daily at ~7am PT · shows the live fare floor (cheapest offer), not the weighted winner</span></h2>
+      <h2 class="card-title">Watched trips <span class="form-hint" style="font-weight:400;">· re-checked nightly ~7am PT · shows the cheapest live fare</span></h2>
       <div id="watched-rows"></div>
     </section>
 
@@ -1058,12 +1058,11 @@
           <span class="watched-route-main">${T.displayCityName(t.origin)} → ${T.displayCityName(t.destination)}${codeChip}</span>
           <span class="watched-route-meta">${fmtWatchRange(t.departDate, t.returnDate)} · ${t.cabin} · ${travLabel}</span>
         </div>
-        <div class="watched-side" style="display:flex;align-items:center;gap:8px;">
-          <div class="watched-price-block">
-            <span class="watched-price-amount">${priceAmount}</span>
-            ${spark}
+        <div class="watched-side" style="display:flex;align-items:center;gap:12px;">
+          ${spark}
+          <div class="watched-price-col">
+            <span class="watched-price-line"><span class="watched-price-amount">${priceAmount}</span>${delta}</span>
             <span class="watched-price-meta">${priceMeta}</span>
-            ${delta}
           </div>
           <div class="watched-actions">
             <button type="button" class="watched-unwatch" aria-label="Stop watching ${t.origin} to ${t.destination}" onclick="tiUnwatch('${t.id.replace(/'/g, "")}')">×</button>
