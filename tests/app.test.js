@@ -271,6 +271,12 @@ test("displayCity: city name in, canonical 'City (CODE)' out (incl. multiword ti
   assert.equal(T.displayCity("salt lake city"), "Salt Lake City (SLC)");
 });
 
+test("displayCity: Gaborone resolves from code, city, or country (watched-trip fix)", () => {
+  assert.equal(T.displayCity("GBE"), "Gaborone (GBE)");
+  assert.equal(T.displayCity("gaborone"), "Gaborone (GBE)");
+  assert.equal(T.displayCity("Botswana"), "Gaborone (GBE)");
+});
+
 test("displayCity: unresolved input passes through exactly as typed", () => {
   assert.equal(T.displayCity("Atlantis, Lost Continent"), "Atlantis, Lost Continent");
   assert.equal(T.displayCity(""), "");

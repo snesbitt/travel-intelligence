@@ -130,6 +130,7 @@ const CITY_COORDS = {
   bogota: [4.70, -74.15], santiago: [-33.39, -70.79], johannesburg: [-26.14, 28.25], "cape town": [-33.96, 18.60],
   cairo: [30.12, 31.41], nairobi: [-1.32, 36.93], casablanca: [33.37, -7.59], reykjavik: [63.99, -22.61],
   greenville: [34.90, -82.22], gsp: [34.90, -82.22], spartanburg: [34.90, -82.22],
+  gaborone: [-24.56, 25.92], gbe: [-24.56, 25.92],
   // 2026-07-24 US regional coverage pass (paired with CITY_IATA below):
   sacramento: [38.70, -121.59], smf: [38.70, -121.59], burbank: [34.20, -118.36], bur: [34.20, -118.36],
   "santa ana": [33.68, -117.87], "orange county": [33.68, -117.87], sna: [33.68, -117.87],
@@ -227,7 +228,7 @@ const CITY_IATA = {
   bogota: "BOG", santiago: "SCL", johannesburg: "JNB", "cape town": "CPT", cairo: "CAI",
   nairobi: "NBO", casablanca: "CMN", reykjavik: "KEF",
   muscat: "MCT", damascus: "DAM", minsk: "MSQ", nicosia: "LCA", kiev: "KBP", kyiv: "KBP",
-  greenville: "GSP", spartanburg: "GSP",
+  greenville: "GSP", spartanburg: "GSP", gaborone: "GBE",
   // 2026-07-24: US regional coverage pass — after the Greenville incident,
   // every entry here has a matching CITY_COORDS entry above (name and code).
   // Ambiguous names resolve to the biggest US airport of that name by
