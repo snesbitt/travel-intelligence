@@ -271,6 +271,12 @@ test("displayCity: city name in, canonical 'City (CODE)' out (incl. multiword ti
   assert.equal(T.displayCity("salt lake city"), "Salt Lake City (SLC)");
 });
 
+test("displayCityName: city only, no code suffix (watched-row rendering)", () => {
+  assert.equal(T.displayCityName("SFO"), "San Francisco");
+  assert.equal(T.displayCityName("GBE"), "Gaborone");
+  assert.equal(T.displayCityName("Atlantis"), "Atlantis");
+});
+
 test("displayCity: Gaborone resolves from code, city, or country (watched-trip fix)", () => {
   assert.equal(T.displayCity("GBE"), "Gaborone (GBE)");
   assert.equal(T.displayCity("gaborone"), "Gaborone (GBE)");

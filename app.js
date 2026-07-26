@@ -290,6 +290,12 @@ const IATA_DISPLAY = {};
 for (const [name, code] of Object.entries(CITY_IATA)) {
   if (!IATA_DISPLAY[code]) IATA_DISPLAY[code] = name.replace(/(^|[\s-])[a-z]/g, (m) => m.toUpperCase());
 }
+function displayCityName(nameOrCode) {
+  if (!nameOrCode) return nameOrCode;
+  const code = toIATA(nameOrCode);
+  if (!code) return nameOrCode; // unresolved input: show exactly as typed
+  return IATA_DISPLAY[code] || code.toUpperCase();
+}
 function displayCity(nameOrCode) {
   if (!nameOrCode) return nameOrCode;
   const code = toIATA(nameOrCode);
@@ -1038,7 +1044,7 @@ function runOptimization(inputs, liveOffers) {
 
 if (typeof window !== "undefined") {
   window.TravelIntel = {
-    runOptimization, computeWeights, upgradeTactics, bestPointsAnswers, toIATA, carrierSite, liveSearchUrls, displayCity, suggestPriorities,
+    runOptimization, computeWeights, upgradeTactics, bestPointsAnswers, toIATA, carrierSite, liveSearchUrls, displayCity, displayCityName, suggestPriorities,
     ALLIANCES, ALL_CARRIERS, TRANSFER_PARTNERS, POINT_VALUATIONS, TRANSFER_BONUSES,
     DIMENSIONS, DIM_LABEL, fmtUSD,
     // exposed 2026-07-20 for tests/app.test.js — these were already pure,

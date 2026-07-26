@@ -900,6 +900,20 @@
     } catch (e) { btn.textContent = "Watch failed — offline?"; }
   };
 
+  // "May 31, 2027" — noon anchor avoids timezone off-by-one on bare dates
+  function fmtWatchDate(iso, withYear) {
+    if (!iso) return "";
+    const d = new Date(iso + "T12:00:00");
+    if (isNaN(d)) return iso;
+    const opts = { month: "short", day: "numeric" };
+    if (withYear) opts.year = "numeric";
+    return d.toLocaleDateString("en-US", opts);
+  }
+  function fmtWatchRange(depart, ret) {
+    if (!ret) return fmtWatchDate(depart, true);
+    const sameYear = depart && ret && depart.slice(0, 4) === ret.slice(0, 4);
+    return fmtWatchDate(depart, !sameYear) + " – " + fmtWatchDate(ret, true);
+  }
   function renderWatched(trips) {
     const T = window.TravelIntel;
     const card = document.getElementById("watched");
@@ -918,14 +932,17 @@
           : diff < 0 ? `<span class="watched-delta down">▼ $${fmtNum(Math.abs(diff))} (${Math.abs(pct)}%)</span>`
           : `<span class="watched-delta up">▲ $${fmtNum(diff)} (${pct}%)</span>`;
       }
-      const priceAmount = latest ? `$${fmtNum(latest.price)} total` : t.baseline ? `baseline $${fmtNum(t.baseline.price)}` : "first check runs tonight";
+      const priceAmount = latest ? `${fmtNum(latest.price)}` : t.baseline ? `${fmtNum(t.baseline.price)}` : "—";
       const priceMeta = latest
         ? `${latest.carrier || "—"} · checked ${new Date(latest.at).toLocaleDateString("en-US", { month: "short", day: "numeric" })}`
-        : t.baseline ? "first check runs tonight" : "";
+        : t.baseline ? "baseline · first check tonight" : "first check runs tonight";
+      const oCode = T.toIATA(t.origin), dCode = T.toIATA(t.destination);
+      const codeChip = oCode && dCode ? ` <span class="watched-codes">${oCode}–${dCode}</span>` : "";
+      const travLabel = `${t.travelers} traveler${String(t.travelers) === "1" ? "" : "s"}`;
       return `<div class="watched-item" data-id="${t.id}">
         <div class="watched-route-card">
-          <span class="watched-route-main">${T.displayCity(t.origin)} → ${T.displayCity(t.destination)}</span>
-          <span class="watched-route-meta">${t.departDate}${t.returnDate ? " – " + t.returnDate : ""} · ${t.cabin} · ${t.travelers} trav</span>
+          <span class="watched-route-main">${T.displayCityName(t.origin)} → ${T.displayCityName(t.destination)}${codeChip}</span>
+          <span class="watched-route-meta">${fmtWatchRange(t.departDate, t.returnDate)} · ${t.cabin} · ${travLabel}</span>
         </div>
         <div class="watched-side" style="display:flex;align-items:center;gap:8px;">
           <div class="watched-price-block">
