@@ -26,12 +26,15 @@
   [headers.values]
     Cache-Control = "no-cache, no-store, must-revalidate"
 
+# 2026-07-25: was max-age=600 — a 10-minute stale window after every deploy,
+# which served a pre-fix app.js and made a just-shipped fix look broken.
+# no-cache + Netlify's ETags = always-fresh with cheap 304 revalidation.
 [[headers]]
   for = "/style.css"
   [headers.values]
-    Cache-Control = "public, max-age=600, must-revalidate"
+    Cache-Control = "no-cache, must-revalidate"
 
 [[headers]]
   for = "/app.js"
   [headers.values]
-    Cache-Control = "public, max-age=600, must-revalidate"
+    Cache-Control = "no-cache, must-revalidate"

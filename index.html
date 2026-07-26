@@ -588,6 +588,13 @@
     e.preventDefault();
     const inputs = collectInputs();
     const T = window.TravelIntel;
+    if (inputs.returnDate && inputs.departDate && inputs.returnDate < inputs.departDate) {
+      resultsEl.innerHTML = `<div class="empty-state"><div class="es-icon">⚠</div>
+        <p><strong>Return date (${inputs.returnDate}) is before departure (${inputs.departDate}).</strong></p>
+        <p class="form-hint">No search was run — an inverted range can never return real fares. Fix the dates and re-run.</p></div>`;
+      document.getElementById("results").scrollIntoView({ behavior: "smooth", block: "start" });
+      return;
+    }
     resultsEl.innerHTML = '<div class="empty-state"><div class="es-icon">✈</div><p>Searching live fares… <span class="form-hint">usually 3–12 seconds</span></p></div>';
     const live = await fetchLiveOffers(inputs);
     const result = T.runOptimization(inputs, live.data && live.data.offers);
