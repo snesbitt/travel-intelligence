@@ -347,9 +347,16 @@ table.alt-table td.rank-cell { font-family: var(--serif); font-style: italic; co
 .timing-badge.monitor { background: var(--accent-dim); color: var(--accent); }
 
 /* ---- empty state ---- */
-.empty-state { text-align: center; padding: 2.5rem 1rem; color: #565b6e; }
-.empty-state .es-icon { font-family: var(--serif); font-style: italic; font-size: 30px; color: var(--ink-faint); margin-bottom: 8px; }
-.empty-state p { font-size: 13px; max-width: 46ch; margin: 0 auto; }
+/* 2026-07-26 vertical-density pass (Susan): the run-button neighborhood
+   wastes no height before, during, or after a run. */
+.empty-state { text-align: center; padding: 1.1rem 1rem; color: #565b6e; }
+.empty-state .es-icon { font-family: var(--serif); font-style: italic; font-size: 22px; color: var(--ink-faint); margin-bottom: 4px; }
+.empty-state p { font-size: 13px; max-width: 52ch; margin: 0 auto; }
+.empty-state.es-searching { padding: 0.8rem 1rem; }
+.es-actions { display: flex; align-items: center; justify-content: center; gap: 8px 18px; flex-wrap: wrap; margin-top: 12px; }
+.es-actions .es-retry { margin: 0; }
+.es-link { font-size: 12.5px; font-weight: 600; color: var(--accent); text-decoration: none; white-space: nowrap; }
+.es-link:hover { text-decoration: underline; }
 
 /* ---- sync/status banner ---- */
 
@@ -458,7 +465,7 @@ table.alt-table td.rank-cell { font-family: var(--serif); font-style: italic; co
 
 /* 2026-07-26 radical simplicity: the four essential fields stay visible;
    everything else lives in this folding panel. */
-details.refine { margin: 0 0 1.4rem; }
+details.refine { margin: 0 0 0.6rem; }
 details.refine > summary { cursor: pointer; list-style: none; display: flex; align-items: center; gap: 8px; font-size: 13px; font-weight: 600; letter-spacing: 0.02em; color: var(--ink-dim); padding: 10px 4px; user-select: none; }
 details.refine > summary::-webkit-details-marker { display: none; }
 details.refine > summary::before { content: "▸"; font-size: 11px; transition: transform 0.15s ease; }
@@ -470,3 +477,7 @@ details.refine > summary:hover { color: var(--accent); }
 .watched-book { display: inline-flex; align-items: baseline; gap: 3px; color: inherit; text-decoration: none; }
 .watched-book:hover .watched-price-amount { text-decoration: underline; text-underline-offset: 3px; }
 .watched-book::after { content: none; }
+
+.empty-state.es-idle { padding: 0.7rem 1rem; }
+/* the sticky nav must never cover the top of a scrolled-to section */
+#results, #watched, #points-intel { scroll-margin-top: 64px; }

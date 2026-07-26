@@ -220,10 +220,9 @@
       <button type="submit" class="run-btn">Run the optimization</button>
     </form>
 
-    <section class="block" id="results" style="margin-top:2rem;" aria-live="polite">
-      <div class="empty-state">
-        <div class="es-icon">✈</div>
-        <p>Fill in your trip and run the optimization to see the executive summary, best recommendation, and the five alternatives it was weighed against.</p>
+    <section class="block" id="results" style="margin-top:0.9rem;" aria-live="polite">
+      <div class="empty-state es-idle">
+        <p>✈&nbsp; Fill in your trip and run the optimization — executive summary, best pick, and the five alternatives it beat.</p>
       </div>
     </section>
 
@@ -637,8 +636,14 @@
       document.getElementById("results").scrollIntoView({ behavior: "smooth", block: "start" });
       return;
     }
-    resultsEl.innerHTML = '<div class="empty-state"><div class="es-icon">✈</div><p>Searching live fares… <span class="form-hint">usually 3–12 seconds</span></p></div>';
-    const live = await fetchLiveOffers(inputs);
+    resultsEl.innerHTML = '<div class="empty-state es-searching"><p>Searching live fares… <span class="form-hint">usually 3–12 seconds</span></p></div>';
+    let live = await fetchLiveOffers(inputs);
+    // 2026-07-26 (Susan hit a cold-route timeout): a slow first SerpApi call
+    // is transient — retry once, saying so, before ever giving up.
+    if (!live.data && live.reason === "api-fail") {
+      resultsEl.innerHTML = '<div class="empty-state es-searching"><p>Slow response — retrying… <span class="form-hint">cold routes can take a second attempt</span></p></div>';
+      live = await fetchLiveOffers(inputs);
+    }
     const scans = await fetchScanOffers(inputs);
     if (scans.offers.length) {
       if (live.data && live.data.offers) {
@@ -661,6 +666,10 @@
   // Live re-weighting from the results view — same fetched candidates,
   // different lens (scoring is pure/deterministic). This is the "look at
   // the data in different ways" filter: no form resubmit needed.
+  window.tiRetryRun = function () {
+    document.getElementById("trip-form").dispatchEvent(new Event("submit", { cancelable: true }));
+  };
+
   window.tiReoptimize = function (primary) {
     if (!window.__tiLastInputs) return;
     const T = window.TravelIntel;
@@ -717,9 +726,17 @@
       const dCode = T.toIATA(inputs.destination);
       const badField = !dCode ? `destination “${inputs.destination}”` : (!oCode ? `origin “${inputs.preferredAirport || inputs.origin}”` : null);
       const why = (FALLBACK_REASONS[window.__tiLiveReason] || FALLBACK_REASONS["api-fail"])(inputs);
-      resultsEl.innerHTML = `<div class="empty-state"><div class="es-icon">⚠</div>
+      const u = T.liveSearchUrls(inputs, "");
+      const kay = T.scanSourceUrl(inputs, "Kayak");
+      const actions = badField ? "" : `<div class="es-actions">
+          <button type="button" class="run-btn es-retry" onclick="tiRetryRun()">Retry the search</button>
+          ${u.googleFlights ? `<a class="es-link" href="${u.googleFlights}" target="_blank" rel="noopener">Google Flights ↗</a>` : ""}
+          ${kay ? `<a class="es-link" href="${kay}" target="_blank" rel="noopener">Kayak ↗</a>` : ""}
+        </div>`;
+      resultsEl.innerHTML = `<div class="empty-state es-error"><div class="es-icon">⚠</div>
         <p><strong>${badField ? `The ${badField} didn’t resolve to a known city or airport.` : `No real fares to score for ${oCode} → ${dCode}: ${why}`}</strong></p>
-        <p class="form-hint">No figures are shown because none would be real — this site never substitutes synthetic ones. ${badField ? "Check the spelling or use a 3-letter airport code (e.g. GSP for Greenville, SC), then re-run." : "Re-run to retry, or adjust the dates/route."}</p></div>`;
+        <p class="form-hint">${badField ? "Check the spelling or use a 3-letter airport code (e.g. GSP for Greenville, SC), then re-run." : "Nothing synthetic is ever shown — retry, or check the live route yourself:"}</p>
+        ${actions}</div>`;
       document.getElementById("results").scrollIntoView({ behavior: "smooth", block: "start" });
       return;
     }
