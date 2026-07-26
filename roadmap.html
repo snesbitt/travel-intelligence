@@ -34,7 +34,22 @@
     <h1 class="page-title">Travel Intelligence is one build old.</h1>
     <p class="lede">Phase 1 is live: the full input card, the six-dimension scoring engine, and every output page, deployed as a static site. What's next is listed honestly below — including the parts that require your explicit go-ahead before they happen.</p>
 
-    <div class="phase">
+    <nav class="roadmap-overview" aria-label="All phases at a glance">
+      <a href="#phase-01" class="ro-chip ro-live"><span class="ro-dot" aria-hidden="true">●</span>01 optimization engine</a>
+      <a href="#phase-02" class="ro-chip ro-live"><span class="ro-dot" aria-hidden="true">●</span>02 four-page site</a>
+      <a href="#phase-03" class="ro-chip ro-live"><span class="ro-dot" aria-hidden="true">●</span>03 GitHub repo</a>
+      <a href="#phase-04" class="ro-chip ro-live"><span class="ro-dot" aria-hidden="true">●</span>04 iOS app</a>
+      <a href="#phase-05" class="ro-chip ro-live"><span class="ro-dot" aria-hidden="true">●</span>05 live fare &amp; award data</a>
+      <a href="#phase-05b" class="ro-chip ro-planned"><span class="ro-dot" aria-hidden="true">○</span>05b region search</a>
+      <a href="#phase-05c" class="ro-chip ro-planned"><span class="ro-dot" aria-hidden="true">○</span>05c date-range sweep</a>
+      <a href="#phase-06" class="ro-chip ro-live"><span class="ro-dot" aria-hidden="true">●</span>06 a real domain</a>
+      <a href="#phase-07a" class="ro-chip ro-planned"><span class="ro-dot" aria-hidden="true">○</span>07a loyalty balances</a>
+      <a href="#phase-07" class="ro-chip ro-live"><span class="ro-dot" aria-hidden="true">●</span>07 saved preferences</a>
+      <a href="#phase-08" class="ro-chip ro-planned"><span class="ro-dot" aria-hidden="true">○</span>08 protect watched trips</a>
+      <a href="#phase-09" class="ro-chip ro-live"><span class="ro-dot" aria-hidden="true">●</span>09 2026 simplicity pass</a>
+    </nav>
+
+    <div class="phase" id="phase-01">
       <div class="phase-head">
         <span class="phase-num">01</span>
         <span class="phase-title">the optimization engine</span>
@@ -51,7 +66,7 @@
       </ul>
     </div>
 
-    <div class="phase">
+    <div class="phase" id="phase-02">
       <div class="phase-head">
         <span class="phase-num">02</span>
         <span class="phase-title">the four-page site</span>
@@ -64,7 +79,7 @@
       </ul>
     </div>
 
-    <div class="phase">
+    <div class="phase" id="phase-03">
       <div class="phase-head">
         <span class="phase-num">03</span>
         <span class="phase-title">GitHub repo</span>
@@ -77,7 +92,7 @@
       </ul>
     </div>
 
-    <div class="phase">
+    <div class="phase" id="phase-04">
       <div class="phase-head">
         <span class="phase-num">04</span>
         <span class="phase-title">iOS app</span>
@@ -90,11 +105,11 @@
       </ul>
     </div>
 
-    <div class="phase">
+    <div class="phase" id="phase-05">
       <div class="phase-head">
         <span class="phase-num">05</span>
         <span class="phase-title">live fare &amp; award data</span>
-        <span class="phase-status live">Live (fares)</span>
+        <span class="phase-status live">Live (fares + scans)</span>
       </div>
       <p class="phase-body">Live fares are running: a Netlify Function (<code>/api/fares</code>) searches real Google Flights results via SerpApi on every run, and the frontend scores them through the same six-dimension engine. The credential was created and installed by Susan directly — credentials and spend are never taken on the agent's behalf. If the backend is ever unreachable, the site falls back to the documented model and says so in the banner rather than failing silently. Award-space search (seats.aero-style availability) is the remaining data gap.</p>
       <p class="phase-value">The recommendation stops being a documented estimate and becomes a real, bookable answer.</p>
@@ -103,10 +118,13 @@
         <li><span class="lg-date">JUL 2026</span>Provider pivot, one day later: Amadeus decommissioned its self-service portal on Jul 17 — discovered when attempting the signup, verified on their site. Backend v2 swapped to Google Flights data via SerpApi (self-serve key, free tier), same honest-fallback contract. Netlify was also linked to the GitHub repo, closing phase 03: pushes now auto-deploy. Live fares verified end-to-end the same week.</li>
         <li><span class="lg-date">JUL 2026</span>Economy → Business playbook: the Upgrade Strategy now opens with three priced routes to Business for the specific trip (Premium Economy ladder, direct bid, miles + copay checked against saved balances) and a dated timeline targeting Business — replacing one-cabin-up advice that buried the most common real goal. Trip purpose simplified to Vacation / Business / Both; via/stopover routing, a travelers stepper, and a $2,000 default budget shipped alongside.</li>
         <li><span class="lg-date">JUL 2026</span>Density pass: homepage header compressed to a one-line status banner (details moved to About/Guide), and long cards — loyalty balances, TPG valuations, the upgrade timeline — now collapse to their high-signal rows with explicit "Show all N" toggles.</li>
+        <li><span class="lg-date">JUL 2026</span>Multi-feed price discovery shipped: a second live source (your own logged-in Kayak/Booking browser searches, scanned and stored via a new endpoint) merges into the same shortlist with a labeled source pill, alongside Google's price-history sparkline and buy/wait/monitor verdict. Every alternative — not just the top pick — now links out to review and buy: Google Flights on every row, the verified aa.com deep link on American rows, a verified Kayak deep link on scanned rows. Booking.com's own deep-link format was tested live in three shapes and none prefill the route, so those rows fall back to Google Flights rather than ship a link that doesn't work.</li>
+        <li><span class="lg-date">JUL 2026</span>Global city coverage + a real bug fix: the whole Baltic/Balkan/Caucasus/Central Asia region (Estonia included) was silently unmapped — same bug class as the Greenville incident. Fixed by adding capital-city codes, and by discovering that a bare country name could resolve to a bookable airport code while its distance estimate silently came back blank (toIATA and the geometry lookup were two tables that could disagree). They're now locked together.</li>
+        <li><span class="lg-date">JUL 2026</span>A depart date beyond the ~330-day airline booking horizon isn't a failure — the empty state now says so by name (days out, and the date fares should open), and skips a wasted retry. Any other failed search gets one automatic retry, then an actionable empty state: a Retry button plus verified Google Flights/Kayak links, never a dead end.</li>
       </ul>
     </div>
 
-    <div class="phase">
+    <div class="phase" id="phase-05b">
       <div class="phase-head">
         <span class="phase-num">05b</span>
         <span class="phase-title">region-to-region search</span>
@@ -119,7 +137,7 @@
       </ul>
     </div>
 
-    <div class="phase">
+    <div class="phase" id="phase-05c">
       <div class="phase-head">
         <span class="phase-num">05c</span>
         <span class="phase-title">date-range score sweep</span>
@@ -132,7 +150,7 @@
       </ul>
     </div>
 
-    <div class="phase">
+    <div class="phase" id="phase-06">
       <div class="phase-head">
         <span class="phase-num">06</span>
         <span class="phase-title">a real domain</span>
@@ -145,7 +163,7 @@
       </ul>
     </div>
 
-    <div class="phase">
+    <div class="phase" id="phase-07a">
       <div class="phase-head">
         <span class="phase-num">07a</span>
         <span class="phase-title">loyalty program balance integration</span>
@@ -158,7 +176,7 @@
       </ul>
     </div>
 
-    <div class="phase">
+    <div class="phase" id="phase-07">
       <div class="phase-head">
         <span class="phase-num">07</span>
         <span class="phase-title">saved preferences &amp; trip memory</span>
@@ -176,7 +194,7 @@
       </ul>
     </div>
 
-    <div class="phase">
+    <div class="phase" id="phase-08">
       <div class="phase-head">
         <span class="phase-num">08</span>
         <span class="phase-title">protect watched trips</span>
@@ -184,6 +202,22 @@
       </div>
       <p class="phase-body">Watching a trip (max 3) spends a metered daily search and persists to the shared store the scheduled watcher reads from &mdash; currently open to anyone with the link, no auth, the same model Streaming Scout's dismiss endpoint uses. Worth gating behind a shared edit key so a shared link can't quietly add or drop a watched trip and spend the limited daily quota &mdash; remembered per device after one entry, the same pattern across the portfolio. Everything else — running the optimizer, browsing results — stays open.</p>
       <p class="phase-value">A shared link can't quietly spend your watched-trip slots or swap what's being tracked.</p>
+    </div>
+
+    <div class="phase" id="phase-09">
+      <div class="phase-head">
+        <span class="phase-num">09</span>
+        <span class="phase-title">2026 simplicity pass</span>
+        <span class="phase-status live">Live</span>
+      </div>
+      <p class="phase-body">A deliberate simplification pass: the input form was cut to four essential fields (from, to, dates, what matters most) with everything else &mdash; via city, preferred/nearby airports, cabin, budget, stops, airlines, wallet &mdash; folded into an optional "Refine" panel that remembers whether you left it open. The old synthetic/modeled-fare fallback was deleted outright: when no live fare or scan data exists for a route, the site now says so plainly instead of ever showing a number nobody actually quoted. Fraunces and IBM Plex were also moved off Google Fonts onto self-hosted files with long-lived caching, across all five sites in the portfolio.</p>
+      <p class="phase-value">Fewer fields to fill in, and every number on screen is a real quote or scan &mdash; never a guess dressed up as one.</p>
+      <ul class="phase-log">
+        <li><span class="lg-date">JUL 2026</span>Trip form cut to four always-visible fields; via city, airports, cabin, budget, stops, preferred/avoided airlines, and wallet moved into a collapsible "Refine" panel that persists open/closed state. After feedback that two load-bearing controls had been folded away too aggressively, date &plusmn; flexibility pills and the secondary "then weigh" priority were restored to the always-visible Trip card.</li>
+        <li><span class="lg-date">JUL 2026</span>The synthetic candidate generator (seeded random fares, invented aircraft and alliances) was deleted. Live search and Susan's own scanned fares are now the only data path; when neither has coverage for a route, the results panel says so honestly instead of falling back to a modeled guess.</li>
+        <li><span class="lg-date">JUL 2026</span>Fraunces and IBM Plex Sans/Mono self-hosted as local font files with immutable caching, removing the Google Fonts request on every page load.</li>
+        <li><span class="lg-date">JUL 2026</span>Vertical density pass on the results panel, the run-optimization area, and the watched-trips card &mdash; tighter spacing and a two-line price layout so more fits above the fold without a scroll.</li>
+      </ul>
     </div>
 
     <p class="phase-value" style="margin-top:1.5rem;">Phases are sequential. A later phase isn't started early, and nothing gets added to an earlier phase just because it would be easy to slot in.</p>

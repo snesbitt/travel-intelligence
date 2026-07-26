@@ -100,6 +100,19 @@ h2.card-title { font-size: 11.5px; text-transform: uppercase; letter-spacing: 0.
 .divider { border-top: 1px solid var(--border); margin: 11px 0; }
 @media (min-width: 640px) { .divider { margin: 16px 0; } }
 
+/* roadmap: at-a-glance overview strip */
+.roadmap-overview { display: flex; flex-wrap: wrap; gap: 6px; margin: 0.9rem 0 1.4rem; padding: 0; list-style: none; }
+.ro-chip { display: inline-flex; align-items: center; gap: 5px; font-size: 11px; font-weight: 600; padding: 4px 9px 4px 8px; border-radius: 20px; border: 1px solid var(--border); text-decoration: none; color: var(--ink); background: var(--card); transition: border-color 0.15s ease; }
+.ro-chip:hover { border-color: var(--ink-faint); }
+.ro-dot { font-size: 9px; line-height: 1; }
+.ro-chip.ro-live { background: var(--good-dim); color: var(--good); border-color: transparent; }
+.ro-chip.ro-progress { background: var(--mid-dim); color: var(--mid); border-color: transparent; }
+.ro-chip.ro-planned { background: var(--bg-alt); color: #565b6e; border-color: transparent; }
+@media (min-width: 640px) {
+.roadmap-overview { gap: 8px; margin: 1.1rem 0 1.8rem; }
+.ro-chip { font-size: 12px; padding: 5px 11px 5px 9px; }
+}
+
 /* roadmap */
 .phase { padding: 1.1rem 0; border-bottom: 1px solid var(--border); }
 .phase:last-of-type { border-bottom: none; }
