@@ -442,3 +442,12 @@ table.alt-table td.rank-cell { font-family: var(--serif); font-style: italic; co
 .sparkline { display: inline-block; vertical-align: middle; }
 .watched-spark { display: block; line-height: 1; margin: 1px 0; }
 @media (prefers-reduced-motion: no-preference) { .sparkline path { transition: none; } }
+
+/* 2026-07-26: per-row link-outs on the alternatives table — every row can be
+   reviewed and bought, not just the best recommendation. */
+.alt-links { display: flex; flex-wrap: wrap; gap: 2px 10px; margin-top: 4px; font-size: 11px; }
+.alt-links a { color: var(--accent); font-weight: 600; white-space: nowrap; text-decoration: none; }
+.alt-links a:hover { text-decoration: underline; }
+@media (max-width: 640px) {
+  .alt-links a { display: inline-flex; align-items: center; min-height: 32px; }
+}

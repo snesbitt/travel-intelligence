@@ -735,10 +735,22 @@
       const rows = alts.slice().sort(SORTS[key] || SORTS["Weighted score"]);
       document.getElementById("alt-tbody").innerHTML = altRowsHtml(rows);
     };
+    // 2026-07-26: every alternative links out to review and buy - Google
+    // Flights always (route+dates prefilled), aa.com deep link on American
+    // rows, and Kayak-scanned rows link back to the scanned Kayak search.
+    function altLinks(c) {
+      const u = T.liveSearchUrls(inputs, c.carrier);
+      const k = T.scanSourceUrl(inputs, c.src);
+      const parts = [];
+      if (u.carrierDeep) parts.push('<a href="' + u.carrierDeep + '" target="_blank" rel="noopener">aa.com \u2197</a>');
+      if (k) parts.push('<a href="' + k + '" target="_blank" rel="noopener">Kayak \u2197</a>');
+      if (u.googleFlights) parts.push('<a href="' + u.googleFlights + '" target="_blank" rel="noopener">Google\u00a0Flights \u2197</a>');
+      return parts.length ? '<span class="alt-links">' + parts.join("") + "</span>" : "";
+    }
     function altRowsHtml(rows) {
       return rows.map((c) => `
       <tr class="${c.id === best.id ? "best-row" : ""}">
-        <td><strong>${c.carrier}</strong><br><span class="form-hint">${c.alliance}</span>${c.src ? `<br><span class="rec-src">${c.src}</span>` : ""}</td>
+        <td><strong>${c.carrier}</strong><br><span class="form-hint">${c.alliance}</span>${c.src ? `<br><span class="rec-src">${c.src}</span>` : ""}${altLinks(c)}</td>
         <td>${c.cabin}</td>
         <td>${c.stops === 0 ? "Nonstop" : c.stops + " stop" + (c.stops > 1 ? "s" : "")}</td>
         <td>${fmtTime(c.travelMinutes)}</td>
@@ -782,7 +794,7 @@
         <div class="rec-hero-top">
           <div>
             <div class="rec-route">${T.displayCity(inputs.origin)} → ${inputs.viaCity ? T.displayCity(inputs.viaCity) + " → " : ""}${T.displayCity(inputs.destination)}</div>
-            <div class="rec-airline">${best.carrier} · ${best.alliance} · ${best.aircraft}${best.src ? ` · <span class="rec-src">${best.src}</span>` : ""}</div><div class="rec-links">${(() => { const urls = T.liveSearchUrls(inputs, best.carrier); const parts = []; if (urls.carrierDeep) { parts.push(`<a class="pick-open" href="${urls.carrierDeep}" target="_blank" rel="noopener">Book this route on ${best.carrier} ↗</a>`); } else { const site = T.carrierSite(best.carrier); if (site) parts.push(`<a class="pick-open" href="${site}" target="_blank" rel="noopener">Book on ${best.carrier} ↗</a>`); } if (urls.googleFlights) parts.push(`<a class="pick-open" href="${urls.googleFlights}" target="_blank" rel="noopener">Live results on Google Flights ↗</a>`); return parts.join(""); })()}<button type="button" class="ti-toggle rec-watch" onclick="tiWatchTrip(this)">⭑ Watch this trip</button></div>
+            <div class="rec-airline">${best.carrier} · ${best.alliance} · ${best.aircraft}${best.src ? ` · <span class="rec-src">${best.src}</span>` : ""}</div><div class="rec-links">${(() => { const urls = T.liveSearchUrls(inputs, best.carrier); const parts = []; if (urls.carrierDeep) { parts.push(`<a class="pick-open" href="${urls.carrierDeep}" target="_blank" rel="noopener">Book this route on ${best.carrier} ↗</a>`); } else { const site = T.carrierSite(best.carrier); if (site) parts.push(`<a class="pick-open" href="${site}" target="_blank" rel="noopener">Book on ${best.carrier} ↗</a>`); } const kay = T.scanSourceUrl(inputs, best.src); if (kay) { parts.push(`<a class="pick-open" href="${kay}" target="_blank" rel="noopener">See the scanned fare on Kayak \u2197</a>`); } if (urls.googleFlights) parts.push(`<a class="pick-open" href="${urls.googleFlights}" target="_blank" rel="noopener">Live results on Google Flights ↗</a>`); return parts.join(""); })()}<button type="button" class="ti-toggle rec-watch" onclick="tiWatchTrip(this)">⭑ Watch this trip</button></div>
           </div>
           <div class="rec-price-block">
             <div class="rec-price">${best.payWith === "miles" ? `~${(best.milesEst / 1000).toFixed(0)}k mi + ${T.fmtUSD(best.feesEst)}` : T.fmtUSD(best.price)}</div>

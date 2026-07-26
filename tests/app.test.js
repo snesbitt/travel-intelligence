@@ -386,4 +386,31 @@ test("Cost keeps discriminating past the budget cap (the e2e saturation catch)",
   assert.equal(r.best.carrier, "Ethiopian Airlines", "Best Overall must prefer the much cheaper fare on an over-budget route");
 });
 
+
+test("scanSourceUrl builds the verified Kayak round-trip deep link", () => {
+  const u = T.scanSourceUrl(
+    { origin: "San Francisco", destination: "Gaborone", departDate: "2027-05-31", returnDate: "2027-06-10" },
+    "Kayak · scanned 2h ago");
+  assert.equal(u, "https://www.kayak.com/flights/SFO-GBE/2027-05-31/2027-06-10");
+});
+
+test("scanSourceUrl one-way omits the return segment", () => {
+  const u = T.scanSourceUrl(
+    { origin: "sfo", destination: "greenville", departDate: "2026-09-12" },
+    "Kayak · scanned 5h ago");
+  assert.equal(u, "https://www.kayak.com/flights/SFO-GSP/2026-09-12");
+});
+
+test("scanSourceUrl refuses Booking.com (deep link unverified) and non-scanned rows", () => {
+  const inputs = { origin: "San Francisco", destination: "Gaborone", departDate: "2027-05-31", returnDate: "2027-06-10" };
+  assert.equal(T.scanSourceUrl(inputs, "Booking.com · scanned 2h ago"), null);
+  assert.equal(T.scanSourceUrl(inputs, null), null);
+});
+
+test("scanSourceUrl returns null when the route does not resolve", () => {
+  assert.equal(T.scanSourceUrl(
+    { origin: "Narnia", destination: "Gaborone", departDate: "2027-05-31" },
+    "Kayak · scanned 2h ago"), null);
+});
+
 console.log(`\n${passed} passed`);

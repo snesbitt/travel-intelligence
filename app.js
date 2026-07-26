@@ -361,6 +361,21 @@ function liveSearchUrls(inputs, carrier) {
   return { carrierDeep, googleFlights };
 }
 
+// 2026-07-26: link scanned offers back to their source. Kayak's route deep
+// link (kayak.com/flights/O-D/depart[/return]) was verified live in Susan's
+// browser (prefilled "SFO to GBE, 5/31 - 6/10" search). Booking.com's flight
+// deep links were tested in three formats and none prefill (their challenge
+// redirect strips the route), so Booking-sourced rows return null here and
+// fall back to the universal Google Flights link. Never ship unverified URLs.
+function scanSourceUrl(inputs, src) {
+  if (!src || !/^kayak/i.test(String(src))) return null;
+  const o = toIATA(inputs.preferredAirport || inputs.origin);
+  const d = toIATA(inputs.destination);
+  if (!o || !d || !inputs.departDate) return null;
+  return "https://www.kayak.com/flights/" + o + "-" + d + "/" + inputs.departDate +
+    (inputs.returnDate ? "/" + inputs.returnDate : "");
+}
+
 function carrierSite(name) {
   if (!name) return null;
   const n = name.toLowerCase();
@@ -1086,7 +1101,7 @@ function runOptimization(inputs, liveOffers) {
 
 if (typeof window !== "undefined") {
   window.TravelIntel = {
-    runOptimization, computeWeights, upgradeTactics, bestPointsAnswers, toIATA, carrierSite, liveSearchUrls, displayCity, displayCityName, priceIntelligence, suggestPriorities,
+    runOptimization, computeWeights, upgradeTactics, bestPointsAnswers, toIATA, carrierSite, liveSearchUrls, scanSourceUrl, displayCity, displayCityName, priceIntelligence, suggestPriorities,
     ALLIANCES, ALL_CARRIERS, TRANSFER_PARTNERS, POINT_VALUATIONS, TRANSFER_BONUSES,
     DIMENSIONS, DIM_LABEL, fmtUSD,
     // exposed 2026-07-20 for tests/app.test.js — these were already pure,
