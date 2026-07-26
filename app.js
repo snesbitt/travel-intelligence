@@ -281,6 +281,22 @@ function toIATA(name) {
   return bestMatch(CITY_IATA) || bestMatch(COUNTRY_TO_IATA);
 }
 
+// 2026-07-24: code -> canonical display city, derived from CITY_IATA
+// (first name listed for a code wins, so GSP -> "Greenville", HND ->
+// "Tokyo"). Lets Susan type either "gsp" or "Greenville" and always see
+// the CITY in results, watched trips, and calendar exports.
+const IATA_DISPLAY = {};
+for (const [name, code] of Object.entries(CITY_IATA)) {
+  if (!IATA_DISPLAY[code]) IATA_DISPLAY[code] = name.replace(/(^|[\s-])[a-z]/g, (m) => m.toUpperCase());
+}
+function displayCity(nameOrCode) {
+  if (!nameOrCode) return nameOrCode;
+  const code = toIATA(nameOrCode);
+  if (!code) return nameOrCode; // unresolved input: show exactly as typed
+  const city = IATA_DISPLAY[code];
+  return city ? city + " (" + code + ")" : code.toUpperCase();
+}
+
 // Direct booking sites per carrier — the "book it" handoff the audit
 // flagged as missing. Fuzzy-matched by name; unknown carriers fall back
 // to the Google Flights link in Purchase Strategy.
@@ -1021,7 +1037,7 @@ function runOptimization(inputs, liveOffers) {
 
 if (typeof window !== "undefined") {
   window.TravelIntel = {
-    runOptimization, computeWeights, upgradeTactics, bestPointsAnswers, toIATA, carrierSite, liveSearchUrls, suggestPriorities,
+    runOptimization, computeWeights, upgradeTactics, bestPointsAnswers, toIATA, carrierSite, liveSearchUrls, displayCity, suggestPriorities,
     ALLIANCES, ALL_CARRIERS, TRANSFER_PARTNERS, POINT_VALUATIONS, TRANSFER_BONUSES,
     DIMENSIONS, DIM_LABEL, fmtUSD,
     // exposed 2026-07-20 for tests/app.test.js — these were already pure,

@@ -256,4 +256,24 @@ test("expanded city tables: new US regionals resolve with real geometry (no 7,50
   assert.equal(r.routeKnown, true);
 });
 
+
+/* ---------- 2026-07-24: displayCity — code or name in, city out ---------- */
+
+test("displayCity: airport code in, city name out", () => {
+  assert.equal(T.displayCity("GSP"), "Greenville (GSP)");
+  assert.equal(T.displayCity("gsp"), "Greenville (GSP)");
+  assert.equal(T.displayCity("SFO"), "San Francisco (SFO)");
+});
+
+test("displayCity: city name in, canonical 'City (CODE)' out (incl. multiword title-case)", () => {
+  assert.equal(T.displayCity("san francisco"), "San Francisco (SFO)");
+  assert.equal(T.displayCity("Greenville, South Carolina"), "Greenville (GSP)");
+  assert.equal(T.displayCity("salt lake city"), "Salt Lake City (SLC)");
+});
+
+test("displayCity: unresolved input passes through exactly as typed", () => {
+  assert.equal(T.displayCity("Atlantis, Lost Continent"), "Atlantis, Lost Continent");
+  assert.equal(T.displayCity(""), "");
+});
+
 console.log(`\n${passed} passed`);

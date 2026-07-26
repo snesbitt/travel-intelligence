@@ -407,4 +407,25 @@ table.alt-table td.rank-cell { font-family: var(--serif); font-style: italic; co
 .watched-actions { display: flex; gap: 8px; align-items: center; padding-left: 8px; }
 .watched-unwatch { background: none; border: none; font-size: 16px; color: var(--ink-faint, #8a7d6b); cursor: pointer; padding: 4px 6px; line-height: 1; flex-shrink: 0; }
 .watched-unwatch:hover { color: var(--ink, #2a241b); }
-@media (max-width: 640px) { .watched-item { grid-template-columns: 1fr auto; gap: 12px; } .watched-price-block { align-items: flex-start; } .watched-actions { flex-direction: column; align-items: flex-end; padding-left: 0; } }
+/* 2026-07-24 mobile pass: watched rows stack cleanly at phone widths —
+   route on its own line, price row beneath, 44px unwatch target, no
+   squeezed three-way column fight. */
+@media (max-width: 640px) {
+  .watched-item { grid-template-columns: 1fr; gap: 8px; }
+  .watched-side { width: 100%; justify-content: space-between; }
+  .watched-price-block { align-items: flex-start; }
+  .watched-price-meta { text-align: left; }
+  .watched-actions { padding-left: 0; }
+  .watched-unwatch { min-width: 44px; min-height: 44px; }
+  .watched-route-main { font-size: 15px; }
+}
+
+/* 2026-07-24: booking deep links live on their own wrapping row under the
+   carrier meta line — each link wraps as a whole unit (never mid-phrase),
+   with 44px tap targets on mobile per the working agreement. */
+.rec-links { display: flex; flex-wrap: wrap; gap: 6px 16px; margin-top: 6px; font-size: 12px; }
+.rec-links a.pick-open { white-space: nowrap; }
+@media (max-width: 640px) {
+  .rec-links { gap: 2px 14px; }
+  .rec-links a.pick-open { display: inline-flex; align-items: center; min-height: 44px; }
+}

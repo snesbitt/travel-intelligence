@@ -719,8 +719,8 @@
       <div class="rec-hero">
         <div class="rec-hero-top">
           <div>
-            <div class="rec-route">${inputs.origin} → ${inputs.viaCity ? inputs.viaCity + " → " : ""}${inputs.destination}</div>
-            <div class="rec-airline">${best.carrier} · ${best.alliance} · ${best.aircraft}${(() => { const urls = T.liveSearchUrls(inputs, best.carrier); const parts = []; if (urls.carrierDeep) { parts.push(` · <a class="pick-open" href="${urls.carrierDeep}" target="_blank" rel="noopener">Book this route on ${best.carrier} ↗</a>`); } else { const site = T.carrierSite(best.carrier); if (site) parts.push(` · <a class="pick-open" href="${site}" target="_blank" rel="noopener">Book on ${best.carrier} ↗</a>`); } if (urls.googleFlights) parts.push(` · <a class="pick-open" href="${urls.googleFlights}" target="_blank" rel="noopener">Live results on Google Flights ↗</a>`); return parts.join(""); })()}</div>
+            <div class="rec-route">${T.displayCity(inputs.origin)} → ${inputs.viaCity ? T.displayCity(inputs.viaCity) + " → " : ""}${T.displayCity(inputs.destination)}</div>
+            <div class="rec-airline">${best.carrier} · ${best.alliance} · ${best.aircraft}</div><div class="rec-links">${(() => { const urls = T.liveSearchUrls(inputs, best.carrier); const parts = []; if (urls.carrierDeep) { parts.push(`<a class="pick-open" href="${urls.carrierDeep}" target="_blank" rel="noopener">Book this route on ${best.carrier} ↗</a>`); } else { const site = T.carrierSite(best.carrier); if (site) parts.push(`<a class="pick-open" href="${site}" target="_blank" rel="noopener">Book on ${best.carrier} ↗</a>`); } if (urls.googleFlights) parts.push(`<a class="pick-open" href="${urls.googleFlights}" target="_blank" rel="noopener">Live results on Google Flights ↗</a>`); return parts.join(""); })()}</div>
           </div>
           <div class="rec-price-block">
             <div class="rec-price">${best.payWith === "miles" ? `~${(best.milesEst / 1000).toFixed(0)}k mi + ${T.fmtUSD(best.feesEst)}` : T.fmtUSD(best.price)}</div>
@@ -901,6 +901,7 @@
   };
 
   function renderWatched(trips) {
+    const T = window.TravelIntel;
     const card = document.getElementById("watched");
     const rows = document.getElementById("watched-rows");
     if (!trips || !trips.length) { card.classList.add("ti-hidden"); return; }
@@ -923,10 +924,10 @@
         : t.baseline ? "first check runs tonight" : "";
       return `<div class="watched-item" data-id="${t.id}">
         <div class="watched-route-card">
-          <span class="watched-route-main">${t.origin} → ${t.destination}</span>
+          <span class="watched-route-main">${T.displayCity(t.origin)} → ${T.displayCity(t.destination)}</span>
           <span class="watched-route-meta">${t.departDate}${t.returnDate ? " – " + t.returnDate : ""} · ${t.cabin} · ${t.travelers} trav</span>
         </div>
-        <div style="display:flex;align-items:center;gap:8px;">
+        <div class="watched-side" style="display:flex;align-items:center;gap:8px;">
           <div class="watched-price-block">
             <span class="watched-price-amount">${priceAmount}</span>
             <span class="watched-price-meta">${priceMeta}</span>
@@ -968,6 +969,7 @@
 
   /* ---------- upgrade plan → calendar (.ics) ---------- */
   window.tiExportIcs = function () {
+    const T = window.TravelIntel;
     const inputs = window.__tiLastInputs;
     if (!inputs || !inputs.departDate) return;
     const d = (offset) => {
@@ -975,7 +977,7 @@
       dt.setDate(dt.getDate() - offset);
       return dt.toISOString().slice(0, 10).replace(/-/g, "");
     };
-    const route = `${inputs.origin} → ${inputs.viaCity ? inputs.viaCity + " → " : ""}${inputs.destination}`;
+    const route = `${T.displayCity(inputs.origin)} → ${inputs.viaCity ? T.displayCity(inputs.viaCity) + " → " : ""}${T.displayCity(inputs.destination)}`;
     const esc = (s) => String(s).replace(/<[^>]+>/g, "").replace(/[\\;,]/g, " ").replace(/\n/g, " ");
     const events = [
       { date: d(4), title: `Place upgrade bid — ${route}`, desc: "Bid 20–40% of the fare gap, slightly above the minimum. Windows close 48–72h out on most carriers." },

@@ -63,7 +63,11 @@ not just a demo. Hold every future change to that standard.
   shipping) plus a prefilled Google Flights query for every carrier
   (also verified live). It returns no URL unless origin, destination and
   date all resolve, so a booking link can never point at a route the
-  engine couldn't name.
+  engine couldn't name. Follow-up same day: `displayCity()` (exported) renders
+  `City (CODE)` from either a typed city or airport code everywhere routes
+  appear (rec card, watched trips, .ics export); booking links moved to a
+  `.rec-links` wrapping row and watched rows stack single-column on mobile
+  (44px unwatch target) — no mid-phrase link wrapping at 375px.
 - One exception to "modeled": `POINT_VALUATIONS` and `TRANSFER_BONUSES`
   in `app.js` are real published figures hand-copied from The Points
   Guy's monthly valuations / current-transfer-bonuses pages, each dated
