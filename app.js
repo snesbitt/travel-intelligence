@@ -1,11 +1,12 @@
 /* Travel Intelligence — optimization engine
- * Pure, deterministic, client-side. Fares arrive live from /api/fares
- * (Google Flights via SerpApi) and are scored by buildLiveCandidates;
- * when the backend is unreachable the engine falls back to a documented
- * model on hand-maintained, distance-scaled reference ranges — and the
- * UI states which mode produced the numbers. Mileage/award figures are
- * planning ranges in BOTH modes (award space isn't searched yet). See
- * guide.html steps 02–04.
+ * Pure, deterministic, client-side. ONE data path (2026-07-26, the
+ * radical-simplicity pass): fares arrive live from /api/fares (Google
+ * Flights via SerpApi) plus /api/scan-offers (Susan's own Kayak/Booking
+ * scans) and are scored by buildLiveCandidates. The seeded-RNG synthetic
+ * model that used to back unreachable-backend runs was DELETED — when no
+ * real offers exist the engine returns noLiveData and the UI says so
+ * honestly. Mileage/award figures remain distance-scaled planning ranges
+ * (award space isn't searched yet). See guide.html steps 02–04.
  */
 
 /* ---------- reference data (hand-maintained, not live-fetched) ---------- */
@@ -16,15 +17,6 @@ const ALLIANCES = {
   "SkyTeam": ["Delta", "Air France", "KLM", "Korean Air"],
   "Unaligned": ["Alaska Airlines", "Emirates", "JetBlue"],
 };
-
-// Network accuracy (Susan, 2026-07-19): these carriers don't operate their
-// own metal across the Pacific (American's Asia service is Tokyo-only —
-// its Asia itineraries fly on oneworld partners like JAL and Cathay). On
-// Asia-bound MODELED routes they're excluded from the candidate pool so
-// the partner that actually operates the flight is what's displayed. Live
-// results already name operating carriers, so this applies to the model
-// only.
-const NO_OWN_ASIA_SERVICE = ["American", "Alaska Airlines", "JetBlue"];
 
 const ALL_CARRIERS = Object.values(ALLIANCES).flat();
 
@@ -409,55 +401,10 @@ const PRIORITY_WEIGHTS = {
 const DIMENSIONS = ["Cost", "Comfort", "Upgrade", "Award", "Flexibility", "Risk", "Time"];
 const DIM_LABEL = { Cost: "Cost", Comfort: "Comfort", Upgrade: "Upgrade Potential", Award: "Award Value", Flexibility: "Flexibility", Risk: "Risk (inverted — higher = lower risk)", Time: "Travel time (higher = faster)" };
 
-/* ---------- small deterministic RNG so re-running the same inputs
-   reproduces the same result, like a real model would ---------- */
-function mulberry32(a) {
-  return function () {
-    a |= 0; a = (a + 0x6D2B79F5) | 0;
-    let t = Math.imul(a ^ (a >>> 15), 1 | a);
-    t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
-    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
-  };
-}
-function hashSeed(str) {
-  let h = 1779033703 ^ str.length;
-  for (let i = 0; i < str.length; i++) {
-    h = Math.imul(h ^ str.charCodeAt(i), 3432918353);
-    h = (h << 13) | (h >>> 19);
-  }
-  return h >>> 0;
-}
-
 function clamp(n, lo, hi) { return Math.max(lo, Math.min(hi, n)); }
 function fmtUSD(n) { return "$" + Math.round(n).toLocaleString("en-US"); }
 
-/* ---------- candidate generation ---------- */
-
-function candidatePool(inputs) {
-  let pool = ALL_CARRIERS.slice();
-  if (destinationInAsia(inputs)) {
-    pool = pool.filter((c) => !NO_OWN_ASIA_SERVICE.includes(c));
-  }
-  if (inputs.preferredAlliances.length) {
-    pool = pool.filter((c) => inputs.preferredAlliances.some((al) => ALLIANCES[al].includes(c)));
-  }
-  if (inputs.preferredAirlines.length) {
-    const preferred = pool.filter((c) => inputs.preferredAirlines.includes(c));
-    if (preferred.length) pool = preferred.concat(pool.filter((c) => !preferred.includes(c)));
-  }
-  if (inputs.avoidAirlines.length) {
-    pool = pool.filter((c) => !inputs.avoidAirlines.includes(c));
-  }
-  if (!pool.length) pool = ALL_CARRIERS.slice();
-  return pool;
-}
-
-function allianceOf(carrier) {
-  for (const [al, list] of Object.entries(ALLIANCES)) if (list.includes(carrier)) return al;
-  return "Unaligned";
-}
-
-// Route geometry shared by both the modeled and live paths: real
+// Route geometry for the live path: real
 // great-circle distance when both endpoints are in the city table; a
 // stated generic long-haul assumption when not.
 function routeContext(inputs) {
@@ -502,93 +449,6 @@ function fuzzyAlliance(name) {
     if (list.some((c) => n.includes(c.toLowerCase()) || c.toLowerCase().includes(n))) return al;
   }
   return "Unaligned";
-}
-
-function generateCandidates(inputs) {
-  const seedStr = [inputs.origin, inputs.destination, inputs.departDate, inputs.returnDate, inputs.cabin, inputs.maxBudget].join("|");
-  const rng = mulberry32(hashSeed(seedStr));
-  const pool = candidatePool(inputs);
-  const flexDays = { Exact: 0, "±1 day": 1, "±3 days": 3, "±7 days": 7 }[inputs.dateFlexibility] || 0;
-
-  const { route, effKm, distFactor, milesFactor, airMinutesNonstop } = routeContext(inputs);
-
-  const fareTiers = ["Basic", "Standard", "Flexible"];
-  const candidates = [];
-  const n = Math.max(5, Math.min(7, pool.length + 2));
-
-  for (let i = 0; i < n; i++) {
-    const carrier = pool[i % pool.length];
-    const stopsRoll = rng();
-    // A via routing can't be nonstop — the stopover IS a stop.
-    const minStops = route.via ? 1 : 0;
-    const stops = Math.max(minStops, inputs.maxStops <= 0 ? 0 : Math.min(Math.max(inputs.maxStops, minStops), Math.floor(stopsRoll * (inputs.maxStops + 1))));
-    const fareTier = fareTiers[clamp(Math.floor(rng() * fareTiers.length) + (inputs.cabin === "Business" || inputs.cabin === "First" ? 1 : 0), 0, 2)];
-    const dateOffset = flexDays ? Math.round((rng() * 2 - 1) * flexDays) : 0;
-
-    // price model: per-cabin round-trip base scaled by route distance,
-    // seeded noise, stops discount, fare-tier adjustment, then a
-    // distance-scaled per-cabin floor. Planning model, not a fetched fare
-    // — see the eyebrow banner on this page.
-    let base = (CABIN_BASE[inputs.cabin] || CABIN_BASE.Economy) * distFactor;
-    base *= 1 + (0.5 - rng()) * 0.5; // +/-25% noise
-    base -= stops * (CABIN_STOP_DISCOUNT[inputs.cabin] || 30);
-    base *= fareTier === "Basic" ? 0.82 : fareTier === "Flexible" ? 1.18 : 1;
-    if (dateOffset !== 0) base *= 1 - Math.min(0.12, Math.abs(dateOffset) * 0.02);
-    const price = Math.max(Math.round((CABIN_FLOOR[inputs.cabin] || 200) * distFactor), Math.round(base));
-
-    const scores = {};
-    scores.Cost = clamp(100 - (price / Math.max(1, inputs.maxBudget)) * 65, -80, 100); // 2026-07-25: same extended floor as live mode (see buildLiveCandidates)
-    scores.Comfort = clamp((CABIN_COMFORT_BASE[inputs.cabin] || 50) - stops * 11 + (stops === 0 ? 6 : 0) + (destinationInAsia(inputs) && isAsianCarrier(carrier) ? ASIA_COMFORT_BONUS : 0), 5, 100);
-    const upgradeFriendly = UPGRADE_FRIENDLY[carrier] ?? 50;
-    scores.Upgrade = clamp(
-      upgradeFriendly - (inputs.cabin === "First" ? 35 : inputs.cabin === "Business" ? 12 : 0) + (inputs.cabin === "Economy" || inputs.cabin === "Best Value" ? 6 : 0),
-      3, 100
-    );
-    const range = AWARD_RANGES[inputs.cabin] || AWARD_RANGES.Economy;
-    const milesMid = (range.milesLow + range.milesHigh) / 2;
-    const feesMid = (range.feesLow + range.feesHigh) / 2;
-    const cpp = ((price - feesMid) / milesMid) * 100; // cents per mile if redeemed vs this cash price
-    scores.Award = clamp(cpp * 42, 2, 100);
-    scores.Flexibility = clamp((fareTier === "Flexible" ? 88 : fareTier === "Standard" ? 55 : 22) + (inputs.cabin === "Business" || inputs.cabin === "First" ? 8 : 0), 5, 100);
-    const monthRisk = seasonalRisk(inputs.departDate);
-    scores.Risk = clamp(100 - stops * 18 - monthRisk, 5, 100);
-
-    // miles+cash either/or: an estimated miles price for THIS candidate,
-    // interpolated within the cabin's distance-scaled reference range by
-    // where the cash price sits in its own plausible band. Planning
-    // figure, not a quote.
-    const mLow = range.milesLow * milesFactor, mHigh = range.milesHigh * milesFactor;
-    const priceBand = clamp((price - (CABIN_FLOOR[inputs.cabin] || 200) * distFactor) / Math.max(1, (CABIN_BASE[inputs.cabin] || 620) * distFactor * 1.4), 0, 1);
-    const milesEst = Math.round((mLow + (mHigh - mLow) * priceBand) / 5000) * 5000 || 5000;
-    const feesEst = Math.round(range.feesLow + (range.feesHigh - range.feesLow) * priceBand);
-    const candCpp = ((price - feesEst) / Math.max(1, milesEst)) * 100;
-
-    // travel time from route geometry: nonstop air time, plus per-stop
-    // layover and routing detour — never a constant.
-    const travelMinutes = airMinutesNonstop + stops * (105 + Math.round(rng() * 30)) + Math.round(stops * airMinutesNonstop * 0.08);
-    scores.Time = clamp(100 - ((travelMinutes - airMinutesNonstop) / 60) * 9, 5, 100);
-
-    candidates.push({
-      id: i, carrier, alliance: allianceOf(carrier), stops, fareTier, price, dateOffset,
-      cabin: inputs.cabin === "Best Value" ? (cpp * 42 > 60 ? "Business" : "Economy") : inputs.cabin,
-      scores, cpp, milesMid, feesMid,
-      milesEst, feesEst, candCpp, payWith: candCpp >= 1.6 ? "miles" : "cash",
-      travelMinutes, routeKm: route.km, routeKnown: route.known,
-      via: route.via || null, routeLegs: route.legs || null, directKm: route.directKm || null,
-      aircraft: pickAircraft(rng, stops, inputs.cabin, effKm),
-    });
-  }
-  return candidates;
-}
-
-function pickAircraft(rng, stops, cabin, km) {
-  const wide = ["Boeing 787-9", "Airbus A350-900", "Boeing 777-300ER", "Airbus A330-300"];
-  const narrow = ["Airbus A321neo", "Boeing 737 MAX 9", "Airbus A320"];
-  // Aircraft follows route distance: long-haul flies widebodies, short
-  // hops fly narrowbodies, with First always on a widebody.
-  const wideChance = cabin === "First" || km > 5500 ? 1 : km > 2500 ? 0.5 : 0.06;
-  const pool = rng() < wideChance ? wide : narrow;
-  return pool[Math.floor(rng() * pool.length)];
 }
 
 function seasonalRisk(dateStr) {
@@ -1040,9 +900,7 @@ function buildInsights(inputs, candidates, best, weights, timing, usingLive) {
   // duplicate insight here (audit finding: verbatim repetition).
 
   if (inputs.airportFlexibility && inputs.airportFlexibility.split(",").map((s) => s.trim()).filter(Boolean).length > 1) {
-    insights.push(usingLive
-      ? `Only your primary airport was searched live — the nearby airports you listed (${inputs.airportFlexibility}) weren't. Nearby-airport comparisons routinely beat date-shifting alone, so price the alternates on Google Flights before booking.`
-      : `You've listed more than one workable departure airport. Nearby-airport comparisons routinely surface the largest single savings — price the alternates before locking in the primary routing.`);
+    insights.push(`Only your primary airport was searched live — the nearby airports you listed (${inputs.airportFlexibility}) weren't. Nearby-airport comparisons routinely beat date-shifting alone, so price the alternates on Google Flights before booking.`);
   }
 
   if (best.routeKnown === false) {
@@ -1053,9 +911,7 @@ function buildInsights(inputs, candidates, best, weights, timing, usingLive) {
     insights.push(`Route distance: roughly ${best.routeKm.toLocaleString()} km great-circle each way — flight times and the distance scaling on fares are computed from this geometry, not fabricated per-flight.`);
   }
 
-  insights.push(usingLive
-    ? `Prices in this shortlist are live Google Flights quotes; mileage figures remain distance-scaled planning ranges (award space isn't searched yet). See guide.html for exactly what's live vs. modeled.`
-    : `This shortlist is scored, not searched — treat the price and mileage figures as planning ranges from a documented model, not a live quote. See guide.html for exactly what's computed vs. what's a hand-maintained reference range.`);
+  insights.push(`Prices in this shortlist are live quotes (Google Flights feed and/or your own Kayak scans, as labeled); mileage figures remain distance-scaled planning ranges (award space isn't searched yet). See guide.html for exactly what's live vs. estimated.`);
 
   return insights.slice(0, 8);
 }
@@ -1077,9 +933,17 @@ function programBalancesFromInputs(inputs) {
 /* ---------- main entry point ---------- */
 
 function runOptimization(inputs, liveOffers) {
+  // 2026-07-26 (radical simplicity): the seeded-RNG model path was
+  // deleted. Real offers or an honest "no data" — never synthetic figures.
   const usingLive = Array.isArray(liveOffers) && liveOffers.length > 0;
-  const candidates = usingLive ? buildLiveCandidates(inputs, liveOffers) : generateCandidates(inputs);
-  if (!candidates.length) return runOptimization(inputs); // e.g. every live offer was on an avoided airline
+  const candidates = usingLive ? buildLiveCandidates(inputs, liveOffers) : [];
+  if (!candidates.length) {
+    // No live offers at all, or every offer was filtered out (e.g. all on
+    // avoided airlines). routeKnown:false routes the UI to its no-real-data
+    // empty state; noLiveData distinguishes "nothing came back" for copy.
+    return { candidates: [], best: null, alternatives: [], usingLive: false, routeKnown: false,
+             noLiveData: true, weights: computeWeights(inputs.priorityRanks) };
+  }
   const weights = computeWeights(inputs.priorityRanks);
   candidates.forEach((c) => (c.weighted = weightedScore(c.scores, weights)));
   candidates.sort((a, b) => b.weighted - a.weighted);

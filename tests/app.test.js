@@ -195,20 +195,54 @@ test("toIATA: Greenville/Spartanburg resolve to GSP (incl. fuzzy)", () => {
 });
 
 test("runOptimization: known route (SFO->GSP) is ~3,600 km, not the 7,500 km default", () => {
+  // 2026-07-26: model path deleted — the geometry regression now guards the
+  // LIVE path's duration estimate (used when an offer omits durationMinutes).
   const r = T.runOptimization({ origin: "San Francisco", destination: "Greenville, South Carolina",
     departDate: "2026-08-10", returnDate: "2026-08-11", cabin: "Economy", maxStops: 2, priorityRanks: {},
-    preferredAlliances: [], preferredAirlines: [], avoidAirlines: [], programBalances: [], dateFlexibility: "Exact", travelers: 1 });
+    preferredAlliances: [], preferredAirlines: [], avoidAirlines: [], programBalances: [], dateFlexibility: "Exact", travelers: 1 },
+    [{ carrier: "American", priceTotal: 350, stops: 0 }]);
   assert.equal(r.routeKnown, true);
-  // 9h34m was the giveaway: 7,500km default. Real GSP geometry must model well under 6h nonstop air time.
+  // 9h34m was the giveaway: 7,500km default. Real GSP geometry must estimate well under 6h nonstop air time.
   const nonstops = r.candidates.filter((c) => c.stops === 0);
-  for (const c of nonstops) assert.ok(c.travelMinutes < 360, "nonstop modeled over 6h: " + c.travelMinutes);
+  assert.ok(nonstops.length > 0, "expected the nonstop live offer to survive");
+  for (const c of nonstops) assert.ok(c.travelMinutes < 360, "nonstop estimated over 6h: " + c.travelMinutes);
 });
 
-test("runOptimization: unresolved city reports routeKnown=false", () => {
-  const r = T.runOptimization({ origin: "San Francisco", destination: "Atlantis, Lost Continent",
+test("runOptimization: unresolved city WITH live offers is still real data (routeKnown=true); WITHOUT offers it hard-stops", () => {
+  // Live results are real by definition — an unresolved display name must not
+  // suppress real quotes. The honesty gate now lives in the no-data path.
+  const withOffers = T.runOptimization({ origin: "San Francisco", destination: "Atlantis, Lost Continent",
+    departDate: "2026-08-10", cabin: "Economy", maxStops: 2, priorityRanks: {},
+    preferredAlliances: [], preferredAirlines: [], avoidAirlines: [], programBalances: [], dateFlexibility: "Exact", travelers: 1 },
+    [{ carrier: "United", priceTotal: 900, stops: 1, durationMinutes: 600 }]);
+  assert.equal(withOffers.routeKnown, true);
+  assert.equal(withOffers.best.routeKnown, false, "candidate-level flag still marks the unresolved geometry");
+  const noOffers = T.runOptimization({ origin: "San Francisco", destination: "Atlantis, Lost Continent",
     departDate: "2026-08-10", cabin: "Economy", maxStops: 2, priorityRanks: {},
     preferredAlliances: [], preferredAirlines: [], avoidAirlines: [], programBalances: [], dateFlexibility: "Exact", travelers: 1 });
+  assert.equal(noOffers.routeKnown, false);
+  assert.equal(noOffers.noLiveData, true);
+});
+
+test("runOptimization with no live offers returns an honest noLiveData result — never synthetic candidates", () => {
+  const r = T.runOptimization({ origin: "San Francisco", destination: "Tokyo",
+    departDate: "2026-08-10", cabin: "Economy", maxStops: 2, priorityRanks: { Cheapest: 1 },
+    preferredAlliances: [], preferredAirlines: [], avoidAirlines: [], programBalances: [], dateFlexibility: "Exact", travelers: 1 });
+  assert.equal(r.noLiveData, true);
+  assert.equal(r.usingLive, false);
   assert.equal(r.routeKnown, false);
+  assert.equal(r.best, null);
+  assert.equal(r.candidates.length, 0);
+  assert.ok(r.weights, "weights still computed for display");
+});
+
+test("runOptimization: offers all filtered out (avoided airline) also returns noLiveData, not a synthetic fallback", () => {
+  const r = T.runOptimization({ origin: "San Francisco", destination: "Tokyo",
+    departDate: "2026-08-10", cabin: "Economy", maxStops: 2, priorityRanks: { Cheapest: 1 },
+    preferredAlliances: [], preferredAirlines: [], avoidAirlines: ["Spirit"], programBalances: [], dateFlexibility: "Exact", travelers: 1 },
+    [{ carrier: "Spirit", priceTotal: 400, stops: 2, durationMinutes: 900 }]);
+  assert.equal(r.noLiveData, true);
+  assert.equal(r.candidates.length, 0);
 });
 
 
@@ -252,7 +286,8 @@ test("expanded city tables: new US regionals resolve with real geometry (no 7,50
   }
   const r = T.runOptimization({ origin: "San Francisco", destination: "Nashville",
     departDate: "2026-08-10", cabin: "Economy", maxStops: 2, priorityRanks: {},
-    preferredAlliances: [], preferredAirlines: [], avoidAirlines: [], programBalances: [], dateFlexibility: "Exact", travelers: 1 });
+    preferredAlliances: [], preferredAirlines: [], avoidAirlines: [], programBalances: [], dateFlexibility: "Exact", travelers: 1 },
+    [{ carrier: "United", priceTotal: 320, stops: 0, durationMinutes: 260 }]);
   assert.equal(r.routeKnown, true);
 });
 

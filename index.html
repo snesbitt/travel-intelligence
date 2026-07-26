@@ -47,11 +47,34 @@
         <div class="form-grid">
           <div class="form-field"><label for="origin">Origin</label><input type="text" id="origin" placeholder="e.g. San Francisco" value="San Francisco"></div>
           <div class="form-field"><label for="destination">Destination</label><input type="text" id="destination" placeholder="e.g. Tokyo" value="Tokyo"></div>
+          <div class="form-field"><label for="departDate">Departure date</label><input type="date" id="departDate"></div>
+          <div class="form-field"><label for="returnDate">Return date</label><input type="date" id="returnDate"></div>
+          <div class="form-field">
+            <label for="priorityPrimary">Optimize for</label>
+            <select id="priorityPrimary">
+              <option>Best Value</option>
+              <option>Cheapest</option>
+              <option>Fastest</option>
+              <option>Most Comfortable</option>
+              <option>Best Upgrade Opportunity</option>
+              <option>Best Use of Miles</option>
+              <option selected>Best Overall Experience</option>
+            </select>
+          </div>
+        </div>
+      </section>
+
+      <!-- 2026-07-26 radical simplicity: four essential fields above; every
+           refinement folds away here and the open/closed state persists. -->
+      <details class="refine" id="refine">
+        <summary>Refine — airports, travelers, cabin, airlines, budget, wallet</summary>
+
+      <section class="block card" id="trip-more">
+        <h2 class="card-title">Trip details</h2>
+        <div class="form-grid">
           <div class="form-field"><label for="viaCity">Via — stopover city (optional)</label><input type="text" id="viaCity" placeholder="e.g. Osaka — routes the trip through it"></div>
           <div class="form-field"><label for="preferredAirport">Preferred departure airport</label><input type="text" id="preferredAirport" placeholder="e.g. SFO" value="SFO"></div>
           <div class="form-field"><label for="airportFlexibility">Nearby airports you'd consider</label><input type="text" id="airportFlexibility" placeholder="e.g. SFO, SJC, OAK" value="SFO, SJC, OAK"></div>
-          <div class="form-field"><label for="departDate">Departure date</label><input type="date" id="departDate"></div>
-          <div class="form-field"><label for="returnDate">Return date</label><input type="date" id="returnDate"></div>
           <div class="form-field"><label>Travelers</label>
             <div style="display:flex;align-items:center;gap:10px;">
               <button type="button" id="trav-minus" aria-label="Fewer travelers" style="width:44px;height:44px;border-radius:10px;border:1px solid var(--line, #d8d0bf);background:#fff;font-size:20px;cursor:pointer;line-height:1;">−</button>
@@ -59,8 +82,7 @@
               <button type="button" id="trav-plus" aria-label="More travelers" style="width:44px;height:44px;border-radius:10px;border:1px solid var(--line, #d8d0bf);background:#fff;font-size:20px;cursor:pointer;line-height:1;">+</button>
               <input type="hidden" id="travelers" value="1">
             </div>
-          </div>
-        </div>
+          </div>        </div>
         <div class="form-field" style="margin-top:10px;">
           <label>Date flexibility</label>
           <div class="pill-toggle" data-group="dateFlexibility">
@@ -142,21 +164,9 @@
       </section>
 
       <section class="block card">
-        <h2 class="card-title">Optimization priority</h2>
-        <p class="form-hint" style="margin-bottom:10px;">Pick what matters most on this trip (and optionally a runner-up). The engine weights every dimension from this — the per-dimension weights stay visible in your results, never collapsed into an opaque number. Use the sort-by control in the results to view the same shortlist through any other lens.</p>
+        <h2 class="card-title">Priority — fine tuning</h2>
+        <p class="form-hint" style="margin-bottom:10px;">Optionally add a runner-up lens to the “Optimize for” choice you made above. The engine weights every dimension from this — the per-dimension weights stay visible in your results, never collapsed into an opaque number. Use the sort-by control in the results to view the same shortlist through any other lens.</p>
         <div class="form-grid">
-          <div class="form-field">
-            <label for="priorityPrimary">Optimize for</label>
-            <select id="priorityPrimary">
-              <option>Best Value</option>
-              <option>Cheapest</option>
-              <option>Fastest</option>
-              <option>Most Comfortable</option>
-              <option>Best Upgrade Opportunity</option>
-              <option>Best Use of Miles</option>
-              <option selected>Best Overall Experience</option>
-            </select>
-          </div>
           <div class="form-field">
             <label for="prioritySecondary">Also weigh (optional)</label>
             <select id="prioritySecondary">
@@ -211,6 +221,8 @@
         <button type="button" class="run-btn" id="save-wallet" style="margin-top:14px;">Save wallet</button>
       </section>
 
+      </details>
+
       <button type="submit" class="run-btn">Run the optimization</button>
     </form>
 
@@ -233,6 +245,14 @@
 <script src="app.js"></script>
 <script>
 (function () {
+  // Refine panel remembers whether you keep it open (2026-07-26)
+  var refineEl = document.getElementById("refine");
+  if (refineEl) {
+    try { refineEl.open = localStorage.getItem("ti-refine-open") === "1"; } catch (e) {}
+    refineEl.addEventListener("toggle", function () {
+      try { localStorage.setItem("ti-refine-open", refineEl.open ? "1" : "0"); } catch (e) {}
+    });
+  }
   const form = document.getElementById("trip-form");
   const resultsEl = document.getElementById("results");
 
@@ -603,13 +623,13 @@
   }
 
   const FALLBACK_REASONS = {
-    "via": (inputs) => `via/stopover routings aren't wired to the live search yet, so this ${inputs.viaCity} routing is scored on real route geometry with a multi-city premium.`,
-    "unknown-dest": (inputs) => `"${inputs.destination}" isn't in the city table — check the spelling (e.g. Bangkok, not Bankok) or use a 3-letter airport code. Figures assume a generic long-haul meanwhile.`,
+    "via": (inputs) => `via/stopover routings aren't wired to the live search yet — remove the via city (${inputs.viaCity}) to search this route live.`,
+    "unknown-dest": (inputs) => `"${inputs.destination}" isn't in the city table — check the spelling (e.g. Bangkok, not Bankok) or use a 3-letter airport code.`,
     "unknown-origin": (inputs) => `"${inputs.preferredAirport || inputs.origin}" isn't a recognized origin — use a city from the table or a 3-letter airport code.`,
     "no-date": () => `no departure date set — add one to search live fares.`,
     "not-configured": () => `demo mode — the live backend awaits its API credential.`,
-    "no-offers": () => `the live search returned no offers for this route/date — modeled figures shown instead.`,
-    "api-fail": () => `the live search failed or timed out — modeled fares shown; re-run to retry.`,
+    "no-offers": () => `the live search returned no offers for this route/date.`,
+    "api-fail": () => `the live search failed or timed out — re-run to retry.`,
   };
 
   form.addEventListener("submit", async (e) => {
@@ -644,9 +664,9 @@
     document.getElementById("results").scrollIntoView({ behavior: "smooth", block: "start" });
   });
 
-  // Live re-weighting from the results view — same candidates (the model
-  // is deterministic), different lens. This is the "look at the data in
-  // different ways" filter: no form resubmit needed.
+  // Live re-weighting from the results view — same fetched candidates,
+  // different lens (scoring is pure/deterministic). This is the "look at
+  // the data in different ways" filter: no form resubmit needed.
   window.tiReoptimize = function (primary) {
     if (!window.__tiLastInputs) return;
     const T = window.TravelIntel;
@@ -702,9 +722,10 @@
       const oCode = T.toIATA(inputs.preferredAirport || inputs.origin);
       const dCode = T.toIATA(inputs.destination);
       const badField = !dCode ? `destination “${inputs.destination}”` : (!oCode ? `origin “${inputs.preferredAirport || inputs.origin}”` : null);
+      const why = (FALLBACK_REASONS[window.__tiLiveReason] || FALLBACK_REASONS["api-fail"])(inputs);
       resultsEl.innerHTML = `<div class="empty-state"><div class="es-icon">⚠</div>
-        <p><strong>${badField ? `The ${badField} didn’t resolve to a known city or airport.` : `This route (${oCode} → ${dCode}) resolved, but it isn’t in the reference tables and the live search returned nothing — so there’s no real data to score.`}</strong></p>
-        <p class="form-hint">No figures are shown because none would be real. ${badField ? "Check the spelling or use a 3-letter airport code (e.g. GSP for Greenville, SC), then re-run." : "Re-run to retry the live search, or double-check the airport codes."}</p></div>`;
+        <p><strong>${badField ? `The ${badField} didn’t resolve to a known city or airport.` : `No real fares to score for ${oCode} → ${dCode}: ${why}`}</strong></p>
+        <p class="form-hint">No figures are shown because none would be real — this site never substitutes synthetic ones. ${badField ? "Check the spelling or use a 3-letter airport code (e.g. GSP for Greenville, SC), then re-run." : "Re-run to retry, or adjust the dates/route."}</p></div>`;
       document.getElementById("results").scrollIntoView({ behavior: "smooth", block: "start" });
       return;
     }
@@ -785,7 +806,7 @@
           <button type="button" class="ti-toggle" id="watch-btn" onclick="tiWatchTrip(this)">⭑ Watch this trip</button>
           <button type="button" class="ti-toggle" onclick="tiExportIcs()">Upgrade plan → calendar (.ics)</button>
         </div>
-        <p class="form-hint" style="flex:2;min-width:200px;margin-bottom:6px;">${result.usingLive ? `<strong>Live fares</strong> retrieved ${window.__tiLastLive && window.__tiLastLive.retrievedAt ? new Date(window.__tiLastLive.retrievedAt).toLocaleString("en-US", { month: "short", day: "numeric", hour: "numeric", minute: "2-digit" }) : "just now"} via ${window.__tiLastLive && window.__tiLastLive.provider ? window.__tiLastLive.provider : "the live backend"} — real prices, scored by the same engine.` : `<strong>Modeled fares</strong> — ${(FALLBACK_REASONS[window.__tiLiveReason] || FALLBACK_REASONS["api-fail"])(inputs)}`} Same shortlist, different lens — switching recomputes every weight and re-ranks instantly, no re-run needed. ${trav > 1 ? `Pricing shown per person; totals for ${trav} travelers alongside.` : ""}</p>
+        <p class="form-hint" style="flex:2;min-width:200px;margin-bottom:6px;"><strong>Live fares</strong> retrieved ${window.__tiLastLive && window.__tiLastLive.retrievedAt ? new Date(window.__tiLastLive.retrievedAt).toLocaleString("en-US", { month: "short", day: "numeric", hour: "numeric", minute: "2-digit" }) : "just now"} via ${window.__tiLastLive && window.__tiLastLive.provider ? window.__tiLastLive.provider : "the live backend"} — real prices, scored by the same engine. Same shortlist, different lens — switching recomputes every weight and re-ranks instantly, no re-run needed. ${trav > 1 ? `Pricing shown per person; totals for ${trav} travelers alongside.` : ""}</p>
       </div>
 
       <h3 class="eyebrow" style="margin:0 0 0.5rem;" id="exec">Executive summary</h3>
