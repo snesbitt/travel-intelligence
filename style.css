@@ -430,3 +430,9 @@ table.alt-table td.rank-cell { font-family: var(--serif); font-style: italic; co
   .rec-links { gap: 2px 14px; }
   .rec-links a.pick-open { display: inline-flex; align-items: center; min-height: 44px; }
 }
+
+/* 2026-07-25: the Watch control also lives on the recommendation card
+   itself — the top controls strip kept it, but the card is where the eye
+   looks for it. Same handler, per-button state. */
+.rec-links .rec-watch { font-size: 12px; padding: 4px 12px; }
+@media (max-width: 640px) { .rec-links .rec-watch { min-height: 44px; } }
