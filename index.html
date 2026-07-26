@@ -615,6 +615,21 @@
     } catch (e) { return { offers: [], label: "" }; }
   }
 
+  // 2026-07-26 (Susan's SFO→Osaka Jul 2027 run): airlines publish fares only
+  // ~330 days ahead. A depart date beyond that isn't a failure — it's a date
+  // no airline has loaded yet. Detect it, say it, and don't waste a retry.
+  const BOOKING_HORIZON_DAYS = 330;
+  function daysOut(dateStr) {
+    const d = new Date(dateStr + "T12:00:00");
+    return isNaN(d) ? 0 : Math.round((d - Date.now()) / 86400000);
+  }
+  function horizonMessage(inputs) {
+    const n = daysOut(inputs.departDate);
+    const opens = new Date(new Date(inputs.departDate + "T12:00:00") - BOOKING_HORIZON_DAYS * 86400000);
+    const opensStr = opens.toLocaleDateString("en-US", { month: "long", day: "numeric", year: "numeric" });
+    return `your departure is ${n} days away, and airlines only publish fares ~${BOOKING_HORIZON_DAYS} days ahead — no airline has loaded these dates yet. Fares for this trip should start appearing around ${opensStr}.`;
+  }
+
   const FALLBACK_REASONS = {
     "via": (inputs) => `via/stopover routings aren't wired to the live search yet — remove the via city (${inputs.viaCity}) to search this route live.`,
     "unknown-dest": (inputs) => `"${inputs.destination}" isn't in the city table — check the spelling (e.g. Bangkok, not Bankok) or use a 3-letter airport code.`,
@@ -640,7 +655,7 @@
     let live = await fetchLiveOffers(inputs);
     // 2026-07-26 (Susan hit a cold-route timeout): a slow first SerpApi call
     // is transient — retry once, saying so, before ever giving up.
-    if (!live.data && live.reason === "api-fail") {
+    if (!live.data && live.reason === "api-fail" && daysOut(inputs.departDate) <= BOOKING_HORIZON_DAYS) {
       resultsEl.innerHTML = '<div class="empty-state es-searching"><p>Slow response — retrying… <span class="form-hint">cold routes can take a second attempt</span></p></div>';
       live = await fetchLiveOffers(inputs);
     }
@@ -725,7 +740,9 @@
       const oCode = T.toIATA(inputs.preferredAirport || inputs.origin);
       const dCode = T.toIATA(inputs.destination);
       const badField = !dCode ? `destination “${inputs.destination}”` : (!oCode ? `origin “${inputs.preferredAirport || inputs.origin}”` : null);
-      const why = (FALLBACK_REASONS[window.__tiLiveReason] || FALLBACK_REASONS["api-fail"])(inputs);
+      const beyondHorizon = ["api-fail", "no-offers"].includes(window.__tiLiveReason) && daysOut(inputs.departDate) > BOOKING_HORIZON_DAYS;
+      const why = beyondHorizon ? horizonMessage(inputs)
+        : (FALLBACK_REASONS[window.__tiLiveReason] || FALLBACK_REASONS["api-fail"])(inputs);
       const u = T.liveSearchUrls(inputs, "");
       const kay = T.scanSourceUrl(inputs, "Kayak");
       const actions = badField ? "" : `<div class="es-actions">
