@@ -27,9 +27,13 @@ example of what an agentic build looks like, not a one-off demo.
   optimization lens (only when the trip's own signals don't already pick
   one), and the insights check the saved airport/upgrade-win lists
   against each result.
-- A deterministic scoring engine (`app.js`) — six dimensions (Cost,
-  Comfort, Upgrade Potential, Award Value, Flexibility, Risk), weighted by
-  your priority choice, computed entirely in the browser.
+- A deterministic scoring engine (`app.js`) — seven dimensions (Cost,
+  Comfort, Upgrade Potential, Award Value, Flexibility, Risk, Time), each
+  candidate scored 0-100 per dimension, weighted by your ranked priority
+  choice via a fixed per-priority weight table, computed entirely in the
+  browser. Same inputs and same fares always produce the same result — no
+  randomness, no hidden model call. See guide.html's "Scoring" section for
+  the actual formula and the per-priority weight table.
 - Miles-or-cash pricing on every candidate: an estimated miles+fees price
   alongside cash, with a pay-with recommendation that flips at the
   1.6¢/mile bar, plus a sort-by control to view the shortlist by price,

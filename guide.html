@@ -124,19 +124,26 @@
     </div>
 
     <div class="step" id="scoring">
-      <div><span class="step-num">03</span><span class="step-title">Six dimensions, weighted by your ranking — never a single variable</span></div>
-      <p class="step-body">Every candidate itinerary is scored 0 to 100 on Cost, Comfort, Upgrade Potential, Award Value, Flexibility, and Risk. Your ranked priority list, from Cheapest to Best Overall Experience, maps onto those six dimensions through a fixed weighting table: a rank-1 priority carries more weight than a rank-7 one. The final score is a weighted sum, shown on the results page as an explicit percentage per dimension, so the reasoning behind the recommendation is never reduced to a single number.</p>
+      <div><span class="step-num">03</span><span class="step-title">Seven dimensions, weighted by your ranking — never a single variable</span></div>
+      <p class="step-body">Every candidate itinerary is scored 0 to 100 on Cost, Comfort, Upgrade Potential, Award Value, Flexibility, Risk, and Time. Your ranked priority list, from Cheapest to Best Overall Experience, maps onto those seven dimensions through a fixed weighting table: a rank-1 priority carries more weight than a rank-7 one. The final score is a weighted sum, shown on the results page as an explicit percentage per dimension, so the reasoning behind the recommendation is never reduced to a single number. Time was added 2026-07-25, after Fastest and Cheapest returned the same pick on a route where every offer had one stop &mdash; Risk only scored stop count, so there was nothing left for "fastest" to actually rank by.</p>
 
       <div class="callout-row">
         <div class="callout good">
           <p class="callout-kicker">Always shown</p>
-          <p>The exact weight (as a %) each of the six dimensions received, computed live from your priority ranking — not a fixed default.</p>
+          <p>The exact weight (as a %) each of the seven dimensions received, computed live from your priority ranking &mdash; not a fixed default.</p>
         </div>
         <div class="callout bad">
           <p class="callout-kicker">Never done</p>
           <p>Optimizing for price alone. A cheaper itinerary that scores meaningfully worse on your higher-ranked priorities will not out-score the better-rounded one.</p>
         </div>
       </div>
+
+      <p class="step-body">The actual math, in full: each of the 7 priority lenses (Cheapest, Best Value, Fastest, Most Comfortable, Best Upgrade Opportunity, Best Use of Miles, Best Overall Experience) has its own fixed weight per dimension, hand-tuned in <code>app.js</code>. If you rank more than one priority, a rank-1 pick's vector counts more than a rank-2 pick's, by this formula:</p>
+      <pre style="background:var(--card);border:1px solid var(--border);border-radius:8px;padding:0.85rem 1rem;font-size:12px;overflow-x:auto;line-height:1.6;"><code>rankWeight   = (totalPriorities + 1 &minus; rank) / totalPriorities
+dimWeight[d] = &Sigma; (priorityVector[priority][d] &times; rankWeight[priority])
+               &mdash; then normalized so all 7 weights sum to 1
+score        = &Sigma; (dimensionScore[d] &times; dimWeight[d])  for d in the 7 dimensions</code></pre>
+      <p class="step-body">For example, under "Best Overall Experience" &mdash; the default lens most results are viewed through &mdash; the fixed vector is Cost 1.4, Comfort 0.5, Upgrade 0.4, Award 0.3, Flexibility 0.3, Risk 0.3, Time 0.2. Cost was raised from 0.3 to 1.4 on 2026-07-19, a direct, documented judgment call: an earlier version had a $2,400 nonstop beating a $1,300 one-stop under "Best Overall," which didn't hold up as a real recommendation. The new weight was tuned against that exact case and pinned by a regression test, so it can't silently drift back.</p>
     </div>
 
     <div class="step" id="snapshot">

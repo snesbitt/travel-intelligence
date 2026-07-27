@@ -9,7 +9,7 @@ Travel Intelligence: a personal travel optimization agent for Susan,
 sibling to The Fitness Log (thefitnesslog.org), The Streaming Scout
 (streamingscout.org), and Vinyl Scout. The mission is not to find flights —
 it's to optimize the whole trip decision (cost, comfort, upgrade potential,
-award value, flexibility, risk) against a ranked list of what matters most on a
+award value, flexibility, risk, time) against a ranked list of what matters most on a
 given trip, and to explain the weighting, never hide it.
 
 This project holds the same bar as the other three: it's meant to be a
@@ -199,13 +199,24 @@ Destination-in-Asia is a coordinate box on the city table.
 ### Weighting must stay visible
 
 `index.html`'s results view always renders the per-dimension weight
-percentage next to its score bar. Don't collapse the Decision Framework
-into a single opaque number — the whole point of the priority input is
-that the trade-off stays legible. (The priority input itself was
-simplified 2026-07-18 from a 1–7 rank list to a primary + optional
-secondary dropdown at Susan's direct request; the weighting machinery
-and its visibility are unchanged, and a sort-by control on the
-alternatives table lets the same shortlist be viewed through any lens.)
+percentage next to its score bar, across all 7 dimensions (Cost, Comfort,
+Upgrade, Award, Flexibility, Risk, Time — Time added 2026-07-25). Don't
+collapse the Decision Framework into a single opaque number — the whole
+point of the priority input is that the trade-off stays legible. (The
+priority input itself was simplified 2026-07-18 from a 1–7 rank list to a
+primary + optional secondary dropdown at Susan's direct request; the
+weighting machinery and its visibility are unchanged, and a sort-by
+control on the alternatives table lets the same shortlist be viewed
+through any lens.)
+
+External docs (README.md, guide.html) document the exact formula —
+`computeWeights()`'s rank-to-weight conversion and `weightedScore()`'s
+weighted sum — plus the full `PRIORITY_WEIGHTS` table, not just a
+description of it. When a dimension or a weight changes here, update
+those docs in the same commit; guide.html's "Six dimensions" text going
+stale after Time was added 2026-07-25 (fixed 2026-07-27) is the
+cautionary example — don't let the public docs drift from what `app.js`
+actually computes.
 
 ### Miles + cash is either/or, never both-hidden
 
