@@ -45,7 +45,7 @@
 
     <div class="step" id="tools">
       <div><span class="step-num">01</span><span class="step-title">Tools &amp; mode</span></div>
-      <p class="step-body">Built in Cowork, by design. The Input Card, scoring engine, and every output section run as plain JavaScript in your browser. Two things leave it, both stated plainly: a fare search sends the route, dates, cabin, and traveler count to the site's own <code>/api/fares</code> function, and watching a trip stores that route server-side so the daily check can run. Your wallet — cards and balances — never leaves the browser.</p>
+      <p class="step-body">Built in Cowork, by design. The Input Card, scoring engine, and every output section run as plain JavaScript in your browser. Two things leave it, both stated plainly: a fare search sends the route, dates, cabin, and traveler count to the site's own <code>/api/fares</code> function, and watching a trip stores that route server-side so the daily check can run. Your wallet, cards and balances, never leaves the browser.</p>
 
       <div class="mode-grid">
         <div class="mode-card tint-a">
@@ -110,7 +110,7 @@
             <line x1="348" y1="73" x2="370" y2="73" stroke="#a8a597" stroke-width="1.5" marker-end="url(#tiArr)"/>
             <line x1="530" y1="73" x2="552" y2="73" stroke="#a8a597" stroke-width="1.5" marker-end="url(#tiArr)"/>
 
-            <text x="360" y="162" text-anchor="middle" font-size="10.5" font-style="italic" fill="#82869a">no terminal in this stack — Cowork carries the build role, the browser carries the run role</text>
+            <text x="360" y="162" text-anchor="middle" font-size="10.5" font-style="italic" fill="#82869a">no terminal in this stack: Cowork carries the build role, the browser carries the run role</text>
           </g>
         </svg>
         <figcaption>Which mode carries which responsibility.</figcaption>
@@ -118,19 +118,19 @@
     </div>
 
     <div class="step" id="data">
-      <div><span class="step-num">02</span><span class="step-title">Reference ranges, not a live search — and labeled as such</span></div>
-      <p class="step-body">Fares have exactly one mode: real. Every run pulls live Google Flights fares through the site's own backend, merges in any fares scanned from your own Kayak or Booking searches (each carries a labeled source pill), and scores them with the engine below. If nothing real comes back, the site says so and shows no figures at all — the old synthetic fallback model was deleted in July 2026, on the principle that a plausible invented number is worse than an honest empty state. Flight-time estimates for offers that omit a duration come from real great-circle geometry (a hand-maintained city coordinates table). Mileage figures are hand-maintained, distance-scaled planning ranges — award availability is not searched yet. Upgrade-friendliness scores are a general reputation judgment per carrier, not a live seat map.</p>
-      <p class="step-body">One class of numbers is different, and labeled differently: the Points Intelligence panel. Point valuations (which airline's miles are worth the most in cents per point) and active transfer bonuses are real published figures from The Points Guy's monthly valuations, hand-copied with their date shown in the UI, and refreshed by hand each month. They're facts with a timestamp, not a model output — and not a live feed either, which is why the as-of date is always displayed next to them.</p>
+      <div><span class="step-num">02</span><span class="step-title">Reference ranges, not a live search, and labeled as such</span></div>
+      <p class="step-body">Fares have exactly one mode: real. Every run pulls live Google Flights fares through the site's own backend, merges in any fares scanned from your own Kayak or Booking searches (each carries a labeled source pill), and scores them with the engine below. If nothing real comes back, the site says so and shows no figures at all: the old synthetic fallback model was deleted in July 2026, on the principle that a plausible invented number is worse than an honest empty state. Flight-time estimates for offers that omit a duration come from real great-circle geometry (a hand-maintained city coordinates table). Mileage figures are hand-maintained, distance-scaled planning ranges, since award availability is not searched yet. Upgrade-friendliness scores are a general reputation judgment per carrier, not a live seat map.</p>
+      <p class="step-body">One class of numbers is different, and labeled differently: the Points Intelligence panel. Point valuations (which airline's miles are worth the most in cents per point) and active transfer bonuses are real published figures from The Points Guy's monthly valuations, hand-copied with their date shown in the UI, and refreshed by hand each month. They're facts with a timestamp, not a model output, and not a live feed either, which is why the as-of date is always displayed next to them.</p>
     </div>
 
     <div class="step" id="scoring">
-      <div><span class="step-num">03</span><span class="step-title">Seven dimensions, weighted by your ranking — never a single variable</span></div>
-      <p class="step-body">Every candidate itinerary is scored 0 to 100 on Cost, Comfort, Upgrade Potential, Award Value, Flexibility, Risk, and Time. Your ranked priority list, from Cheapest to Best Overall Experience, maps onto those seven dimensions through a fixed weighting table: a rank-1 priority carries more weight than a rank-7 one. The final score is a weighted sum, shown on the results page as an explicit percentage per dimension, so the reasoning behind the recommendation is never reduced to a single number. Time was added 2026-07-25, after Fastest and Cheapest returned the same pick on a route where every offer had one stop &mdash; Risk only scored stop count, so there was nothing left for "fastest" to actually rank by.</p>
+      <div><span class="step-num">03</span><span class="step-title">Seven dimensions, weighted by your ranking, never a single variable</span></div>
+      <p class="step-body">Every candidate itinerary is scored 0 to 100 on Cost, Comfort, Upgrade Potential, Award Value, Flexibility, Risk, and Time. Your ranked priority list, from Cheapest to Best Overall Experience, maps onto those seven dimensions through a fixed weighting table: a rank-1 priority carries more weight than a rank-7 one. The final score is a weighted sum, shown on the results page as an explicit percentage per dimension, so the reasoning behind the recommendation is never reduced to a single number. Time was added 2026-07-25, after Fastest and Cheapest returned the same pick on a route where every offer had one stop: Risk only scored stop count, so there was nothing left for "fastest" to actually rank by.</p>
 
       <div class="callout-row">
         <div class="callout good">
           <p class="callout-kicker">Always shown</p>
-          <p>The exact weight (as a %) each of the seven dimensions received, computed live from your priority ranking &mdash; not a fixed default.</p>
+          <p>The exact weight (as a %) each of the seven dimensions received, computed live from your priority ranking, not a fixed default.</p>
         </div>
         <div class="callout bad">
           <p class="callout-kicker">Never done</p>
@@ -143,17 +143,17 @@
 dimWeight[d] = &Sigma; (priorityVector[priority][d] &times; rankWeight[priority])
                &mdash; then normalized so all 7 weights sum to 1
 score        = &Sigma; (dimensionScore[d] &times; dimWeight[d])  for d in the 7 dimensions</code></pre>
-      <p class="step-body">For example, under "Best Overall Experience" &mdash; the default lens most results are viewed through &mdash; the fixed vector is Cost 1.4, Comfort 0.5, Upgrade 0.4, Award 0.3, Flexibility 0.3, Risk 0.3, Time 0.2. Cost was raised from 0.3 to 1.4 on 2026-07-19, a direct, documented judgment call: an earlier version had a $2,400 nonstop beating a $1,300 one-stop under "Best Overall," which didn't hold up as a real recommendation. The new weight was tuned against that exact case and pinned by a regression test, so it can't silently drift back.</p>
+      <p class="step-body">For example, under "Best Overall Experience" (the default lens most results are viewed through), the fixed vector is Cost 1.4, Comfort 0.5, Upgrade 0.4, Award 0.3, Flexibility 0.3, Risk 0.3, Time 0.2. Cost was raised from 0.3 to 1.4 on 2026-07-19, a direct, documented judgment call: an earlier version had a $2,400 nonstop beating a $1,300 one-stop under "Best Overall," which didn't hold up as a real recommendation. The new weight was tuned against that exact case and pinned by a regression test, so it can't silently drift back.</p>
     </div>
 
     <div class="step" id="snapshot">
       <div><span class="step-num">04</span><span class="step-title">One class of numbers is still a model</span></div>
-      <p class="step-body">This site states plainly what's real. Fare prices are always real — the live Google Flights feed and/or your own Kayak/Booking scans, as labeled — or absent. Mileage and award figures are NOT live: they're hand-maintained, distance-scaled planning ranges, because award availability isn't searched yet. And the scoring itself is deterministic: the same inputs and the same fares produce the same result, by design, not randomized.</p>
+      <p class="step-body">This site states plainly what's real. Fare prices are always real, either the live Google Flights feed and/or your own Kayak/Booking scans (as labeled), or absent. Mileage and award figures are NOT live: they're hand-maintained, distance-scaled planning ranges, because award availability isn't searched yet. And the scoring itself is deterministic: the same inputs and the same fares produce the same result, by design, not randomized.</p>
     </div>
 
     <div class="step" id="deploy">
-      <div><span class="step-num">05</span><span class="step-title">Push to main, Netlify deploys — three small Functions, nothing more</span></div>
-      <p class="step-body">The code lives in an ordinary GitHub repository, and every push to the main version auto-publishes to the live site with no manual step. The backend is deliberately tiny: three small, single-purpose pieces of code (<code>fares</code> — the live search, <code>watch</code> — the watched-trips list, <code>watch-check</code> — the daily automatic re-check) and nothing else. No extra framework, no build step, no database beyond one simple storage service. Radical simplicity is the standing rule here: a feature that needs more infrastructure has to earn it.</p>
+      <div><span class="step-num">05</span><span class="step-title">Push to main, Netlify deploys: three small Functions, nothing more</span></div>
+      <p class="step-body">The code lives in an ordinary GitHub repository, and every push to the main version auto-publishes to the live site with no manual step. The backend is deliberately tiny: three small, single-purpose pieces of code (<code>fares</code>, the live search; <code>watch</code>, the watched-trips list; <code>watch-check</code>, the daily automatic re-check) and nothing else. No extra framework, no build step, no database beyond one simple storage service. Radical simplicity is the standing rule here: a feature that needs more infrastructure has to earn it.</p>
 
       <figure class="diagram">
         <svg viewBox="0 0 720 150" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Claude and Cowork build the static site and push to GitHub, Netlify auto-deploys, and the live site runs the scoring engine entirely in the visitor's browser">
@@ -183,7 +183,7 @@ score        = &Sigma; (dimensionScore[d] &times; dimWeight[d])  for d in the 7 
             <line x1="348" y1="51" x2="376" y2="51" stroke="#a8a597" stroke-width="1.5" marker-end="url(#tiArr2)"/>
             <line x1="528" y1="51" x2="556" y2="51" stroke="#a8a597" stroke-width="1.5" marker-end="url(#tiArr2)"/>
 
-            <text x="360" y="122" text-anchor="middle" font-size="10.5" font-style="italic" fill="#82869a">the engine ships in the static bundle — the only server calls are the fare search and the watcher</text>
+            <text x="360" y="122" text-anchor="middle" font-size="10.5" font-style="italic" fill="#82869a">the engine ships in the static bundle: the only server calls are the fare search and the watcher</text>
           </g>
         </svg>
         <figcaption>The real deploy path today.</figcaption>
@@ -191,8 +191,8 @@ score        = &Sigma; (dimensionScore[d] &times; dimWeight[d])  for d in the 7 
     </div>
 
     <div class="step" id="manual">
-      <div><span class="step-num">06</span><span class="step-title">What's still manual — and what's still missing</span></div>
-      <p class="step-body">Award-space search is the largest remaining data gap — mileage figures are planning ranges, never availability checks. The watcher now does the daily fare-watching automatically (capped at three trips because each check spends one metered search — raising that cap, or adding email/push alerts, needs a new credential or quota decision and therefore Susan's explicit approval, the same rule as all real spend). Saved memory covers the wallet and watched trips; other inputs still reset each session. The TPG valuation and transfer-bonus tables remain a manual monthly refresh — copied by hand with their date shown, so a stale month is visible rather than silent.</p>
+      <div><span class="step-num">06</span><span class="step-title">What's still manual, and what's still missing</span></div>
+      <p class="step-body">Award-space search is the largest remaining data gap: mileage figures are planning ranges, never availability checks. The watcher now does the daily fare-watching automatically (capped at three trips because each check spends one metered search; raising that cap, or adding email/push alerts, needs a new credential or quota decision and therefore Susan's explicit approval, the same rule as all real spend). Saved memory covers the wallet and watched trips; other inputs still reset each session. The TPG valuation and transfer-bonus tables remain a manual monthly refresh, copied by hand with their date shown, so a stale month is visible rather than silent.</p>
     </div>
 
     <div class="card" style="margin-top:1.5rem;">
