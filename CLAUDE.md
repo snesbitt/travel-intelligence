@@ -109,7 +109,7 @@ not just a demo. Hold every future change to that standard.
   every fare beyond ~1.5× budget scored an identical 4, so Cost stopped
   discriminating on expensive routes (caught in this build's e2e
   review; regression-tested, charter ANA case still holds).
-- Backend: three live Netlify Functions, not static-only —
+- Backend: four live Netlify Functions, not static-only —
   `netlify/functions/fares.mjs` (live fare search proxy to SerpApi, with
   a 15-min result cache keyed by search params — reuses the
   `watched-trips` blob store under a `farecache-` prefix to protect the
@@ -118,11 +118,13 @@ not just a demo. Hold every future change to that standard.
   `isCacheFresh`, `CACHE_TTL_MS` — and covered by `tests/fares.test.mjs`,
   12 assertions, no network/blobs mocking needed since `@netlify/blobs`
   is imported dynamically inside the handler rather than at module
-  top-level), `watch.mjs` (Blobs-backed watched-trips store), and
-  `watch-check.mjs` (daily scheduled re-search of watched trips).
-  Scoring itself still runs client-side in `app.js` against either live
-  offers or the modeled
-  reference data — the Functions supply data, not scoring.
+  top-level), `scan-offers.mjs` (`/api/scan-offers`, stores Kayak/Booking
+  fares scanned from Susan's own logged-in browser, under a
+  `scanoffers-` prefix in the same store), `watch.mjs` (Blobs-backed
+  watched-trips store), and `watch-check.mjs` (daily scheduled re-search
+  of watched trips). Scoring itself still runs client-side in `app.js`
+  against live offers only — the seeded-RNG modeled fallback was deleted
+  2026-07-26 (see above) — the Functions supply data, not scoring.
 - Frontend: `index.html` is the Input Card + results, importing the pure
   scoring logic from `app.js` via a plain `<script>` tag (no build step,
   no bundler).
@@ -248,14 +250,17 @@ Trip purpose is Vacation / Business / Both only.
 
 ### The watcher spends quota on a schedule — cap is a spend decision
 
-2026-07-20: `watch.mjs` caps watched trips at 2 (lowered from 3) and
-`watch-check.mjs` re-searches each at most once per day (~60
+2026-07-26 (current state, reversing the 2026-07-20 decision at Susan's
+direct request): `watch.mjs` caps watched trips at 3 and
+`watch-check.mjs` re-searches each at most once per day (~90
 searches/month at the cap, against the real 100/month free tier — see
 the quota-math comment at the top of watch.mjs for the exact accounting;
-that leaves ~40/month of comfortable headroom for manual runs, versus
-~10/month at the old cap of 3). Raising the cap, adding email/push
-alerts (needs a new credential), or increasing frequency are quota/spend
-decisions — Susan's call, never the agent's. The watcher
+that leaves only ~10/month of headroom for manual runs — tight, and the
+trade Susan chose knowingly). The cap was briefly lowered to 2
+(2026-07-20 → 2026-07-26: ~60/month for the watcher, ~40/month
+headroom) before being raised back to 3. Raising the cap further, adding
+email/push alerts (needs a new credential), or increasing frequency are
+quota/spend decisions — Susan's call, never the agent's. The watcher
 records the live fare FLOOR (cheapest offer), not the engine's weighted
 winner, and the UI labels it exactly that way — don't blur that line.
 Watched trips store routes and dates only, never wallet data.
@@ -389,7 +394,7 @@ network) — and per the standing rule in ~/Projects/CLAUDE.md, every
   Susan's browser in three formats and none prefill (their bot-challenge
   strips the route) — Booking-scanned rows deliberately fall back to the
   Google Flights link. Never ship an unverified deep-link format.
-- **Tests**: 61 green (app 44, fares 12, scan 5) — the old model-mode tests
+- **Tests**: 65 green (app 48, fares 12, scan 5) — the old model-mode tests
   now exercise the live path; new tests pin the `noLiveData` contract and
   the offers-all-filtered case.
 

@@ -63,7 +63,7 @@ a one-off demo.
 - The fare watcher: "Watch this trip" saves a route (max 3, stored in
   Netlify Blobs via `/api/watch`); a scheduled function
   (`watch-check.mjs`, daily 14:00 UTC) re-searches each watched trip, one
-  live search per trip per day (~60/month at the cap), and the homepage
+  live search per trip per day (~90/month at the cap), and the homepage
   Watched Trips card shows the live fare floor with day-over-day deltas. Alerts are in-app; email/push would need a new credential and
   is deliberately unwired.
 - Upgrade plan → calendar: one click exports the dated upgrade timeline
