@@ -32,10 +32,10 @@
   <div class="wrap">
     <p class="eyebrow">About · an agentic project</p>
     <h1 class="page-title">A travel decision framework, not a fare search tool.</h1>
-    <p class="lede">This tool evaluates the full decision behind a trip: cost, comfort, upgrade potential, award value, flexibility, and risk, each weighted by what matters most to you on that specific trip. It does not simply find the cheapest fare. Give it the trip and what's in your wallet, from miles and points to cards, and it tells you what to book, and why.</p>
+    <p class="lede">This tool evaluates the full decision behind a trip: cost, comfort, upgrade potential, award value, flexibility, risk, and time, each weighted by what matters most to you on that specific trip. It does not simply find the cheapest fare. Give it the trip and what's in your wallet, from miles and points to cards, and it tells you what to book, and why.</p>
 
     <div class="stat-strip">
-      <div class="stat-tile"><div class="stat-num">6</div><div class="stat-label">scored dimensions</div></div>
+      <div class="stat-tile"><div class="stat-num">7</div><div class="stat-label">scored dimensions</div></div>
       <div class="stat-tile"><div class="stat-num">7</div><div class="stat-label">weighted priorities</div></div>
       <div class="stat-tile"><div class="stat-num">0</div><div class="stat-label">accounts or logins</div></div>
       <div class="stat-tile"><div class="stat-num">v2</div><div class="stat-label">live Google Flights fares</div></div>
@@ -57,14 +57,14 @@
 
     <div class="about-section" id="the-stack">
       <div class="about-section-head"><span class="about-num-badge">02</span><h3>the stack</h3></div>
-      <p>Static HTML with a deterministic, client-side scoring engine, plus one Netlify Function: <code>/api/fares</code>, which searches real Google Flights fares (via SerpApi) on every run and hands them to the same scoring framework. Trip inputs go to that function only when you run a search; your saved wallet never leaves the browser. Mileage and award figures remain hand-maintained, distance-scaled planning ranges; award availability is not yet searched, and the UI labels them as such wherever they appear. Here's what that adds up to today:</p>
+      <p>Under the hood, this is a simple site: plain web pages that run the same scoring engine in your browser every time, so the same trip and the same fares always produce the same answer, never a random guess. Four small pieces of server code handle what a browser can't do alone: one searches live fares (<code>/api/fares</code>), one saves a route you ask it to watch, one re-checks those watched routes daily, and one stores fares you scan yourself from Kayak or Booking. Trip details reach the fare search only when you run one; your saved wallet never leaves your browser. Mileage and award figures remain hand-maintained, distance-scaled planning ranges; award availability is not yet searched, and the UI labels them as such wherever they appear. Here's what that adds up to today:</p>
 
       <div class="stack-col this-site">
         <h4>This site, today</h4>
         <ul>
-          <li>Static pages + three single-file Netlify Functions, no build step</li>
-          <li>Live Google Flights fares (SerpApi) with an honest modeled fallback</li>
-          <li>Daily scheduled health check &amp; watched-trips backups</li>
+          <li>Static pages, four small server functions, no build step</li>
+          <li>Live Google Flights fares, plus fares you scan yourself from Kayak or Booking</li>
+          <li>Daily fare re-check for watched trips, with a health status log</li>
           <li>GitHub repo, auto-deploy on push</li>
         </ul>
       </div>
@@ -85,7 +85,7 @@
         </div>
         <div class="page-card">
           <h4>Decision Framework</h4>
-          <p>The six scored dimensions, each shown with the exact weight your priority ranking assigned to it. The weighting is never hidden.</p>
+          <p>The seven scored dimensions, each shown with the exact weight your priority ranking assigned to it. The weighting is never hidden.</p>
         </div>
         <div class="page-card">
           <h4>Strategy blocks</h4>
@@ -105,7 +105,7 @@
         <li>Will not present a reference-range price or mileage figure as a live quote. Every number on this site is labeled for what it is.</li>
         <li>Will not recommend redeeming miles unless the computed value clears a genuinely strong threshold, about 1.6 cents per mile. See the Award Strategy section for the underlying logic.</li>
         <li>Will not optimize for a single variable. A lower price does not win if it costs too much on the dimensions you ranked higher.</li>
-        <li>No accounts, no passwords, no analytics or third-party tracking. Nothing leaves your device.</li>
+        <li>No accounts, no passwords, no analytics or third-party tracking. Your saved wallet never leaves your device.</li>
       </ul>
     </div>
   </div>

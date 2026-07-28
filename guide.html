@@ -152,8 +152,8 @@ score        = &Sigma; (dimensionScore[d] &times; dimWeight[d])  for d in the 7 
     </div>
 
     <div class="step" id="deploy">
-      <div><span class="step-num">05</span><span class="step-title">Push to main, Netlify deploys: three small Functions, nothing more</span></div>
-      <p class="step-body">The code lives in an ordinary GitHub repository, and every push to the main version auto-publishes to the live site with no manual step. The backend is deliberately tiny: three small, single-purpose pieces of code (<code>fares</code>, the live search; <code>watch</code>, the watched-trips list; <code>watch-check</code>, the daily automatic re-check) and nothing else. No extra framework, no build step, no database beyond one simple storage service. Radical simplicity is the standing rule here: a feature that needs more infrastructure has to earn it.</p>
+      <div><span class="step-num">05</span><span class="step-title">Push to main, Netlify deploys: four small Functions, nothing more</span></div>
+      <p class="step-body">The code lives in an ordinary GitHub repository, and every push to the main version auto-publishes to the live site with no manual step. The backend is deliberately tiny: four small, single-purpose pieces of code (<code>fares</code>, the live search; <code>watch</code>, the watched-trips list; <code>watch-check</code>, the daily automatic re-check; <code>scan-offers</code>, storing fares you scan yourself from Kayak or Booking) and nothing else. No extra framework, no build step, no database beyond one simple storage service. Radical simplicity is the standing rule here: a feature that needs more infrastructure has to earn it.</p>
 
       <figure class="diagram">
         <svg viewBox="0 0 720 150" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Claude and Cowork build the static site and push to GitHub, Netlify auto-deploys, and the live site runs the scoring engine entirely in the visitor's browser">

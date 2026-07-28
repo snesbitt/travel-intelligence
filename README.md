@@ -2,8 +2,8 @@
 
 Personal Travel Optimization Agent for Susan. Not a flight search tool,
 but a system that optimizes the whole travel decision (cost, comfort,
-upgrade potential, award value, flexibility, risk) against a ranked list
-of what actually matters on a given trip.
+upgrade potential, award value, flexibility, risk, time) against a ranked
+list of what actually matters on a given trip.
 
 Sibling project to [The Fitness Log](https://thefitnesslog.org), [The
 Streaming Scout](https://streamingscout.org), and Vinyl Scout, sharing the
@@ -116,12 +116,14 @@ No build step. Serve the directory and open it:
 
 ```bash
 npm run dev     # serves on :8888
-npm test        # runs tests/app.test.js (scoring functions) and tests/fares.test.mjs (fare cache/TTL)
+npm test        # runs tests/app.test.js (scoring), tests/fares.test.mjs
+                 # (fare cache/TTL), and tests/scan.test.mjs (scan validation)
 ```
 
 ## Deploy
 
 Push to main on github.com/snesbitt/travel-intelligence and Netlify
-auto-deploys, publishing static pages plus the three Functions (`fares`,
-`watch`, `watch-check`). `SERPAPI_KEY` lives in Netlify env vars; without it the
-site runs in labeled demo mode.
+auto-deploys, publishing static pages plus the four Functions (`fares`,
+`watch`, `watch-check`, `scan-offers`). `SERPAPI_KEY` lives in Netlify env
+vars; without it, fare search returns no live results and the site says
+so plainly rather than showing a guess.

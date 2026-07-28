@@ -32,7 +32,7 @@
   <div class="wrap">
     <p class="eyebrow">Roadmap · built in deliberate phases</p>
     <h1 class="page-title">Travel Intelligence is one build old.</h1>
-    <p class="lede">Phase 1 is live: the full input card, the six-dimension scoring engine, and every output page, deployed as a static site. What's next is listed honestly below, including the parts that require your explicit go-ahead before they happen.</p>
+    <p class="lede">Phase 1 is live: the full input card, the seven-dimension scoring engine, and every output page, deployed as a static site. What's next is listed honestly below, including the parts that require your explicit go-ahead before they happen.</p>
 
     <nav class="roadmap-overview" aria-label="All phases at a glance">
       <a href="#phase-01" class="ro-chip ro-live"><span class="ro-dot" aria-hidden="true">●</span>01 optimization engine</a>
@@ -55,7 +55,7 @@
         <span class="phase-title">the optimization engine</span>
         <span class="phase-status live">Live</span>
       </div>
-      <p class="phase-body">A deterministic, client-side scoring model: every candidate itinerary is scored 0–100 on Cost, Comfort, Upgrade Potential, Award Value, Flexibility, and Risk, weighted by your ranked priority list. Outputs an Executive Summary, Best Recommendation, Top Five Alternatives comparison table, Upgrade Strategy, Award Strategy (with a genuinely-strong redemption bar, not a blanket "use your miles"), Purchase Timing, and 5–8 input-specific Travel Advisor Insights.</p>
+      <p class="phase-body">A deterministic, client-side scoring model: every candidate itinerary is scored 0–100 on Cost, Comfort, Upgrade Potential, Award Value, Flexibility, Risk, and Time, weighted by your ranked priority list. Outputs an Executive Summary, Best Recommendation, Top Five Alternatives comparison table, Upgrade Strategy, Award Strategy (with a genuinely-strong redemption bar, not a blanket "use your miles"), Purchase Timing, and 5–8 input-specific Travel Advisor Insights.</p>
       <p class="phase-value">Every recommendation explains its own weighting instead of hiding behind a single score.</p>
       <ul class="phase-log">
         <li><span class="lg-date">JUL 2026</span>Built the full Input Card: trip details, flight preferences, ranked optimization priority, credit cards, 13 airline loyalty programs, and airport flexibility. This matches the fields specified in the original agent brief.</li>
@@ -111,7 +111,7 @@
         <span class="phase-title">live fare &amp; award data</span>
         <span class="phase-status live">Live (fares + scans)</span>
       </div>
-      <p class="phase-body">Live fares are running: a Netlify Function (<code>/api/fares</code>) searches real Google Flights results via SerpApi on every run, and the frontend scores them through the same six-dimension engine. The credential was created and installed by Susan directly; credentials and spend are never taken on the agent's behalf. If the backend is ever unreachable, the site falls back to the documented model and says so in the banner rather than failing silently. Award-space search (seats.aero-style availability) is the remaining data gap.</p>
+      <p class="phase-body">Live fares are running: a small server function searches real Google Flights results on every run, merges in any fares you've scanned yourself from Kayak or Booking, and scores them through the same seven-dimension engine. The credential was created and installed by Susan directly; credentials and spend are never taken on the agent's behalf. If nothing real comes back for a route, the site says so plainly and shows no numbers, rather than guessing. Award-space search (seats.aero-style availability) is the remaining data gap.</p>
       <p class="phase-value">The recommendation stops being a documented estimate and becomes a real, bookable answer.</p>
       <ul class="phase-log">
         <li><span class="lg-date">JUL 2026</span>Shipped the fare backend. Live offers are scored by the identical weighting engine: real prices, same legible framework. If the backend is unconfigured, the site returns an honest 503 fallback rather than failing silently. Flight times and fare scaling in model mode were also corrected to derive from real great-circle distances, so a nonstop to Rome reads about 12 hours, not a fabricated short-haul number.</li>
