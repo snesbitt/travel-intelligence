@@ -392,3 +392,7 @@ network) — and per the standing rule in ~/Projects/CLAUDE.md, every
 - **Tests**: 61 green (app 44, fares 12, scan 5) — the old model-mode tests
   now exercise the live path; new tests pin the `noLiveData` contract and
   the offers-all-filtered case.
+
+## Editorial standard
+
+Editorial standard for external-facing docs: see ~/Projects/project-hub/EDITORIAL_STYLE.md (added 2026-07-28). Also re-verify dimension/Function counts against app.js when touching docs; they drift.
