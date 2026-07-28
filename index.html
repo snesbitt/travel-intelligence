@@ -2,8 +2,8 @@
 <html lang="en"><head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Travel Intelligence — Personal Travel Optimization Agent</title>
-<meta name="description" content="Optimizes every decision in a trip — not just the airfare — balancing cost, comfort, upgrade potential, and award value.">
+<title>Travel Intelligence · Personal Travel Optimization Agent</title>
+<meta name="description" content="Optimizes every decision in a trip, not just the airfare: balancing cost, comfort, upgrade potential, and award value.">
 <link rel="manifest" href="manifest.json">
 <link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
 <link rel="icon" href="icons/favicon-32.png" sizes="32x32">
@@ -34,7 +34,7 @@
 
 <main>
   <div class="wrap">
-    <h1 class="page-title" style="margin-bottom:0.4rem;">Every travel decision, optimized — not just the fare.</h1>
+    <h1 class="page-title" style="margin-bottom:0.4rem;">Every travel decision, optimized. Not just the fare.</h1>
 
     <section class="block card ti-hidden" id="watched" aria-live="polite">
       <h2 class="card-title">Watched trips</h2>
@@ -90,12 +90,12 @@
       <!-- 2026-07-26 radical simplicity: four essential fields above; every
            refinement folds away here and the open/closed state persists. -->
       <details class="refine" id="refine">
-        <summary>Refine — airports, travelers, cabin, airlines, budget, wallet</summary>
+        <summary>Refine: airports, travelers, cabin, airlines, budget, wallet</summary>
 
       <section class="block card" id="trip-more">
         <h2 class="card-title">Trip details</h2>
         <div class="form-grid">
-          <div class="form-field"><label for="viaCity">Via — stopover city (optional)</label><input type="text" id="viaCity" placeholder="e.g. Osaka — routes the trip through it"></div>
+          <div class="form-field"><label for="viaCity">Via: stopover city (optional)</label><input type="text" id="viaCity" placeholder="e.g. Osaka (routes the trip through it)"></div>
           <div class="form-field"><label for="preferredAirport">Preferred departure airport</label><input type="text" id="preferredAirport" placeholder="e.g. SFO" value="SFO"></div>
           <div class="form-field"><label for="airportFlexibility">Nearby airports you'd consider</label><input type="text" id="airportFlexibility" placeholder="e.g. SFO, SJC, OAK" value="SFO, SJC, OAK"></div>
           <div class="form-field"><label>Travelers</label>
@@ -118,7 +118,7 @@
 
       <section class="block card" id="preferences">
         <h2 class="card-title">Flight preferences <span class="form-hint" id="prefs-status" style="font-weight:400;"></span></h2>
-        <p class="form-hint" style="margin-bottom:10px;">Everything in this card auto-saves to this browser and reloads next visit — nothing leaves your device. Cabin, stops, airlines, alliances, times, and travel style all feed the optimizer and its suggestions; preferred seat and hotel brand are saved for reference only (this site doesn't score seats or hotels).</p>
+        <p class="form-hint" style="margin-bottom:10px;">Everything in this card auto-saves to this browser and reloads next visit; nothing leaves your device. Cabin, stops, airlines, alliances, times, and travel style all feed the optimizer and its suggestions; preferred seat and hotel brand are saved for reference only (this site doesn't score seats or hotels).</p>
         <div class="form-field">
           <label>Cabin</label>
           <div class="pill-toggle" data-group="cabin">
@@ -158,7 +158,7 @@
           </div>
         </div>
         <div class="form-field" style="margin-top:12px;">
-          <label>Preferred alliances (optional — leave all unselected to consider every carrier)</label>
+          <label>Preferred alliances (optional; leave all unselected to consider every carrier)</label>
           <div class="check-grid">
             <label class="check-row"><input type="checkbox" class="alliance-check" value="Star Alliance"> Star Alliance <span class="form-hint">(United, Air Canada, Lufthansa, Singapore, ANA, Turkish)</span></label>
             <label class="check-row"><input type="checkbox" class="alliance-check" value="Oneworld"> Oneworld <span class="form-hint">(American, JAL, British Airways, Qatar, Cathay Pacific, Qantas)</span></label>
@@ -167,7 +167,7 @@
           </div>
         </div>
         <div class="form-field" style="margin-top:12px;">
-          <label for="upgradeWinInput">Log an upgrade win (optional) — a saved history the insights check against future recommendations</label>
+          <label for="upgradeWinInput">Log an upgrade win (optional): a saved history the insights check against future recommendations</label>
           <div style="display:flex;gap:8px;flex-wrap:wrap;">
             <input type="text" id="upgradeWinInput" placeholder="e.g. United SFO–NRT, bid $400, landed Business" style="flex:1;min-width:220px;">
             <button type="button" class="ti-toggle" id="log-upgrade-win">Log it</button>
@@ -222,7 +222,7 @@
 
     <section class="block" id="results" style="margin-top:0.9rem;" aria-live="polite">
       <div class="empty-state es-idle">
-        <p>✈&nbsp; Fill in your trip and run the optimization — executive summary, best pick, and the five alternatives it beat.</p>
+        <p>✈&nbsp; Fill in your trip and run the optimization to get the executive summary, best pick, and the five alternatives it beat.</p>
       </div>
     </section>
 
@@ -297,7 +297,7 @@
   }
   function showWalletStatus(iso, verb) {
     const d = new Date(iso);
-    walletStatus.textContent = isNaN(d) ? "" : `· ${verb} ${d.toLocaleDateString("en-US", { month: "short", day: "numeric" })} — edit anytime, changes save automatically`;
+    walletStatus.textContent = isNaN(d) ? "" : `· ${verb} ${d.toLocaleDateString("en-US", { month: "short", day: "numeric" })} · edit anytime, changes save automatically`;
   }
   /* ---------- travelers stepper ---------- */
   (function () {
@@ -321,10 +321,10 @@
     const current = document.getElementById("priorityPrimary").value;
     const currentSec = document.getElementById("prioritySecondary").value;
     if (current === s.primary && currentSec === s.secondary) {
-      el.innerHTML = `Suggested for this trip: <strong>${s.primary}</strong> + <strong>${s.secondary}</strong> — ${s.reason} <span style="color:var(--good,#3f6b4f);">✓ applied</span>`;
+      el.innerHTML = `Suggested for this trip: <strong>${s.primary}</strong> + <strong>${s.secondary}</strong>: ${s.reason} <span style="color:var(--good,#3f6b4f);">✓ applied</span>`;
       return;
     }
-    el.innerHTML = `Suggested for this trip: <strong>${s.primary}</strong> + <strong>${s.secondary}</strong> — ${s.reason} <button type="button" class="ti-toggle" style="margin-top:6px;" onclick="tiApplySuggestion('${s.primary}','${s.secondary}')">Apply</button>`;
+    el.innerHTML = `Suggested for this trip: <strong>${s.primary}</strong> + <strong>${s.secondary}</strong>: ${s.reason} <button type="button" class="ti-toggle" style="margin-top:6px;" onclick="tiApplySuggestion('${s.primary}','${s.secondary}')">Apply</button>`;
   }
   window.tiApplySuggestion = function (p, sec) {
     document.getElementById("priorityPrimary").value = p;
@@ -416,7 +416,7 @@
   }
   function showPrefsStatus(iso, verb) {
     const d = new Date(iso);
-    prefsStatus.textContent = isNaN(d) ? "" : `· ${verb} ${d.toLocaleDateString("en-US", { month: "short", day: "numeric" })} — edit anytime, changes save automatically`;
+    prefsStatus.textContent = isNaN(d) ? "" : `· ${verb} ${d.toLocaleDateString("en-US", { month: "short", day: "numeric" })} · edit anytime, changes save automatically`;
   }
 
   /* ---------- upgrade wins: small append-only log, newest first, collapses
@@ -425,7 +425,7 @@
     const list = document.getElementById("upgrade-win-list");
     const toggle = document.getElementById("upgrade-win-toggle");
     if (!upgradeWins.length) {
-      list.innerHTML = `<li style="border-top:none;">No upgrade wins logged yet — log one after a successful bid, miles+copay, or gate upgrade, and future insights will check for it.</li>`;
+      list.innerHTML = `<li style="border-top:none;">No upgrade wins logged yet. Log one after a successful bid, miles+copay, or gate upgrade, and future insights will check for it.</li>`;
       toggle.classList.add("ti-hidden");
       return;
     }
@@ -627,17 +627,17 @@
     const n = daysOut(inputs.departDate);
     const opens = new Date(new Date(inputs.departDate + "T12:00:00") - BOOKING_HORIZON_DAYS * 86400000);
     const opensStr = opens.toLocaleDateString("en-US", { month: "long", day: "numeric", year: "numeric" });
-    return `your departure is ${n} days away, and airlines only publish fares ~${BOOKING_HORIZON_DAYS} days ahead — no airline has loaded these dates yet. Fares for this trip should start appearing around ${opensStr}.`;
+    return `your departure is ${n} days away, and airlines only publish fares ~${BOOKING_HORIZON_DAYS} days ahead; no airline has loaded these dates yet. Fares for this trip should start appearing around ${opensStr}.`;
   }
 
   const FALLBACK_REASONS = {
-    "via": (inputs) => `via/stopover routings aren't wired to the live search yet — remove the via city (${inputs.viaCity}) to search this route live.`,
-    "unknown-dest": (inputs) => `"${inputs.destination}" isn't in the city table — check the spelling (e.g. Bangkok, not Bankok) or use a 3-letter airport code.`,
-    "unknown-origin": (inputs) => `"${inputs.preferredAirport || inputs.origin}" isn't a recognized origin — use a city from the table or a 3-letter airport code.`,
-    "no-date": () => `no departure date set — add one to search live fares.`,
-    "not-configured": () => `demo mode — the live backend awaits its API credential.`,
+    "via": (inputs) => `via/stopover routings aren't wired to the live search yet; remove the via city (${inputs.viaCity}) to search this route live.`,
+    "unknown-dest": (inputs) => `"${inputs.destination}" isn't in the city table; check the spelling (e.g. Bangkok, not Bankok) or use a 3-letter airport code.`,
+    "unknown-origin": (inputs) => `"${inputs.preferredAirport || inputs.origin}" isn't a recognized origin; use a city from the table or a 3-letter airport code.`,
+    "no-date": () => `no departure date set; add one to search live fares.`,
+    "not-configured": () => `demo mode: the live backend awaits its API credential.`,
     "no-offers": () => `the live search returned no offers for this route/date.`,
-    "api-fail": () => `the live search failed or timed out — re-run to retry.`,
+    "api-fail": () => `the live search failed or timed out; re-run to retry.`,
   };
 
   form.addEventListener("submit", async (e) => {
@@ -647,7 +647,7 @@
     if (inputs.returnDate && inputs.departDate && inputs.returnDate < inputs.departDate) {
       resultsEl.innerHTML = `<div class="empty-state"><div class="es-icon">⚠</div>
         <p><strong>Return date (${inputs.returnDate}) is before departure (${inputs.departDate}).</strong></p>
-        <p class="form-hint">No search was run — an inverted range can never return real fares. Fix the dates and re-run.</p></div>`;
+        <p class="form-hint">No search was run: an inverted range can never return real fares. Fix the dates and re-run.</p></div>`;
       document.getElementById("results").scrollIntoView({ behavior: "smooth", block: "start" });
       return;
     }
@@ -656,7 +656,7 @@
     // 2026-07-26 (Susan hit a cold-route timeout): a slow first SerpApi call
     // is transient — retry once, saying so, before ever giving up.
     if (!live.data && live.reason === "api-fail" && daysOut(inputs.departDate) <= BOOKING_HORIZON_DAYS) {
-      resultsEl.innerHTML = '<div class="empty-state es-searching"><p>Slow response — retrying… <span class="form-hint">cold routes can take a second attempt</span></p></div>';
+      resultsEl.innerHTML = '<div class="empty-state es-searching"><p>Slow response, retrying… <span class="form-hint">cold routes can take a second attempt</span></p></div>';
       live = await fetchLiveOffers(inputs);
     }
     const scans = await fetchScanOffers(inputs);
@@ -752,7 +752,7 @@
         </div>`;
       resultsEl.innerHTML = `<div class="empty-state es-error"><div class="es-icon">⚠</div>
         <p><strong>${badField ? `The ${badField} didn’t resolve to a known city or airport.` : `No real fares to score for ${oCode} → ${dCode}: ${why}`}</strong></p>
-        <p class="form-hint">${badField ? "Check the spelling or use a 3-letter airport code (e.g. GSP for Greenville, SC), then re-run." : "Nothing synthetic is ever shown — retry, or check the live route yourself:"}</p>
+        <p class="form-hint">${badField ? "Check the spelling or use a 3-letter airport code (e.g. GSP for Greenville, SC), then re-run." : "Nothing synthetic is ever shown. Retry, or check the live route yourself:"}</p>
         ${actions}</div>`;
       document.getElementById("results").scrollIntoView({ behavior: "smooth", block: "start" });
       return;
@@ -766,10 +766,10 @@
     const trav = inputs.travelers || 1;
     const totalCash = best.price * trav;
     const execSummary = `If this were my own trip, I'd book the ${best.cabin} fare on ${best.carrier}` +
-      `${best.stops === 0 ? " nonstop" : ` with ${best.stops} stop${best.stops > 1 ? "s" : ""}`} for ${T.fmtUSD(best.price)} per person${trav > 1 ? ` (${T.fmtUSD(totalCash)} total for ${trav} travelers)` : ""} — ` +
-      `it comes out ahead on the priorities you ranked highest, not just on price. ` +
+      `${best.stops === 0 ? " nonstop" : ` with ${best.stops} stop${best.stops > 1 ? "s" : ""}`} for ${T.fmtUSD(best.price)} per person${trav > 1 ? ` (${T.fmtUSD(totalCash)} total for ${trav} travelers)` : ""}. ` +
+      `It comes out ahead on the priorities you ranked highest, not just on price. ` +
       (timing.verdict === "buy" ? `Purchase timing favors booking now rather than waiting. ` : timing.verdict === "wait" ? `Purchase timing favors waiting and watching for a better window before locking it in. ` : `It's early enough that I'd set a fare watch rather than transact today. `) +
-      (award.strong ? `Your miles balance is a genuinely strong redemption here (${award.cpp.toFixed(2)}¢/mile) — worth booking with points instead of cash.` : `Paying cash beats redeeming miles here (${award.cpp.toFixed(2)}¢/mile) — save the balance for a stronger redemption.`);
+      (award.strong ? `Your miles balance is a genuinely strong redemption here (${award.cpp.toFixed(2)}¢/mile); worth booking with points instead of cash.` : `Paying cash beats redeeming miles here (${award.cpp.toFixed(2)}¢/mile); save the balance for a stronger redemption.`);
 
     const SORTS = {
       "Weighted score": (a, b) => b.weighted - a.weighted,
@@ -825,7 +825,7 @@
     resultsEl.innerHTML = `
       <div class="card block" style="display:flex;align-items:flex-end;gap:14px;flex-wrap:wrap;">
         <div class="form-field" style="flex:1;min-width:220px;max-width:320px;">
-          <label for="results-optimize">Optimize for — re-weights these results live</label>
+          <label for="results-optimize">Optimize for (re-weights these results live)</label>
           <select id="results-optimize" onchange="tiReoptimize(this.value)">
             ${PRIORITIES.map((p) => `<option${currentPrimary && currentPrimary[0] === p ? " selected" : ""}>${p}</option>`).join("")}
           </select>
@@ -834,7 +834,7 @@
           <button type="button" class="ti-toggle" id="watch-btn" onclick="tiWatchTrip(this)">⭑ Watch this trip</button>
           <button type="button" class="ti-toggle" onclick="tiExportIcs()">Upgrade plan → calendar (.ics)</button>
         </div>
-        <p class="form-hint" style="flex:2;min-width:200px;margin-bottom:6px;"><strong>Live fares</strong> retrieved ${window.__tiLastLive && window.__tiLastLive.retrievedAt ? new Date(window.__tiLastLive.retrievedAt).toLocaleString("en-US", { month: "short", day: "numeric", hour: "numeric", minute: "2-digit" }) : "just now"} via ${window.__tiLastLive && window.__tiLastLive.provider ? window.__tiLastLive.provider : "the live backend"} — real prices, scored by the same engine. Same shortlist, different lens — switching recomputes every weight and re-ranks instantly, no re-run needed. ${trav > 1 ? `Pricing shown per person; totals for ${trav} travelers alongside.` : ""}</p>
+        <p class="form-hint" style="flex:2;min-width:200px;margin-bottom:6px;"><strong>Live fares</strong> retrieved ${window.__tiLastLive && window.__tiLastLive.retrievedAt ? new Date(window.__tiLastLive.retrievedAt).toLocaleString("en-US", { month: "short", day: "numeric", hour: "numeric", minute: "2-digit" }) : "just now"} via ${window.__tiLastLive && window.__tiLastLive.provider ? window.__tiLastLive.provider : "the live backend"}: real prices, scored by the same engine. Same shortlist, different lens: switching recomputes every weight and re-ranks instantly, no re-run needed. ${trav > 1 ? `Pricing shown per person; totals for ${trav} travelers alongside.` : ""}</p>
       </div>
 
       <h3 class="eyebrow" style="margin:0 0 0.5rem;" id="exec">Executive summary</h3>
@@ -850,7 +850,7 @@
           <div class="rec-price-block">
             <div class="rec-price">${best.payWith === "miles" ? `~${(best.milesEst / 1000).toFixed(0)}k mi + ${T.fmtUSD(best.feesEst)}` : T.fmtUSD(best.price)}</div>
             <div class="rec-price-sub">round-trip per person, ${best.cabin} · pay with <strong>${best.payWith}</strong></div>
-            <div class="rec-price-sub">${best.payWith === "miles" ? `or ${T.fmtUSD(best.price)} cash` : `or ~${(best.milesEst / 1000).toFixed(0)}k miles + ${T.fmtUSD(best.feesEst)} (${best.candCpp.toFixed(1)}¢/mi — below the 1.6¢ bar)`}</div>
+            <div class="rec-price-sub">${best.payWith === "miles" ? `or ${T.fmtUSD(best.price)} cash` : `or ~${(best.milesEst / 1000).toFixed(0)}k miles + ${T.fmtUSD(best.feesEst)} (${best.candCpp.toFixed(1)}¢/mi, below the 1.6¢ bar)`}</div>
             ${trav > 1 ? `<div class="rec-price-sub"><strong>× ${trav} travelers:</strong> ${best.payWith === "miles" ? `~${((best.milesEst * trav) / 1000).toFixed(0)}k mi + ${T.fmtUSD(best.feesEst * trav)}` : T.fmtUSD(best.price * trav)} total</div>` : ""}
           </div>
         </div>
@@ -860,10 +860,10 @@
           <div class="rec-detail"><div class="rd-label">Fare type</div><div class="rd-val">${best.fareTier}</div></div>
           <div class="rec-detail"><div class="rd-label">${best.live ? (best.availLabel || "Availability") : "Aircraft"}</div><div class="rd-val">${best.aircraft}</div></div>
         </div>
-        <div class="rec-why"><strong>Why it wins:</strong> highest weighted score (${best.weighted.toFixed(0)}/100) against the priorities you ranked — see the breakdown below for exactly how each dimension was weighted.${(() => {
+        <div class="rec-why"><strong>Why it wins:</strong> highest weighted score (${best.weighted.toFixed(0)}/100) against the priorities you ranked; see the breakdown below for exactly how each dimension was weighted.${(() => {
           const cheapest = result.candidates.slice().sort((a, b) => a.price - b.price)[0];
           if (!cheapest || cheapest.id === best.id || cheapest.price >= best.price) return "";
-          return ` <span class="form-hint">Cheapest in the set: ${cheapest.carrier} at ${T.fmtUSD(cheapest.price)} (${cheapest.stops === 0 ? "nonstop" : cheapest.stops + " stop" + (cheapest.stops > 1 ? "s" : "")}${cheapest.travelMinutes ? ", " + fmtTime(cheapest.travelMinutes) : ""}) — it scored lower on your higher-ranked priorities; sort the table by price to compare.</span>`;
+          return ` <span class="form-hint">Cheapest in the set: ${cheapest.carrier} at ${T.fmtUSD(cheapest.price)} (${cheapest.stops === 0 ? "nonstop" : cheapest.stops + " stop" + (cheapest.stops > 1 ? "s" : "")}${cheapest.travelMinutes ? ", " + fmtTime(cheapest.travelMinutes) : ""}). It scored lower on your higher-ranked priorities; sort the table by price to compare.</span>`;
         })()}</div>
       </div>
 
@@ -887,36 +887,36 @@
           <thead><tr><th>Carrier</th><th>Cabin</th><th>Stops</th><th>Time</th><th>Cash</th><th>Miles (est)</th><th>Score</th></tr></thead>
           <tbody id="alt-tbody">${altRows}</tbody>
         </table>
-        <p class="form-hint" style="margin-top:8px;">Prices are per person${trav > 1 ? ` — multiply by ${trav} for your party` : ""}. Miles column is an estimated planning range per candidate (not an award-space check); "pay miles/cash" flips at the 1.6¢-per-mile bar. Award seats are the constraint for groups: programs rarely release ${trav > 1 ? trav + "+" : "many"} award seats on one flight, so for parties consider splitting across two bookings.</p>
+        <p class="form-hint" style="margin-top:8px;">Prices are per person${trav > 1 ? `; multiply by ${trav} for your party` : ""}. Miles column is an estimated planning range per candidate (not an award-space check); "pay miles/cash" flips at the 1.6¢-per-mile bar. Award seats are the constraint for groups: programs rarely release ${trav > 1 ? trav + "+" : "many"} award seats on one flight, so for parties consider splitting across two bookings.</p>
       </div>
 
       <h3 class="eyebrow" style="margin:0 0 0.5rem;">Upgrade strategy</h3>
       <div class="card block">
         <div class="strategy-block">
           <h4>Complimentary / mileage upgrade likelihood <span class="tag" style="background:${upgradeLikely === "High" ? "var(--good-dim)" : upgradeLikely === "Moderate" ? "var(--mid-dim)" : "var(--bad-dim)"};color:${upgradeLikely === "High" ? "var(--good)" : upgradeLikely === "Moderate" ? "var(--mid)" : "var(--bad)"};">${upgradeLikely}</span></h4>
-          <p>${best.carrier} scores ${Math.round(best.scores.Upgrade)}/100 on upgrade friendliness in this model, based on its general reputation for complimentary and mileage upgrades — not a live seat-map check. Typical buy-up cost from ${best.cabin}: ${upgradeCostGuess}.</p>
+          <p>${best.carrier} scores ${Math.round(best.scores.Upgrade)}/100 on upgrade friendliness in this model, based on its general reputation for complimentary and mileage upgrades, not a live seat-map check. Typical buy-up cost from ${best.cabin}: ${upgradeCostGuess}.</p>
         </div>
         ${result.tactics.map((t, i) => `
         <div class="strategy-block ${i >= 3 ? "tac-extra ti-hidden" : ""}">
           <h4><span class="in-num" style="margin-right:6px;">${String(i + 1).padStart(2, "0")}</span>${t.title} <span class="tag" style="background:var(--mid-dim);color:var(--mid);white-space:nowrap;">${t.when}</span></h4>
           <p>${t.detail}</p>
         </div>`).join("")}
-        ${result.tactics.length > 3 ? `<button type="button" class="ti-toggle" aria-expanded="false" onclick="var ex=this.parentElement.querySelectorAll('.tac-extra');var hidden=ex[0].classList.contains('ti-hidden');ex.forEach(e=>e.classList.toggle('ti-hidden',!hidden));this.setAttribute('aria-expanded',hidden?'true':'false');this.textContent=hidden?'Collapse the timeline ▴':'Show the full timeline — ${result.tactics.length - 3} more steps ▾';">Show the full timeline — ${result.tactics.length - 3} more steps ▾</button>` : ""}
+        ${result.tactics.length > 3 ? `<button type="button" class="ti-toggle" aria-expanded="false" onclick="var ex=this.parentElement.querySelectorAll('.tac-extra');var hidden=ex[0].classList.contains('ti-hidden');ex.forEach(e=>e.classList.toggle('ti-hidden',!hidden));this.setAttribute('aria-expanded',hidden?'true':'false');this.textContent=hidden?'Collapse the timeline ▴':'Show the full timeline (${result.tactics.length - 3} more steps) ▾';">Show the full timeline (${result.tactics.length - 3} more steps) ▾</button>` : ""}
       </div>
 
       <h3 class="eyebrow" style="margin:0 0 0.5rem;">Award strategy</h3>
       <div class="card block">
         <div class="strategy-block">
           <h4>Redemption value <span class="tag" style="background:${award.strong ? "var(--good-dim)" : "var(--bad-dim)"};color:${award.strong ? "var(--good)" : "var(--bad)"};">${award.strong ? "Genuinely strong" : "Not recommended"}</span></h4>
-          <p>Typical ${award.cabin} redemption on ${award.alliance} carriers runs ${award.milesLow.toLocaleString()}–${award.milesHigh.toLocaleString()} miles round-trip plus taxes/fees. Against this itinerary's ${T.fmtUSD(best.price)} cash price, the outcome depends on which award level is released: roughly ${Math.max(0, award.cppWorstCase).toFixed(1)}–${award.cppBestCase.toFixed(1)}¢ per mile across the range, and <strong>${award.cpp.toFixed(2)}¢/mile</strong> at this itinerary's estimate — the single verdict used everywhere on this page. ${award.strong ? "That clears the 1.6¢ bar for a genuinely good redemption — worth using miles here, if award space exists." : "That's below the roughly 1.6¢/mile bar — cash is the better call, and the miles are worth more saved for a stronger use."}</p>
+          <p>Typical ${award.cabin} redemption on ${award.alliance} carriers runs ${award.milesLow.toLocaleString()}–${award.milesHigh.toLocaleString()} miles round-trip plus taxes/fees. Against this itinerary's ${T.fmtUSD(best.price)} cash price, the outcome depends on which award level is released: roughly ${Math.max(0, award.cppWorstCase).toFixed(1)}–${award.cppBestCase.toFixed(1)}¢ per mile across the range, and <strong>${award.cpp.toFixed(2)}¢/mile</strong> at this itinerary's estimate: the single verdict used everywhere on this page. ${award.strong ? "That clears the 1.6¢ bar for a genuinely good redemption; worth using miles here, if award space exists." : "That's below the roughly 1.6¢/mile bar; cash is the better call, and the miles are worth more saved for a stronger use."}</p>
         </div>
         ${award.relevantPrograms.length ? `<div class="strategy-block"><h4>Your balances in play</h4><p>${award.relevantPrograms.map((p) => `${p.program}: ${p.balance.toLocaleString()} miles`).join(" · ")}</p></div>` : `<div class="strategy-block"><h4>No balance entered for a ${award.alliance} program</h4><p>Add a balance above if you hold miles in a program that flies this alliance, or check the transfer-partner note below if your points live on a transferable card.</p></div>`}
         ${inputs.creditCards.length ? `<div class="strategy-block"><h4>Transfer path from your cards</h4><p>${inputs.creditCards.map((cc) => T.TRANSFER_PARTNERS[cc] ? `<strong>${cc}</strong> (${T.TRANSFER_PARTNERS[cc].ratio}): ${T.TRANSFER_PARTNERS[cc].note}.` : "").filter(Boolean).join(" ")}</p></div>` : ""}
         <div class="strategy-block">
           <h4>Do this now</h4>
           <p>${award.strong
-            ? `Award space is the constraint, not the math — check live availability on <a class="pick-open" href="https://seats.aero/search?origin_airport=${encodeURIComponent(T.toIATA(inputs.preferredAirport) || T.toIATA(inputs.origin) || "")}&destination_airport=${encodeURIComponent(T.toIATA(inputs.destination) || "")}" target="_blank" rel="noopener">seats.aero ↗</a> for ${T.toIATA(inputs.preferredAirport) || inputs.origin}→${T.toIATA(inputs.destination) || inputs.destination} before transferring anything. Transfers are one-way doors: confirm the award seat exists, then move the points, then book the same day.`
-            : `Skip the redemption here — book cash and credit the flight to the program whose points TPG values highest among your balances (see Points Intelligence below). Re-check the award math if a transfer bonus above covers this alliance.`}</p>
+            ? `Award space is the constraint, not the math. Check live availability on <a class="pick-open" href="https://seats.aero/search?origin_airport=${encodeURIComponent(T.toIATA(inputs.preferredAirport) || T.toIATA(inputs.origin) || "")}&destination_airport=${encodeURIComponent(T.toIATA(inputs.destination) || "")}" target="_blank" rel="noopener">seats.aero ↗</a> for ${T.toIATA(inputs.preferredAirport) || inputs.origin}→${T.toIATA(inputs.destination) || inputs.destination} before transferring anything. Transfers are one-way doors: confirm the award seat exists, then move the points, then book the same day.`
+            : `Skip the redemption here: book cash and credit the flight to the program whose points TPG values highest among your balances (see Points Intelligence below). Re-check the award math if a transfer bonus above covers this alliance.`}</p>
         </div>
       </div>
 
@@ -925,12 +925,12 @@
         ${(() => {
           const pi = T.priceIntelligence(window.__tiLastLive && window.__tiLastLive.priceInsights, trav);
           if (!pi) return `<div style="margin-bottom:8px;">${timingBadge(timing)}</div>
-        <p style="font-size:12.5px;">${timing.reason} <span class="form-hint">(booking-window heuristic — Google published no price insight for this route.)</span></p>`;
+        <p style="font-size:12.5px;">${timing.reason} <span class="form-hint">(booking-window heuristic; Google published no price insight for this route.)</span></p>`;
           const rangeTxt = pi.range ? `typical ${fmtUSD(pi.range[0])}–${fmtUSD(pi.range[1])} per person` : "no typical range published";
           const nowTxt = pi.perPerson != null ? `Today's floor: <strong>${fmtUSD(pi.perPerson)}</strong> per person` : "";
           const deltaTxt = pi.deltaPct != null ? ` (${pi.deltaPct > 0 ? "+" : ""}${pi.deltaPct}% vs the typical midpoint)` : "";
           const hist = pi.history ? sparkline(pi.history.map((p) => Array.isArray(p) ? p[1] : null).filter(Boolean), 160, 30) : "";
-          return `<div style="margin-bottom:8px;"><span class="timing-badge ${pi.cls}">${pi.level === "low" ? "Deal — below typical" : pi.level === "high" ? "Above typical" : "Typical price"}</span></div>
+          return `<div style="margin-bottom:8px;"><span class="timing-badge ${pi.cls}">${pi.level === "low" ? "Deal: below typical" : pi.level === "high" ? "Above typical" : "Typical price"}</span></div>
         <p style="font-size:12.5px;"><strong>Google's own price data for this route:</strong> ${nowTxt}${deltaTxt} · ${rangeTxt}. ${pi.verdict}</p>
         ${hist ? `<div style="margin:2px 0 4px;">${hist} <span class="form-hint">route price history (Google Flights)</span></div>` : ""}
         <p style="font-size:12px;" class="form-hint">Booking-window heuristic for context: ${timing.reason}</p>`;
@@ -942,7 +942,7 @@
             const d = T.toIATA(inputs.destination) || inputs.destination;
             const gf = `https://www.google.com/travel/flights?q=${encodeURIComponent(`Flights from ${o} to ${d} on ${inputs.departDate}${inputs.returnDate ? ` through ${inputs.returnDate}` : ""}`)}`;
             if (timing.verdict === "buy") return `<a class="pick-open" href="${gf}" target="_blank" rel="noopener">Open Google Flights ↗</a> and cross-check today's real price against this shortlist, then book directly with ${best.carrier} (direct bookings are far easier to change or get upgraded than OTA bookings).`;
-            return `<a class="pick-open" href="${gf}" target="_blank" rel="noopener">Open Google Flights ↗</a>, turn on <strong>price tracking</strong> for these exact dates (one click, emails you on drops), and set a calendar reminder to re-run this optimizer in 2–3 weeks. Don't check manually every day — let the alert do the watching.`;
+            return `<a class="pick-open" href="${gf}" target="_blank" rel="noopener">Open Google Flights ↗</a>, turn on <strong>price tracking</strong> for these exact dates (one click, emails you on drops), and set a calendar reminder to re-run this optimizer in 2–3 weeks. Don't check manually every day; let the alert do the watching.`;
           })()}</p>
         </div>
       </div>
@@ -984,14 +984,14 @@
       : `<div class="strategy-block"><p>Check the cards you hold in Your Wallet above and this section shows the transfer map for exactly those currencies.</p></div>`;
 
     const bonusRows = T.TRANSFER_BONUSES.map((b) => `
-      <div class="strategy-block"><h4>${b.from} → ${b.to} <span class="tag" style="background:var(--good-dim);color:var(--good);">+${b.bonus}</span></h4><p>Ends ${b.ends}. A 30% bonus turns 100k points into 130k miles — if a redemption below was borderline, an active bonus is usually what tips it.</p></div>`).join("");
+      <div class="strategy-block"><h4>${b.from} → ${b.to} <span class="tag" style="background:var(--good-dim);color:var(--good);">+${b.bonus}</span></h4><p>Ends ${b.ends}. A 30% bonus turns 100k points into 130k miles; if a redemption below was borderline, an active bonus is usually what tips it.</p></div>`).join("");
 
     document.getElementById("points-intel").innerHTML = `
       <h3 class="eyebrow" style="margin:0 0 0.5rem;">Points intelligence</h3>
       <div class="card block">
         <div class="strategy-block">
           <h4>Which airline's points are worth the most right now</h4>
-          <p class="form-hint">Source: The Points Guy monthly valuations, ${V.asOf}. Hand-copied, dated, refreshed monthly — not a live feed.</p>
+          <p class="form-hint">Source: The Points Guy monthly valuations, ${V.asOf}. Hand-copied, dated, refreshed monthly, not a live feed.</p>
         </div>
         <div class="score-grid">${airlineRows}</div>
         <button type="button" class="ti-toggle" aria-expanded="false" onclick="var ex=this.parentElement.querySelectorAll('.pi-extra');var hidden=ex[0]&&ex[0].classList.contains('ti-hidden');ex.forEach(e=>e.classList.toggle('ti-hidden',!hidden));this.setAttribute('aria-expanded',hidden?'true':'false');this.textContent=hidden?'Show top 6 only ▴':'Show all ${airlines.length} programs ▾';">Show all ${airlines.length} programs ▾</button>
@@ -1015,9 +1015,9 @@
     if (!inputs) return;
     const o = T.toIATA(inputs.preferredAirport) || T.toIATA(inputs.origin);
     const d = T.toIATA(inputs.destination);
-    if (!o || !d) { btn.textContent = "Can't watch — unknown airport"; return; }
+    if (!o || !d) { btn.textContent = "Can't watch: unknown airport"; return; }
     if (inputs.returnDate && inputs.departDate && inputs.returnDate < inputs.departDate) {
-      btn.textContent = "Can't watch — return date is before departure";
+      btn.textContent = "Can't watch: return date is before departure";
       return;
     }
     const best = window.__tiLastBest;
@@ -1034,10 +1034,10 @@
         } }),
       });
       const j = await r.json();
-      if (!r.ok) { btn.textContent = j.error && j.error.includes("cap") ? "Watch cap reached (3)" : "Watch failed — retry"; return; }
+      if (!r.ok) { btn.textContent = j.error && j.error.includes("cap") ? "Watch cap reached (3)" : "Watch failed; retry"; return; }
       btn.textContent = "Watching ✓";
       renderWatched(j.trips);
-    } catch (e) { btn.textContent = "Watch failed — offline?"; }
+    } catch (e) { btn.textContent = "Watch failed (offline?)"; }
   };
 
   // "May 31, 2027" — noon anchor avoids timezone off-by-one on bare dates
@@ -1127,7 +1127,7 @@
         const card = document.getElementById("watched");
         card.classList.remove("ti-hidden");
         document.getElementById("watched-rows").insertAdjacentHTML("afterbegin",
-          `<p class="form-hint" style="color:var(--bad,#a24a3f);">⚠ The last scheduled health check failed (${new Date(j.health.at).toLocaleDateString("en-US", { month: "short", day: "numeric" })}) — the fares backend may be down; watched-trip checks may have been skipped.</p>`);
+          `<p class="form-hint" style="color:var(--bad,#a24a3f);">⚠ The last scheduled health check failed (${new Date(j.health.at).toLocaleDateString("en-US", { month: "short", day: "numeric" })}): the fares backend may be down; watched-trip checks may have been skipped.</p>`);
       }
     } catch (e) { /* backend absent — card stays hidden */ }
   })();
@@ -1145,10 +1145,10 @@
     const route = `${T.displayCity(inputs.origin)} → ${inputs.viaCity ? T.displayCity(inputs.viaCity) + " → " : ""}${T.displayCity(inputs.destination)}`;
     const esc = (s) => String(s).replace(/<[^>]+>/g, "").replace(/[\\;,]/g, " ").replace(/\n/g, " ");
     const events = [
-      { date: d(4), title: `Place upgrade bid — ${route}`, desc: "Bid 20–40% of the fare gap, slightly above the minimum. Windows close 48–72h out on most carriers." },
-      { date: d(3), title: `Check premium-cabin seat map — ${route}`, desc: "Mostly empty: leave the bid. Nearly full: cancel or lower it and pivot to the check-in play." },
-      { date: d(1), title: `Check in the minute it opens — ${route}`, desc: "Look for the flat-price counter-offer at online check-in; otherwise ask the desk agent about paid upgrades." },
-      { date: d(0), title: `Departure — last upgrade ask at the gate — ${route}`, desc: "If the cabin shows open seats, ask the gate agent once, early in boarding prep." },
+      { date: d(4), title: `Place upgrade bid · ${route}`, desc: "Bid 20–40% of the fare gap, slightly above the minimum. Windows close 48–72h out on most carriers." },
+      { date: d(3), title: `Check premium-cabin seat map · ${route}`, desc: "Mostly empty: leave the bid. Nearly full: cancel or lower it and pivot to the check-in play." },
+      { date: d(1), title: `Check in the minute it opens · ${route}`, desc: "Look for the flat-price counter-offer at online check-in; otherwise ask the desk agent about paid upgrades." },
+      { date: d(0), title: `Departure · last upgrade ask at the gate · ${route}`, desc: "If the cabin shows open seats, ask the gate agent once, early in boarding prep." },
     ];
     const stamp = new Date().toISOString().replace(/[-:]/g, "").slice(0, 15) + "Z";
     const ics = ["BEGIN:VCALENDAR", "VERSION:2.0", "PRODID:-//Travel Intelligence//upgrade-plan//EN",

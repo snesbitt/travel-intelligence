@@ -52,12 +52,12 @@ const CABIN_COMFORT_BASE = { Economy: 38, "Premium Economy": 58, Business: 85, F
 
 const TRANSFER_PARTNERS = {
   "American Express Membership Rewards": { ratio: "1:1", value: 2.0, note: "transfers to most Star Alliance and Oneworld programs, plus Delta, Flying Blue, Virgin Atlantic, ANA, Avianca LifeMiles" },
-  "Chase Ultimate Rewards": { ratio: "1:1", value: 2.05, note: "transfers to United, Air Canada Aeroplan, Air France/KLM Flying Blue, Virgin Atlantic, Singapore, British Airways — no American or Delta" },
+  "Chase Ultimate Rewards": { ratio: "1:1", value: 2.05, note: "transfers to United, Air Canada Aeroplan, Air France/KLM Flying Blue, Virgin Atlantic, Singapore, British Airways; no American or Delta" },
   "Capital One": { ratio: "1:1 (most partners)", value: 1.85, note: "transfers to Air Canada Aeroplan, Turkish, Avianca LifeMiles, Air France/KLM, Cathay, EVA" },
   "Citi ThankYou": { ratio: "1:1 (most partners)", value: 1.9, note: "transfers to Turkish, Air France/KLM, Avianca LifeMiles, Qatar Avios" },
-  "Bilt Rewards": { ratio: "1:1", value: 2.2, note: "transfers to United, American, Air France/KLM, Turkish, Alaska — the only major card that transfers to American, and TPG's highest-valued currency" },
+  "Bilt Rewards": { ratio: "1:1", value: 2.2, note: "transfers to United, American, Air France/KLM, Turkish, Alaska; the only major card that transfers to American, and TPG's highest-valued currency" },
   "Wells Fargo": { ratio: "1:1", value: 1.75, note: "transfers to Air France/KLM, Avianca LifeMiles, Virgin Atlantic" },
-  "Marriott Bonvoy": { ratio: "3:1 (plus a 5,000 bonus per 60k converted)", value: 0.8, note: "weak ratio for flights — hotel points converted to air are rarely a good redemption" },
+  "Marriott Bonvoy": { ratio: "3:1 (plus a 5,000 bonus per 60k converted)", value: 0.8, note: "weak ratio for flights; hotel points converted to air are rarely a good redemption" },
 };
 
 // TPG's published monthly valuations, July 2026 issue (thepointsguy.com/
@@ -443,7 +443,7 @@ const PRIORITY_WEIGHTS = {
 };
 
 const DIMENSIONS = ["Cost", "Comfort", "Upgrade", "Award", "Flexibility", "Risk", "Time"];
-const DIM_LABEL = { Cost: "Cost", Comfort: "Comfort", Upgrade: "Upgrade Potential", Award: "Award Value", Flexibility: "Flexibility", Risk: "Risk (inverted — higher = lower risk)", Time: "Travel time (higher = faster)" };
+const DIM_LABEL = { Cost: "Cost", Comfort: "Comfort", Upgrade: "Upgrade Potential", Award: "Award Value", Flexibility: "Flexibility", Risk: "Risk (inverted: higher = lower risk)", Time: "Travel time (higher = faster)" };
 
 function clamp(n, lo, hi) { return Math.max(lo, Math.min(hi, n)); }
 function fmtUSD(n) { return "$" + Math.round(n).toLocaleString("en-US"); }
@@ -586,7 +586,7 @@ function suggestPriorities(inputs) {
 
   if (tightBudget) {
     return { primary: "Cheapest", secondary: longHaul ? "Best Value" : "Best Overall Experience",
-      reason: `your $${inputs.maxBudget.toLocaleString()} budget sits below the ~$${typicalFare.toLocaleString()} typical ${inputs.cabin} fare for this ${kmStr} route — price has to lead.` };
+      reason: `your $${inputs.maxBudget.toLocaleString()} budget sits below the ~$${typicalFare.toLocaleString()} typical ${inputs.cabin} fare for this ${kmStr} route; price has to lead.` };
   }
   if ((inputs.cabin === "Economy" || inputs.cabin === "Best Value") && longHaul && milesUseful) {
     return { primary: "Best Upgrade Opportunity", secondary: "Best Use of Miles",
@@ -594,17 +594,17 @@ function suggestPriorities(inputs) {
   }
   if ((inputs.cabin === "Economy" || inputs.cabin === "Best Value") && longHaul) {
     return { primary: "Best Overall Experience", secondary: "Most Comfortable",
-      reason: `${kmStr} is a long day in Economy — comfort (nonstops, better carriers) is worth weighting alongside the rounded view.` };
+      reason: `${kmStr} is a long day in Economy; comfort (nonstops, better carriers) is worth weighting alongside the rounded view.` };
   }
   if (inputs.tripPurpose === "Business" && inputs.dateFlexibility === "Exact") {
     return { primary: "Fastest", secondary: "Best Overall Experience",
-      reason: `a business trip on exact dates — total travel time and low disruption risk usually matter more than saving a little.` };
+      reason: `a business trip on exact dates; total travel time and low disruption risk usually matter more than saving a little.` };
   }
   if (inputs.cabin === "Business" || inputs.cabin === "First") {
     return { primary: "Best Value", secondary: milesUseful ? "Best Use of Miles" : "Most Comfortable",
       reason: milesUseful
-        ? `premium cabins are where redemptions run strongest — with ${biggestBalance.toLocaleString()} miles saved, value and miles are the right two lenses.`
-        : `${inputs.cabin} fares vary wildly for near-identical products on this route — value comparison beats any single dimension.` };
+        ? `premium cabins are where redemptions run strongest; with ${biggestBalance.toLocaleString()} miles saved, value and miles are the right two lenses.`
+        : `${inputs.cabin} fares vary wildly for near-identical products on this route; value comparison beats any single dimension.` };
   }
   // Saved "typical travel style" preference — applied ONLY as a fallback,
   // after every trip-specific signal above has had a chance to fire, so a
@@ -614,11 +614,11 @@ function suggestPriorities(inputs) {
   const styleFallback = travelStyleFallback(inputs.travelStyle);
   if (styleFallback) {
     return { primary: styleFallback.primary, secondary: styleFallback.secondary,
-      reason: `${styleFallback.note} — nothing about this specific trip overrides it.` };
+      reason: `${styleFallback.note}; nothing about this specific trip overrides it.` };
   }
 
   return { primary: "Best Overall Experience", secondary: "Best Value",
-    reason: `nothing about this trip forces a single dimension — the balanced lens with a value runner-up fits.` };
+    reason: `nothing about this trip forces a single dimension; the balanced lens with a value runner-up fits.` };
 }
 
 // 2026-07-21: saved preferences & trip memory, phase 07's fuller slice
@@ -627,9 +627,9 @@ function suggestPriorities(inputs) {
 // touching the six-dimension scores themselves, per "radical simplicity":
 // these personalize the SUGGESTION and the INSIGHTS, not the scoring math.
 const TRAVEL_STYLE_FALLBACK = {
-  Relaxed: { primary: "Most Comfortable", secondary: "Best Overall Experience", note: `your saved travel style is "Relaxed" — fewer connections and more buffer over price` },
-  Efficient: { primary: "Fastest", secondary: "Best Overall Experience", note: `your saved travel style is "Efficient" — minimizing total travel time` },
-  Luxury: { primary: "Best Upgrade Opportunity", secondary: "Most Comfortable", note: `your saved travel style is "Luxury" — comfort and upgrade potential over price` },
+  Relaxed: { primary: "Most Comfortable", secondary: "Best Overall Experience", note: `your saved travel style is "Relaxed": fewer connections and more buffer over price` },
+  Efficient: { primary: "Fastest", secondary: "Best Overall Experience", note: `your saved travel style is "Efficient": minimizing total travel time` },
+  Luxury: { primary: "Best Upgrade Opportunity", secondary: "Most Comfortable", note: `your saved travel style is "Luxury": comfort and upgrade potential over price` },
 };
 
 function travelStyleFallback(travelStyle) {
@@ -710,9 +710,9 @@ function priceIntelligence(insights, travelers) {
     ? insights.typicalRange.map((v) => Math.round(v / trav)) : null;
   const level = String(insights.priceLevel).toLowerCase();
   let verdict, cls;
-  if (level === "low") { verdict = "Below typical for this route — a real deal by Google's own price history. Booking now is defensible."; cls = "buy"; }
+  if (level === "low") { verdict = "Below typical for this route: a real deal by Google's own price history. Booking now is defensible."; cls = "buy"; }
   else if (level === "high") { verdict = "Above typical for this route. Unless the dates are fixed, watching for a dip beats booking today."; cls = "wait"; }
-  else { verdict = "Within the typical range for this route — no urgency signal either way; the booking-window heuristic below still applies."; cls = "monitor"; }
+  else { verdict = "Within the typical range for this route: no urgency signal either way; the booking-window heuristic below still applies."; cls = "monitor"; }
   let deltaPct = null;
   if (perPerson != null && range) {
     const mid = (range[0] + range[1]) / 2;
@@ -725,12 +725,12 @@ function purchaseTiming(inputs) {
   const depart = new Date(inputs.departDate + "T12:00:00");
   const today = new Date();
   const daysOut = Math.round((depart - today) / 86400000);
-  if (isNaN(daysOut)) return { verdict: "monitor", days: null, reason: "No valid departure date entered — set one to get a timing read." };
-  if (daysOut < 0) return { verdict: "buy", days: daysOut, reason: "Departure date is in the past — re-check the date." };
+  if (isNaN(daysOut)) return { verdict: "monitor", days: null, reason: "No valid departure date entered; set one to get a timing read." };
+  if (daysOut < 0) return { verdict: "buy", days: daysOut, reason: "Departure date is in the past; re-check the date." };
   if (daysOut <= 20) return { verdict: "buy", days: daysOut, reason: `Only ${daysOut} days out. Close-in fares typically climb from here; the risk of waiting outweighs any further discount.` };
   if (daysOut <= 60) return { verdict: "buy", days: daysOut, reason: `${daysOut} days out is inside the typical low-fare window for most routes (roughly 3–8 weeks out). Prices are more likely to drift up than down from here.` };
-  if (daysOut <= 180) return { verdict: "wait", days: daysOut, reason: `${daysOut} days out — still early. Fares this far ahead are unsettled; monitor for 2–3 weeks and set a price watch rather than booking today.` };
-  return { verdict: "monitor", days: daysOut, reason: `${daysOut} days out is very early — most airlines haven't released their real pricing yet for this window. Set an alert and revisit closer to the 4–6 month mark.` };
+  if (daysOut <= 180) return { verdict: "wait", days: daysOut, reason: `${daysOut} days out: still early. Fares this far ahead are unsettled; monitor for 2–3 weeks and set a price watch rather than booking today.` };
+  return { verdict: "monitor", days: daysOut, reason: `${daysOut} days out is very early; most airlines haven't released their real pricing yet for this window. Set an alert and revisit closer to the 4–6 month mark.` };
 }
 
 /* ---------- award recommendation ---------- */
@@ -787,7 +787,7 @@ function upgradeTactics(best, inputs) {
   const fromEconomy = best.cabin === "Economy" || best.cabin === "Best Value";
   const cabinAbove = fromEconomy ? "Business" : { "Premium Economy": "Business", Business: "First" }[best.cabin];
   if (!cabinAbove) {
-    tactics.push({ when: "Now", title: "You're booking top cabin — the play is price, not position", detail: "No upgrade path above First. Action: price Business on the same flights before paying — it's typically ~55% of the First fare for most of the experience." });
+    tactics.push({ when: "Now", title: "You're booking top cabin: the play is price, not position", detail: "No upgrade path above First. Action: price Business on the same flights before paying; it's typically ~55% of the First fare for most of the experience." });
     return tactics;
   }
 
@@ -815,9 +815,9 @@ function upgradeTactics(best, inputs) {
       when: "Your goal",
       title: `Economy → Business: three routes, priced for this trip`,
       detail: `Business outright runs ~${fmtUSD(bizPrice)} vs your ${fmtUSD(econ)} Economy fare. ` +
-        `<strong>Route 1 — the ladder (usually cheapest reliable):</strong> book Premium Economy at ~${fmtUSD(pePrice)}, then bid ${fmtUSD(ladderBidLow)}–${fmtUSD(ladderBidHigh)} for the PE→Business jump — lands Business for ~${fmtUSD(ladderLow)}–${fmtUSD(ladderHigh)} all-in, roughly ${ladderSavings}% under booking it outright, and PE is your worst case, not a middle seat. ` +
-        `<strong>Route 2 — the direct bid:</strong> stay in Economy and bid ${fmtUSD(directBidLow)}–${fmtUSD(directBidHigh)}; cheapest when it clears, but Economy→Business bids lose more often than PE→Business ones, and your fallback is the Economy seat. ` +
-        `<strong>Route 3 — miles + copay:</strong> typically ~${(upMilesLow / 1000).toFixed(0)}k–${(upMilesHigh / 1000).toFixed(0)}k miles round-trip plus a cash copay for this distance${biggestBalance >= upMilesLow ? ` — your ${biggestBalance.toLocaleString()}-mile balance covers the low end, check it first` : biggestBalance > 0 ? ` — your ${biggestBalance.toLocaleString()}-mile balance falls short of the typical range` : ""}; requires an upgradeable (non-Basic) fare and award space, so confirm before ticketing.`,
+        `<strong>Route 1, the ladder (usually cheapest reliable):</strong> book Premium Economy at ~${fmtUSD(pePrice)}, then bid ${fmtUSD(ladderBidLow)}–${fmtUSD(ladderBidHigh)} for the PE→Business jump; that lands Business for ~${fmtUSD(ladderLow)}–${fmtUSD(ladderHigh)} all-in, roughly ${ladderSavings}% under booking it outright, and PE is your worst case, not a middle seat. ` +
+        `<strong>Route 2, the direct bid:</strong> stay in Economy and bid ${fmtUSD(directBidLow)}–${fmtUSD(directBidHigh)}; cheapest when it clears, but Economy→Business bids lose more often than PE→Business ones, and your fallback is the Economy seat. ` +
+        `<strong>Route 3, miles + copay:</strong> typically ~${(upMilesLow / 1000).toFixed(0)}k–${(upMilesHigh / 1000).toFixed(0)}k miles round-trip plus a cash copay for this distance${biggestBalance >= upMilesLow ? `; your ${biggestBalance.toLocaleString()}-mile balance covers the low end, so check it first` : biggestBalance > 0 ? `; your ${biggestBalance.toLocaleString()}-mile balance falls short of the typical range` : ""}; requires an upgradeable (non-Basic) fare and award space, so confirm before ticketing.`,
     });
   }
 
@@ -832,9 +832,9 @@ function upgradeTactics(best, inputs) {
 
   tactics.push({
     when: "At booking",
-    title: fromEconomy ? `Commit to a route, then book the fare that keeps it open` : `Book Standard, not Basic — it's the entry ticket`,
+    title: fromEconomy ? `Commit to a route, then book the fare that keeps it open` : `Book Standard, not Basic: it's the entry ticket`,
     detail: fromEconomy
-      ? `Ladder route: book Premium Economy (Standard tier) directly. Bid or miles route: book Economy at the Standard tier or above — Basic fares are excluded from bids, mileage upgrades, and complimentary lists alike. Either way, immediately check two things on ${best.carrier}'s booking page: "upgrade with miles" pricing, and whether an upgrade-bid invitation appears.`
+      ? `Ladder route: book Premium Economy (Standard tier) directly. Bid or miles route: book Economy at the Standard tier or above; Basic fares are excluded from bids, mileage upgrades, and complimentary lists alike. Either way, immediately check two things on ${best.carrier}'s booking page: "upgrade with miles" pricing, and whether an upgrade-bid invitation appears.`
       : `Basic/deep-discount buckets are excluded from most upgrade paths entirely. On ${best.carrier}, book at least the Standard tier, then immediately check two things on the booking page: "upgrade with miles" pricing, and whether an upgrade-bid invitation is offered.`,
   });
   tactics.push({
@@ -845,7 +845,7 @@ function upgradeTactics(best, inputs) {
   tactics.push({
     when: bidDate ? `By ${bidDate}` : "T−4 days",
     title: `Place your bid: $${bidLow.toLocaleString()}–$${bidHigh.toLocaleString()} for ${cabinAbove}`,
-    detail: `That's 20–40% of this itinerary's modeled ~$${gap.toLocaleString()} fare gap. Bid 5–10% above the stated minimum — most people bid the exact minimum, so a small premium wins disproportionately often. Windows close 48–72h out on most carriers. Bids are per segment, per passenger.`,
+    detail: `That's 20–40% of this itinerary's modeled ~$${gap.toLocaleString()} fare gap. Bid 5–10% above the stated minimum; most people bid the exact minimum, so a small premium wins disproportionately often. Windows close 48–72h out on most carriers. Bids are per segment, per passenger.`,
   });
   tactics.push({
     when: seatMapDate ? seatMapDate : "T−3 days",
@@ -860,19 +860,19 @@ function upgradeTactics(best, inputs) {
   tactics.push({
     when: "Departure day",
     title: `Last ask at the gate`,
-    detail: `If ${cabinAbove} still shows open seats, ask the gate agent once, early in boarding prep. Undersold cabins get cleared at the gate at the steepest discounts — this costs nothing to ask.`,
+    detail: `If ${cabinAbove} still shows open seats, ask the gate agent once, early in boarding prep. Undersold cabins get cleared at the gate at the steepest discounts; this costs nothing to ask.`,
   });
   if (inputs.tripPurpose === "Business" || inputs.tripPurpose === "Both" || (inputs.travelers || 1) > 1) {
     tactics.push({
       when: "Creative play",
       title: `Split the cabin across your party`,
-      detail: `Book ONE ${cabinAbove} seat and the rest in ${best.cabin}, then trade off in-flight. For ${inputs.travelers || 2} travelers that's roughly $${Math.round(gap / (inputs.travelers || 2)).toLocaleString()} per person for everyone to get time up front — a fraction of upgrading every seat.`,
+      detail: `Book ONE ${cabinAbove} seat and the rest in ${best.cabin}, then trade off in-flight. For ${inputs.travelers || 2} travelers that's roughly $${Math.round(gap / (inputs.travelers || 2)).toLocaleString()} per person for everyone to get time up front: a fraction of upgrading every seat.`,
     });
   }
   tactics.push({
     when: "Creative play",
     title: `Price ${cabinAbove} outright from your alternate airports`,
-    detail: `Before paying ~$${gap.toLocaleString()} to upgrade, price ${cabinAbove} as a fresh booking from ${(inputs.airportFlexibility || "your alternates").split(",").map((s) => s.trim()).filter(Boolean).join(" / ") || "nearby airports"} — a different origin or one positioning hop is sometimes cheaper than the upgrade itself.`,
+    detail: `Before paying ~$${gap.toLocaleString()} to upgrade, price ${cabinAbove} as a fresh booking from ${(inputs.airportFlexibility || "your alternates").split(",").map((s) => s.trim()).filter(Boolean).join(" / ") || "nearby airports"}; a different origin or one positioning hop is sometimes cheaper than the upgrade itself.`,
   });
   return tactics;
 }
@@ -900,59 +900,59 @@ function buildInsights(inputs, candidates, best, weights, timing, usingLive) {
   if (inputs.dateFlexibility !== "Exact" && cheapest.dateOffset !== 0) {
     const savings = Math.round((best.price - cheapest.price) > 0 ? best.price - cheapest.price : Math.abs(cheapest.price * 0.08));
     const dir = cheapest.dateOffset > 0 ? "later" : "earlier";
-    insights.push(`Shifting your departure ${Math.abs(cheapest.dateOffset)} day${Math.abs(cheapest.dateOffset) === 1 ? "" : "s"} ${dir} tracks toward the lowest fare in this set — worth checking a live calendar view before locking in exact dates.`);
+    insights.push(`Shifting your departure ${Math.abs(cheapest.dateOffset)} day${Math.abs(cheapest.dateOffset) === 1 ? "" : "s"} ${dir} tracks toward the lowest fare in this set; worth checking a live calendar view before locking in exact dates.`);
   }
 
   if (best.stops === 0 && candidates.some((c) => c.stops >= 1)) {
-    insights.push(`${best.carrier} nonstop is the highest-scoring option here despite not being the cheapest — the stop-free itinerary meaningfully reduces both Risk and time cost, which matters more than a small fare gap for most travelers.`);
+    insights.push(`${best.carrier} nonstop is the highest-scoring option here despite not being the cheapest; the stop-free itinerary meaningfully reduces both Risk and time cost, which matters more than a small fare gap for most travelers.`);
   }
 
   const upgradeSorted = candidates.slice().sort((a, b) => b.scores.Upgrade - a.scores.Upgrade);
   if (upgradeSorted[0].id !== best.id && upgradeSorted[0].scores.Upgrade - best.scores.Upgrade > 15) {
-    insights.push(`${upgradeSorted[0].carrier} scores meaningfully higher on upgrade potential than ${best.carrier} on this shortlist — worth a look if a complimentary or mileage upgrade matters more to you than the small price difference.`);
+    insights.push(`${upgradeSorted[0].carrier} scores meaningfully higher on upgrade potential than ${best.carrier} on this shortlist; worth a look if a complimentary or mileage upgrade matters more to you than the small price difference.`);
   }
 
   if ((inputs.cabin === "Business" || inputs.cabin === "First") && inputs.cabin !== "Economy") {
-    insights.push(`Booking Premium Economy or a lower "upgradeable" fare bucket and buying up at check-in or via a mileage upgrade is often cheaper than booking ${inputs.cabin} outright — check ${best.carrier}'s upgrade fare rules before paying full freight.`);
+    insights.push(`Booking Premium Economy or a lower "upgradeable" fare bucket and buying up at check-in or via a mileage upgrade is often cheaper than booking ${inputs.cabin} outright; check ${best.carrier}'s upgrade fare rules before paying full freight.`);
   }
 
   if (best.fareTier === "Basic") {
-    insights.push(`The top-scoring fare is a Basic/restricted fare — expect no free changes and possibly no seat selection or overhead-bin space. If your plans could shift, the Standard fare a bit higher up may be the better real value.`);
+    insights.push(`The top-scoring fare is a Basic/restricted fare; expect no free changes and possibly no seat selection or overhead-bin space. If your plans could shift, the Standard fare a bit higher up may be the better real value.`);
   }
 
   const award = programBalancesFromInputs(inputs);
   const relevant = award.filter((p) => p.balance > 0 && ALLIANCES[best.alliance] && ALLIANCES[best.alliance].some((c) => programMatchesAlliance(p.program, best.alliance)));
   if (relevant.length === 0 && award.some((p) => p.balance > 20000)) {
-    insights.push(`You're carrying a meaningful mile balance, but none of it is in a ${best.alliance} program that flies this itinerary directly — a transferable-point transfer (see Award Strategy) is likely your best path to using it here.`);
+    insights.push(`You're carrying a meaningful mile balance, but none of it is in a ${best.alliance} program that flies this itinerary directly; a transferable-point transfer (see Award Strategy) is likely your best path to using it here.`);
   }
 
   if (destinationInAsia(inputs) && candidates.some((c) => isAsianCarrier(c.carrier))) {
-    insights.push(`Asia route: Asia-based carriers (ANA, JAL, Singapore, Cathay, EVA…) receive a +${ASIA_COMFORT_BONUS} Comfort bonus here — your standing preference for their home-market product quality, set 2026-07-19. It's visible in the Comfort scores, not a hidden adjustment.`);
+    insights.push(`Asia route: Asia-based carriers (ANA, JAL, Singapore, Cathay, EVA…) receive a +${ASIA_COMFORT_BONUS} Comfort bonus here: your standing preference for their home-market product quality, set 2026-07-19. It's visible in the Comfort scores, not a hidden adjustment.`);
   }
 
   const dislikedMatch = flagsDislikedAirport(inputs);
   if (dislikedMatch) {
-    insights.push(`You've saved "${dislikedMatch}" as an airport to avoid, and it shows up in this trip's origin/destination/via/nearby-airport fields — double-check the itinerary. (Stop count is modeled here, not specific connection airports, so this can't check a mid-trip connection — only the fields above.)`);
+    insights.push(`You've saved "${dislikedMatch}" as an airport to avoid, and it shows up in this trip's origin/destination/via/nearby-airport fields; double-check the itinerary. (Stop count is modeled here, not specific connection airports, so this can't check a mid-trip connection, only the fields above.)`);
   }
 
   const upgradeWinMatch = matchUpgradeWinCarrier(inputs.upgradeWins, best.carrier);
   if (upgradeWinMatch) {
-    insights.push(`You've logged a past upgrade win mentioning ${best.carrier} — worth trying the same play again: "${upgradeWinMatch.text}"`);
+    insights.push(`You've logged a past upgrade win mentioning ${best.carrier}; worth trying the same play again: "${upgradeWinMatch.text}"`);
   }
 
   // Purchase timing is covered by its own Purchase Strategy card — no
   // duplicate insight here (audit finding: verbatim repetition).
 
   if (inputs.airportFlexibility && inputs.airportFlexibility.split(",").map((s) => s.trim()).filter(Boolean).length > 1) {
-    insights.push(`Only your primary airport was searched live — the nearby airports you listed (${inputs.airportFlexibility}) weren't. Nearby-airport comparisons routinely beat date-shifting alone, so price the alternates on Google Flights before booking.`);
+    insights.push(`Only your primary airport was searched live; the nearby airports you listed (${inputs.airportFlexibility}) weren't. Nearby-airport comparisons routinely beat date-shifting alone, so price the alternates on Google Flights before booking.`);
   }
 
   if (best.routeKnown === false) {
-    insights.push(`Heads up: ${best.via ? `"${inputs.origin}" / "${best.via}" / "${inputs.destination}" — at least one` : `"${inputs.origin}" → "${inputs.destination}"`} isn't in the hand-maintained city table, so flight times and distance-scaled fares assume a generic 7,500 km long-haul. Add the city to CITY_COORDS in app.js for a real great-circle estimate.`);
+    insights.push(`Heads up: ${best.via ? `at least one of "${inputs.origin}" / "${best.via}" / "${inputs.destination}"` : `"${inputs.origin}" → "${inputs.destination}"`} isn't in the hand-maintained city table, so flight times and distance-scaled fares assume a generic 7,500 km long-haul. Add the city to CITY_COORDS in app.js for a real great-circle estimate.`);
   } else if (best.via && best.routeLegs) {
-    insights.push(`Routed via ${best.via}: ${best.routeLegs[0].toLocaleString()} km + ${best.routeLegs[1].toLocaleString()} km = ${best.routeKm.toLocaleString()} km each way, vs ~${(best.directKm || 0).toLocaleString()} km direct — about ${Math.max(0, Math.round(((best.routeKm - (best.directKm || best.routeKm)) / Math.max(1, best.directKm || 1)) * 100))}% extra flying for the stopover. Book it as one multi-city ticket, not two one-ways: it's usually cheaper and protects the connection if the first leg delays.`);
+    insights.push(`Routed via ${best.via}: ${best.routeLegs[0].toLocaleString()} km + ${best.routeLegs[1].toLocaleString()} km = ${best.routeKm.toLocaleString()} km each way, vs ~${(best.directKm || 0).toLocaleString()} km direct: about ${Math.max(0, Math.round(((best.routeKm - (best.directKm || best.routeKm)) / Math.max(1, best.directKm || 1)) * 100))}% extra flying for the stopover. Book it as one multi-city ticket, not two one-ways: it's usually cheaper and protects the connection if the first leg delays.`);
   } else if (best.routeKm) {
-    insights.push(`Route distance: roughly ${best.routeKm.toLocaleString()} km great-circle each way — flight times and the distance scaling on fares are computed from this geometry, not fabricated per-flight.`);
+    insights.push(`Route distance: roughly ${best.routeKm.toLocaleString()} km great-circle each way; flight times and the distance scaling on fares are computed from this geometry, not fabricated per-flight.`);
   }
 
   insights.push(`Prices in this shortlist are live quotes (Google Flights feed and/or your own Kayak scans, as labeled); mileage figures remain distance-scaled planning ranges (award space isn't searched yet). See guide.html for exactly what's live vs. estimated.`);
