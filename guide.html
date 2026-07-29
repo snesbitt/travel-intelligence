@@ -15,6 +15,42 @@
 @font-face{font-family:"Fraunces";font-style:italic;font-weight:100 900;font-display:swap;src:url(fonts/fraunces-latin-full-italic.woff2) format("woff2-variations")}
 </style>
 <link rel="stylesheet" href="style.css">
+<style>
+  /* Guide-page-only additions: Build-Your-Own section, folded in from the
+     retired start.html. Scoped to this page only; nothing here touches style.css. */
+  .prompt-box {
+    background: #24262b; border: 1px solid #454852; border-radius: 9px;
+    padding: 1.1rem 1.2rem; margin: 1.1rem 0 1.6rem; position: relative;
+  }
+  .prompt-box pre {
+    margin: 0; white-space: pre-wrap; word-wrap: break-word;
+    font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+    font-size: 12.5px; line-height: 1.6; color: #efe8db;
+  }
+  .prompt-copy {
+    position: absolute; top: 10px; right: 10px;
+    background: #efe8db; color: #24262b; border: none; border-radius: 6px;
+    font-family: -apple-system, Helvetica, sans-serif; font-size: 11px; font-weight: 700; letter-spacing: 0.03em;
+    padding: 6px 11px; cursor: pointer;
+  }
+  .prompt-copy:hover { background: #fff; }
+
+  .next-grid { display: grid; grid-template-columns: 1fr; gap: 10px; margin: 0.9rem 0 1.7rem; }
+  @media (min-width: 640px) { .next-grid { grid-template-columns: 1fr 1fr; } }
+  .next-card {
+    background: var(--card); border: 1px solid var(--border); border-left: 3px solid var(--accent);
+    border-radius: 6px; padding: 0.8rem 0.95rem;
+  }
+  .next-card .next-num { font-family: var(--serif); font-style: italic; font-weight: 600; color: var(--accent); font-size: 13px; }
+  .next-card h4 { margin: 2px 0 4px; font-size: 13px; }
+  .next-card p { margin: 0; font-size: 12px; color: var(--ink-dim); }
+
+  .need-list { list-style: none; padding: 0; margin: 0 0 1.7rem; }
+  .need-list li { display: flex; gap: 8px; font-size: 13px; padding: 6px 0; border-bottom: 1px solid var(--border); }
+  .need-list li:last-child { border-bottom: none; }
+  .need-list li::before { content: "\2022"; color: var(--good); flex-shrink: 0; }
+  .step-divider { margin: 2.4rem 0 1.6rem; border-top: 1px solid var(--border); }
+</style>
 </head><body>
 
 <header class="site-nav">
@@ -25,7 +61,6 @@
       <a href="/roadmap">Roadmap</a>
       <a class="active" href="/guide">Guide</a>
       <a href="/about">About</a>
-      <a href="/start">Build Your Own</a>
     </nav>
   </div>
 </header>
@@ -35,6 +70,10 @@
     <p class="eyebrow">How it's built · an agentic project · July 2026</p>
     <h1 class="page-title">A scoring engine, built and run by an AI agent</h1>
 
+    <p class="callout" style="margin:0 0 1.4rem;">
+      <strong>This page is the how-to:</strong> the method and the exact prompt to build a tool like this yourself, for any decision. For what this tool computes today, its stack, its data sources, read <a href="/about">About</a> instead.
+    </p>
+
     <nav class="pill-nav">
       <a href="#tools"><b>01</b>Tools</a>
       <a href="#data"><b>02</b>Data</a>
@@ -42,6 +81,7 @@
       <a href="#snapshot"><b>04</b>Snapshot</a>
       <a href="#deploy"><b>05</b>Deploy</a>
       <a href="#manual"><b>06</b>Manual</a>
+      <a href="#build-your-own">Build your own</a>
     </nav>
 
 
@@ -197,10 +237,59 @@ score        = &Sigma; (dimensionScore[d] &times; dimWeight[d])  for d in the 7 
       <p class="step-body">Award-space search is the largest remaining data gap: mileage figures are planning ranges, never availability checks. The watcher now does the daily fare-watching automatically (capped at three trips because each check spends one metered search; raising that cap, or adding email/push alerts, needs a new credential or quota decision and therefore Susan's explicit approval, the same rule as all real spend). Saved memory covers the wallet and watched trips; other inputs still reset each session. The TPG valuation and transfer-bonus tables remain a manual monthly refresh, copied by hand with their date shown, so a stale month is visible rather than silent.</p>
     </div>
 
-    <div class="card" style="margin-top:1.5rem;">
-      <p class="eyebrow">Want one of these yourself?</p>
-      <p style="margin:0;font-size:14px;">This walkthrough covers how this specific tool works. For the actual starting prompt that could kick off something similar for your own decisions, see the <a href="/start" style="text-decoration:underline;">Build Your Own</a> page.</p>
+    <div class="step-divider"></div>
+
+    <p class="eyebrow" id="build-your-own">Build your own · a starting point</p>
+    <h2 style="margin:0 0 8px;">Copy this prompt to start</h2>
+    <p class="step-body">This engine started from one written request to Claude, then grew in stages: a live fares feed, a watcher, a real domain, every irreversible step held for explicit approval along the way. Below is a version of that starting request. Copy it, adapt it to what you're actually comparing, and paste it into a new Claude conversation.</p>
+
+    <div class="prompt-box">
+      <button class="prompt-copy" id="tiCopyBtn" onclick="tiCopyPrompt()">Copy</button>
+      <pre id="tiPromptText">I want to build a personal tool that scores options I'm comparing (flights, routes, whatever the decision actually is) against what matters to me, not just price.
+
+Here's the pattern I want it to follow:
+1. Let me rank what matters to me in order (cost, comfort, flexibility, whatever my real priorities are) and weight every recommendation by that ranking, shown as an explicit breakdown per factor, never collapsed into one unexplained score.
+2. Start with a reasonable estimate model if a live data source isn't connected yet, but always label clearly on-screen which mode I'm in, modeled estimate versus real live data, and never present one as the other.
+3. Keep anything sensitive, like payment or account details, entirely local to my browser. Never sent anywhere or stored remotely.
+4. Publish it as a small, real website I can use from my phone, with the scoring logic running instantly, without waiting on a server round-trip.
+5. Let me set up a watch on something I care about, with a scheduled check that re-runs itself and tells me about a meaningful change without my having to ask.
+6. Keep the backend radically simple. A feature that needs real infrastructure has to earn it, not get added by default.
+
+Please help me scope this into a first small version we can finish today, tell me exactly what you'd need from me at each step (any account access, any purchase like a domain name, anything you can't do without my say-so), and don't do anything irreversible without checking with me first.</pre>
     </div>
+
+    <div class="next-grid">
+      <div class="next-card">
+        <div class="next-num">01</div>
+        <h4>Claude asks before it assumes</h4>
+        <p>Expect questions about what your real priorities are before any scoring gets built.</p>
+      </div>
+      <div class="next-card">
+        <div class="next-num">02</div>
+        <h4>A first version, same session</h4>
+        <p>A working, if small, scoring tool is realistic to see before the conversation ends.</p>
+      </div>
+      <div class="next-card">
+        <div class="next-num">03</div>
+        <h4>You approve anything with a consequence</h4>
+        <p>Spending money, connecting an account, or publishing something public always waits for your yes.</p>
+      </div>
+      <div class="next-card">
+        <div class="next-num">04</div>
+        <h4>It grows in later sessions</h4>
+        <p>The live fares feed, the domain, the daily watcher: all arrived after the first version, not in it. See the <a href="/roadmap">Roadmap</a> for the real order it happened in.</p>
+      </div>
+    </div>
+
+    <p class="eyebrow" style="margin-top:0.4rem;">How this actually gets maintained</p>
+    <p class="step-body">All of this runs inside Cowork, working from a single project folder Claude keeps on your behalf: the code, the data, and a file called CLAUDE.md, Claude's own running notes on how the system works, decisions already made, and what's still open. Every new Cowork session reads that folder first, so it picks up exactly where the last one left off, and writes its notes back before it ends. You never have to re-explain the project from scratch, even months later.</p>
+
+    <p class="eyebrow" style="margin-top:0.4rem;">What it takes on your end</p>
+    <ul class="need-list">
+      <li>A Claude account with access to Cowork.</li>
+      <li>A few short check-ins over the following days or weeks. This kind of tool improves in passes, not one sitting.</li>
+      <li>A willingness to say yes or no when Claude asks. It will hold at anything with a real-world consequence rather than guess.</li>
+    </ul>
 
   </div>
 </main>
@@ -208,5 +297,22 @@ score        = &Sigma; (dimensionScore[d] &times; dimWeight[d])  for d in the 7 
 <footer class="site-footer">
   <div class="wrap">© 2026</div>
 </footer>
+
+<script>
+function tiCopyPrompt() {
+  var text = document.getElementById('tiPromptText').textContent;
+  var btn = document.getElementById('tiCopyBtn');
+  function done(ok) {
+    if (!btn) return;
+    btn.textContent = ok ? 'Copied' : 'Select & copy manually';
+    setTimeout(function () { btn.textContent = 'Copy'; }, 2200);
+  }
+  if (navigator.clipboard && navigator.clipboard.writeText) {
+    navigator.clipboard.writeText(text).then(function () { done(true); }).catch(function () { done(false); });
+  } else {
+    done(false);
+  }
+}
+</script>
 
 </body></html>

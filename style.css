@@ -165,7 +165,7 @@ h2.card-title { font-size: 11.5px; text-transform: uppercase; letter-spacing: 0.
 .wont-list { list-style: none; padding: 0; margin: 0; }
 .wont-list li { display: flex; gap: 8px; font-size: 13px; color: var(--ink); padding: 8px 0; border-bottom: 1px solid var(--border); }
 .wont-list li:last-child { border-bottom: none; }
-.wont-list li::before { content: "—"; color: var(--bad); flex-shrink: 0; }
+.wont-list li::before { content: "\2022"; color: var(--bad); flex-shrink: 0; }
 @media (min-width: 640px) {
 .about-section { margin-bottom: 1.9rem; }
 .about-section h3 { font-size: 16px; }
