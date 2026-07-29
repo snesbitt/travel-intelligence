@@ -51,176 +51,150 @@
     </nav>
 
     <div class="phase" id="phase-01">
-      <div class="phase-head">
-        <span class="phase-num">01</span>
-        <span class="phase-title">the optimization engine</span>
-        <span class="phase-status live">Live</span>
+      <div class="phase__rail phase__rail--live">1</div>
+      <div class="phase__body">
+        <div class="phase__head">
+          <h2 class="phase__name">The optimization engine</h2>
+          <span class="phase__status phase__status--live">Live</span>
+        </div>
+        <p class="phase__focus">Every recommendation explains its own weighting</p>
+        <p class="phase__covers">A deterministic scoring model: every itinerary is scored 0&ndash;100 on Cost, Comfort, Upgrade Potential, Award Value, Flexibility, Risk, and Time, weighted by your ranked priorities. Outputs a recommendation, a Top Five comparison, upgrade and award strategy, purchase timing, and trip-specific insights. Live fares now flow through the same engine (see phase 5), and a Points Intelligence panel carries dated valuations and transfer bonuses.</p>
       </div>
-      <p class="phase-body">A deterministic, client-side scoring model: every candidate itinerary is scored 0–100 on Cost, Comfort, Upgrade Potential, Award Value, Flexibility, Risk, and Time, weighted by your ranked priority list. Outputs an Executive Summary, Best Recommendation, Top Five Alternatives comparison table, Upgrade Strategy, Award Strategy (with a genuinely-strong redemption bar, not a blanket "use your miles"), Purchase Timing, and 5–8 input-specific Travel Advisor Insights.</p>
-      <p class="phase-value">Every recommendation explains its own weighting instead of hiding behind a single score.</p>
-      <ul class="phase-log">
-        <li><span class="lg-date">JUL 2026</span>Built the full Input Card: trip details, flight preferences, ranked optimization priority, credit cards, 13 airline loyalty programs, and airport flexibility. This matches the fields specified in the original agent brief.</li>
-        <li><span class="lg-date">JUL 2026</span>Removed hotel loyalty programs from the Input Card for now. The scoring engine was not using them, and a checkbox that does not affect the result is worse than no checkbox. They return once hotel signal actually feeds the model.</li>
-        <li><span class="lg-date">JUL 2026</span>Reworked the pricing model. An early version priced nearly every Business-class result at the same floor, regardless of carrier or route. The new model uses per-cabin base prices with seeded variation and cabin-appropriate floors, so the spread reads like a real fare set instead of a repeated number.</li>
-        <li><span class="lg-date">JUL 2026</span>Adopted the shared portfolio design: cream and serif styling, persistent navigation, and common page patterns. The site now matches thefitnesslog.org and streamingscout.org instead of looking like a one-off.</li>
-        <li><span class="lg-date">JUL 2026</span>Shipped a major round of pricing and points features. Every candidate now shows a miles-or-cash price, flipping to miles only when the value clears the 1.6¢-per-mile bar. A new Points Intelligence panel carries TPG's dated July 2026 valuations and active transfer bonuses, and the upgrade guidance lists seven concrete tactics, from bidding 20–40% of the fare gap to miles-plus-copay. The priority card was simplified to dropdowns, the alternatives table gained a sort control, and a saved wallet keeps cards and balances in the browser, editable as figures change.</li>
-      </ul>
     </div>
 
     <div class="phase" id="phase-02">
-      <div class="phase-head">
-        <span class="phase-num">02</span>
-        <span class="phase-title">the four-page site</span>
-        <span class="phase-status live">Live</span>
+      <div class="phase__rail phase__rail--live">2</div>
+      <div class="phase__body">
+        <div class="phase__head">
+          <h2 class="phase__name">The four-page site</h2>
+          <span class="phase__status phase__status--live">Live</span>
+        </div>
+        <p class="phase__focus">Something to run a real trip through</p>
+        <p class="phase__covers">Index (the optimizer itself), About, Guide, and this Roadmap: a static, no-build site deployed to Netlify, styled to match the rest of the portfolio.</p>
       </div>
-      <p class="phase-body">Index (the optimizer itself), About, Guide, and this Roadmap: a static, no-build site, deployed to Netlify.</p>
-      <p class="phase-value">Something to open and run a real trip through, without opening a Cowork session first.</p>
-      <ul class="phase-log">
-        <li><span class="lg-date">JUL 2026</span>Deployed to a new Netlify site. The custom domain was connected shortly after; see phase 06.</li>
-      </ul>
     </div>
 
     <div class="phase" id="phase-03">
-      <div class="phase-head">
-        <span class="phase-num">03</span>
-        <span class="phase-title">GitHub repo</span>
-        <span class="phase-status live">Live</span>
+      <div class="phase__rail phase__rail--live">3</div>
+      <div class="phase__body">
+        <div class="phase__head">
+          <h2 class="phase__name">GitHub repo</h2>
+          <span class="phase__status phase__status--live">Live</span>
+        </div>
+        <p class="phase__focus">Parity with the rest of the portfolio's deploy pipeline</p>
+        <p class="phase__covers">The same continuous-deployment model as the sibling sites: push to main, Netlify auto-deploys. Commits are made from Cowork sessions and pushed from Susan's own machine, since no GitHub credential lives in the cloud session.</p>
       </div>
-      <p class="phase-body">A GitHub repository matching the other two sites' continuous-deployment governance model: push to main, and Netlify auto-deploys. Commits are made from Cowork sessions and pushed from Susan's own machine, since no GitHub credential lives in the cloud session.</p>
-      <p class="phase-value">Parity with the other two sites' deploy pipeline, and a real commit history for this project.</p>
-      <ul class="phase-log">
-        <li><span class="lg-date">JUL 2026</span>Closed this phase: github.com/snesbitt/travel-intelligence is now linked to the Netlify project, and auto-deploy was verified end to end the same day. This also fixed a gap: the site had been deploying via manual drag-and-drop, which is why an earlier push silently did not appear on the live site.</li>
-      </ul>
     </div>
 
     <div class="phase" id="phase-04">
-      <div class="phase-head">
-        <span class="phase-num">04</span>
-        <span class="phase-title">iOS app</span>
-        <span class="phase-status live">Live</span>
+      <div class="phase__rail phase__rail--live">4</div>
+      <div class="phase__body">
+        <div class="phase__head">
+          <h2 class="phase__name">iOS app</h2>
+          <span class="phase__status phase__status--live">Live</span>
+        </div>
+        <p class="phase__focus">One tap from the Home Screen before a trip</p>
+        <p class="phase__covers">An installable version that adds itself to the Home Screen with its own icon and no browser chrome. Same site, no separate codebase: a web app manifest and an icon set, nothing more.</p>
       </div>
-      <p class="phase-body">An installable version that adds itself to the Home Screen: its own icon, no browser chrome. Same site, no separate codebase, no App Store submission. It is a web app manifest and an icon set, nothing more.</p>
-      <p class="phase-value">One tap from the Home Screen before a trip, instead of finding a browser tab.</p>
-      <ul class="phase-log">
-        <li><span class="lg-date">JUL 2026</span>Shipped Add to Home Screen. A web app manifest plus icon set (192px, 512px, and an Apple touch icon) makes the site installable with its own icon and no address bar, on iOS and Android alike.</li>
-      </ul>
     </div>
 
     <div class="phase" id="phase-05">
-      <div class="phase-head">
-        <span class="phase-num">05</span>
-        <span class="phase-title">live fare &amp; award data</span>
-        <span class="phase-status live">Live (fares + scans)</span>
+      <div class="phase__rail phase__rail--live">5</div>
+      <div class="phase__body">
+        <div class="phase__head">
+          <h2 class="phase__name">Live fare &amp; award data</h2>
+          <span class="phase__status phase__status--live">Live (fares + scans)</span>
+        </div>
+        <p class="phase__focus">A real, bookable answer, not a documented estimate</p>
+        <p class="phase__covers">A server function searches real Google Flights results on every run, merges in fares you've scanned yourself from Kayak or Booking, and scores them through the same seven-dimension engine. Every alternative links out to review and buy. If nothing real comes back for a route, the site says so plainly rather than guessing. Award-space availability (seats.aero-style) is the remaining data gap.</p>
       </div>
-      <p class="phase-body">Live fares are running: a small server function searches real Google Flights results on every run, merges in any fares you've scanned yourself from Kayak or Booking, and scores them through the same seven-dimension engine. The credential was created and installed by Susan directly; credentials and spend are never taken on the agent's behalf. If nothing real comes back for a route, the site says so plainly and shows no numbers, rather than guessing. Award-space search (seats.aero-style availability) is the remaining data gap.</p>
-      <p class="phase-value">The recommendation stops being a documented estimate and becomes a real, bookable answer.</p>
-      <ul class="phase-log">
-        <li><span class="lg-date">JUL 2026</span>Shipped the fare backend. Live offers are scored by the identical weighting engine: real prices, same legible framework. If the backend is unconfigured, the site returns an honest 503 fallback rather than failing silently. Flight times and fare scaling in model mode were also corrected to derive from real great-circle distances, so a nonstop to Rome reads about 12 hours, not a fabricated short-haul number.</li>
-        <li><span class="lg-date">JUL 2026</span>Switched fare providers one day later. Amadeus decommissioned its self-service portal on Jul 17, discovered when attempting the signup and verified on their site. Backend v2 now uses Google Flights data via SerpApi (a self-serve key on the free tier), with the same honest-fallback contract. Netlify was also linked to the GitHub repo, closing phase 03, and live fares were verified end to end the same week.</li>
-        <li><span class="lg-date">JUL 2026</span>Rebuilt the Upgrade Strategy around the most common real goal: getting from Economy to Business. It now opens with three priced routes to Business for the specific trip (a Premium Economy ladder, a direct bid, and miles plus copay checked against saved balances) plus a dated timeline. The old one-cabin-up advice buried this goal. Trip purpose was simplified to Vacation, Business, or Both, and stopover routing, a travelers stepper, and a $2,000 default budget shipped alongside.</li>
-        <li><span class="lg-date">JUL 2026</span>Tightened the homepage. The header is now a one-line status banner, with details moved to About and Guide. Long cards (loyalty balances, TPG valuations, the upgrade timeline) collapse to their high-signal rows, with explicit "Show all N" toggles.</li>
-        <li><span class="lg-date">JUL 2026</span>Added a second live price source. Fares scanned from your own logged-in Kayak and Booking searches now merge into the same shortlist with a labeled source pill, alongside Google's price history and a buy, wait, or monitor verdict. Every alternative, not just the top pick, now links out to review and buy: Google Flights on every row, a verified aa.com link on American rows, and a verified Kayak link on scanned rows. Booking.com's own link format was tested live in three shapes and none prefill the route, so those rows fall back to Google Flights rather than ship a link that does not work.</li>
-        <li><span class="lg-date">JUL 2026</span>Expanded global city coverage and fixed a real bug. The whole Baltic, Balkan, Caucasus, and Central Asia region (Estonia included) was silently unmapped: the same bug class as the Greenville incident. The fix added capital-city codes and locked together two lookup tables that could previously disagree, which had let a bare country name resolve to a bookable airport code while its distance estimate silently came back blank.</li>
-        <li><span class="lg-date">JUL 2026</span>Made failed searches end usefully. A depart date beyond the roughly 330-day airline booking horizon is not a failure; the empty state now says so by name, including how many days out it is and the date fares should open, and skips a wasted retry. Any other failed search gets one automatic retry, then an actionable empty state: a Retry button plus verified Google Flights and Kayak links, never a dead end.</li>
-      </ul>
     </div>
 
     <div class="phase" id="phase-05b">
-      <div class="phase-head">
-        <span class="phase-num">05b</span>
-        <span class="phase-title">region-to-region search</span>
-        <span class="phase-status">Roadmap</span>
+      <div class="phase__rail">5b</div>
+      <div class="phase__body">
+        <div class="phase__head">
+          <h2 class="phase__name">Region-to-region search</h2>
+          <span class="phase__status phase__status--planned">Roadmap</span>
+        </div>
+        <p class="phase__focus">Ask "how much to get to Europe" without picking a city first</p>
+        <p class="phase__covers">Allow a destination as a region name ("Europe," "East Asia," "Caribbean"). The engine would score 2&ndash;3 hub options for the region instead of forcing a single city.</p>
       </div>
-      <p class="phase-body">Allow destination as region name ("Europe", "East Asia", "Caribbean"). Engine scores against 2–3 hub options rather than forcing a single city.</p>
-      <p class="phase-value">You can ask "how much to get to Europe" without picking a city first; the engine scores 2–3 hub options for the region instead of forcing one.</p>
-      <ul class="phase-log">
-        <li><span class="lg-date">ROADMAP</span>Scope: 5–8 major regions mapped to 2–3 primary hubs each.</li>
-      </ul>
     </div>
 
     <div class="phase" id="phase-05c">
-      <div class="phase-head">
-        <span class="phase-num">05c</span>
-        <span class="phase-title">date-range score sweep</span>
-        <span class="phase-status">Roadmap</span>
+      <div class="phase__rail">5c</div>
+      <div class="phase__body">
+        <div class="phase__head">
+          <h2 class="phase__name">Date-range score sweep</h2>
+          <span class="phase__status phase__status--planned">Roadmap</span>
+        </div>
+        <p class="phase__focus">See the cheapest date in one chart, not ten re-runs</p>
+        <p class="phase__covers">Sample the top itinerary's score and price across a 30&ndash;60 day window at 3&ndash;5 day intervals, and chart it, instead of re-running the optimizer by hand to find the cheapest date.</p>
       </div>
-      <p class="phase-body">Show how the top itinerary's score and price shift across a 30–60 day window. A lightweight chart displays scores across date range.</p>
-      <p class="phase-value">See how the top itinerary's price moves across a 30–60 day window in one chart, instead of re-running the optimizer ten times to find the cheapest date.</p>
-      <ul class="phase-log">
-        <li><span class="lg-date">ROADMAP</span>Sample best candidate's scores at 3–5 day intervals. One lightweight chart, no re-run needed.</li>
-      </ul>
     </div>
 
     <div class="phase" id="phase-06">
-      <div class="phase-head">
-        <span class="phase-num">06</span>
-        <span class="phase-title">a real domain</span>
-        <span class="phase-status live">Live</span>
+      <div class="phase__rail phase__rail--live">6</div>
+      <div class="phase__body">
+        <div class="phase__head">
+          <h2 class="phase__name">A real domain</h2>
+          <span class="phase__status phase__status--live">Live</span>
+        </div>
+        <p class="phase__focus">One address, not a netlify.app subdomain</p>
+        <p class="phase__covers">travelintelligence.org, registered and connected via Netlify DNS, matching the rest of the portfolio. TLS provisions automatically within a few minutes of connecting.</p>
       </div>
-      <p class="phase-body">A domain matching vinylscout.org, thefitnesslog.org, and streamingscout.org. Registering one required entering payment, a decision left to Susan and made by Susan directly, not taken on the agent's behalf.</p>
-      <p class="phase-value">One address to remember, not a netlify.app subdomain.</p>
-      <ul class="phase-log">
-        <li><span class="lg-date">JUL 2026</span>travelintelligence.org registered and connected via Netlify DNS. TLS certificate provisioning is automatic and typically completes within a few minutes of a new domain being connected.</li>
-      </ul>
     </div>
 
     <div class="phase" id="phase-07a">
-      <div class="phase-head">
-        <span class="phase-num">07a</span>
-        <span class="phase-title">loyalty program balance integration</span>
-        <span class="phase-status">Roadmap</span>
+      <div class="phase__rail">7a</div>
+      <div class="phase__body">
+        <div class="phase__head">
+          <h2 class="phase__name">Loyalty balance integration</h2>
+          <span class="phase__status phase__status--planned">Roadmap</span>
+        </div>
+        <p class="phase__focus">See instantly whether your miles cover the trip</p>
+        <p class="phase__covers">Check the saved loyalty-program balance against the redemption this itinerary needs, and say plainly whether it's enough, or how many more you'd need.</p>
       </div>
-      <p class="phase-body">Check the saved loyalty-program balance against the redemption this itinerary needs, and say plainly whether it's enough.</p>
-      <p class="phase-value">See instantly whether your saved miles cover this trip, or how many more you'd need.</p>
-      <ul class="phase-log">
-        <li><span class="lg-date">ROADMAP</span>Check whether user's balance in recommended alliance meets low end of range.</li>
-      </ul>
     </div>
 
     <div class="phase" id="phase-07">
-      <div class="phase-head">
-        <span class="phase-num">07</span>
-        <span class="phase-title">saved preferences &amp; trip memory</span>
-        <span class="phase-status live">Live</span>
+      <div class="phase__rail phase__rail--live">7</div>
+      <div class="phase__body">
+        <div class="phase__head">
+          <h2 class="phase__name">Saved preferences &amp; trip memory</h2>
+          <span class="phase__status phase__status--live">Live</span>
+        </div>
+        <p class="phase__focus">Gets better at optimizing for you specifically, trip over trip</p>
+        <p class="phase__covers">Preferred airlines, seats, hotels, disliked airports, connection tolerance, and travel style now auto-save and reload across sessions, alongside the wallet (cards and 13 loyalty balances). A saved travel style only steers the optimization lens when the trip itself hasn't already picked one. The fare watcher (up to 3 trips) re-searches daily and shows day-over-day price changes, budgeted against SerpApi's real 100-search monthly quota.</p>
       </div>
-      <p class="phase-body">Remembering preferred airlines, seats, hotels, upgrade successes, disliked airports, connection tolerance, and typical travel style across sessions, so later recommendations get more personalized instead of starting from the same defaults every time. This matches the North Star in the original agent brief.</p>
-      <p class="phase-value">The agent gets better at optimizing for you specifically, trip over trip.</p>
-      <ul class="phase-log">
-        <li><span class="lg-date">JUL 2026</span>Shipped the first slice early, by direct request. The saved wallet (credit cards plus 13 loyalty balances) now persists in the browser via localStorage and reloads automatically. It is the first piece of cross-session memory, ahead of the fuller preference profile this phase describes.</li>
-        <li><span class="lg-date">JUL 2026</span>Shipped the fare watcher, the audit's "one big bet." Watch a trip (max 3) and a scheduled backend re-searches it daily, showing day-over-day fare-floor changes on the homepage. The cap exists because each watched trip spends one metered search per day; raising it, or adding email or push alerts (which need a new credential), stays an explicit approval decision. Also shipped: the upgrade timeline exports to calendar (.ics), the winning itinerary links straight to the carrier's booking site, and a service worker gives the installed app an offline shell.</li>
-        <li><span class="lg-date">JUL 2026</span>Lowered the watched-trip cap from 3 to 2 for quota safety. A corrected documentation error revealed the real SerpApi free tier is 100 searches per month, not 250. At the old cap of 3, the daily watcher alone spent about 90 of those, leaving only about 10 per month for manual "Run the optimization" calls. At 2, the watcher spends about 60, leaving a comfortable 40 of headroom. Fewer trips can be watched at once as a direct result; nothing else about the watcher changed.</li>
-        <li><span class="lg-date">JUL 2026</span>Raised the cap back to 3 at Susan's direct request. The quota math is restated plainly at the top of watch.mjs: about 90 searches per month for the watcher, leaving about 10 for manual runs. That is tight, and it is the trade Susan chose knowingly. If manual runs start hitting the monthly limit, dropping back to 2 (or stretching the check cadence) is a one-line reversal.</li>
-        <li><span class="lg-date">JUL 2026</span>Shipped the fuller preference profile. Cabin, max stops, preferred and avoided airlines, preferred alliances, departure and arrival time preferences, airports to avoid, preferred seat, preferred hotel brands, and typical travel style all now auto-save and reload, same as the wallet. A saved travel style (Relaxed, Efficient, or Luxury) only steers the suggested optimization lens when nothing about the specific trip already picked one; a saved default never overrides real trip signals like a tight budget. One honest limit: the airports-to-avoid list is checked against the trip's own fields but cannot check a specific connection airport, since the model only tracks a stop count, not named connection airports. A new "upgrade wins" log records past successful upgrades; if one mentions the recommended carrier, the insights say so. Preferred seat and hotel brand are saved for reference only, since this site does not score seats or hotels.</li>
-      </ul>
     </div>
 
     <div class="phase" id="phase-08">
-      <div class="phase-head">
-        <span class="phase-num">08</span>
-        <span class="phase-title">protect watched trips</span>
-        <span class="phase-status">Roadmap</span>
+      <div class="phase__rail">8</div>
+      <div class="phase__body">
+        <div class="phase__head">
+          <h2 class="phase__name">Protect watched trips</h2>
+          <span class="phase__status phase__status--planned">Roadmap</span>
+        </div>
+        <p class="phase__focus">A shared link can't quietly spend your watch slots</p>
+        <p class="phase__covers">Watching a trip spends a metered daily search against a shared store that's currently open to anyone with the link. Worth gating behind a shared edit key, remembered per device, the same pattern used across the portfolio. Running the optimizer and browsing results stay open.</p>
       </div>
-      <p class="phase-body">Watching a trip (max 3) spends a metered daily search and persists to the shared store the scheduled watcher reads from. That store is currently open to anyone with the link, with no auth: the same model Streaming Scout's dismiss endpoint uses. It is worth gating behind a shared edit key, remembered per device after one entry (the same pattern across the portfolio), so a shared link cannot quietly add or drop a watched trip and spend the limited daily quota. Everything else, running the optimizer and browsing results, stays open.</p>
-      <p class="phase-value">A shared link can't quietly spend your watched-trip slots or swap what's being tracked.</p>
     </div>
 
     <div class="phase" id="phase-09">
-      <div class="phase-head">
-        <span class="phase-num">09</span>
-        <span class="phase-title">2026 simplicity pass</span>
-        <span class="phase-status live">Live</span>
+      <div class="phase__rail phase__rail--live">9</div>
+      <div class="phase__body">
+        <div class="phase__head">
+          <h2 class="phase__name">2026 simplicity pass</h2>
+          <span class="phase__status phase__status--live">Live</span>
+        </div>
+        <p class="phase__focus">Every number on screen is a real quote, never a guess</p>
+        <p class="phase__covers">The input form was cut to four essential fields, with everything else folded into an optional Refine panel that remembers whether you left it open. The synthetic modeled-fare fallback was deleted outright: with no live fare or scan data for a route, the site now says so instead of showing an invented number. Fonts moved to self-hosted files across the whole portfolio.</p>
       </div>
-      <p class="phase-body">A deliberate simplification pass: the input form was cut to four essential fields (from, to, dates, what matters most), with everything else folded into an optional "Refine" panel that remembers whether you left it open. That panel holds the via city, preferred and nearby airports, cabin, budget, stops, airlines, and wallet. The old synthetic/modeled-fare fallback was deleted outright: when no live fare or scan data exists for a route, the site now says so plainly instead of ever showing a number nobody actually quoted. Fraunces and IBM Plex were also moved off Google Fonts onto self-hosted files with long-lived caching, across all five sites in the portfolio.</p>
-      <p class="phase-value">Fewer fields to fill in, and every number on screen is a real quote or scan, never a guess dressed up as one.</p>
-      <ul class="phase-log">
-        <li><span class="lg-date">JUL 2026</span>Cut the trip form to four always-visible fields, moving via city, airports, cabin, budget, stops, preferred and avoided airlines, and the wallet into a collapsible "Refine" panel that remembers its open or closed state. After feedback that two load-bearing controls had been folded away too aggressively, the date &plusmn; flexibility pills and the secondary "then weigh" priority were restored to the always-visible Trip card.</li>
-        <li><span class="lg-date">JUL 2026</span>Deleted the synthetic candidate generator (seeded random fares, invented aircraft and alliances). Live search and Susan's own scanned fares are now the only data path; when neither has coverage for a route, the results panel says so honestly instead of falling back to a modeled guess.</li>
-        <li><span class="lg-date">JUL 2026</span>Self-hosted Fraunces and IBM Plex Sans/Mono as local font files with immutable caching, removing the Google Fonts request on every page load.</li>
-        <li><span class="lg-date">JUL 2026</span>Tightened vertical spacing on the results panel, the run-optimization area, and the watched-trips card, with a two-line price layout, so more fits above the fold without a scroll.</li>
-      </ul>
     </div>
 
-    <p class="phase-value" style="margin-top:1.5rem;">Phases are sequential. A later phase isn't started early, and nothing gets added to an earlier phase just because it would be easy to slot in.</p>
+    <p class="phase__covers" style="margin-top:1.2rem;"><strong>Phases are sequential.</strong> A later phase isn't started early, and nothing gets added to an earlier phase just because it would be easy to slot in.</p>
 
   </div>
 </main>

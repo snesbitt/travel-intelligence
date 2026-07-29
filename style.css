@@ -113,30 +113,28 @@ h2.card-title { font-size: 11.5px; text-transform: uppercase; letter-spacing: 0.
 .ro-chip { font-size: 12px; padding: 5px 11px 5px 9px; }
 }
 
-/* roadmap */
-.phase { padding: 1.1rem 0; border-bottom: 1px solid var(--border); }
-.phase:last-of-type { border-bottom: none; }
-.phase-head { display: flex; align-items: baseline; gap: 10px; margin-bottom: 5px; flex-wrap: wrap; }
-.phase-num { font-family: var(--serif); font-style: italic; font-size: 17px; color: var(--ink-faint); }
-.phase-title { font-size: 14.5px; font-weight: 700; }
-.phase-status { font-size: 9.5px; letter-spacing: 0.05em; text-transform: uppercase; padding: 2px 8px; border-radius: 5px; font-weight: 700; }
-.phase-status.live { background: var(--good-dim); color: var(--good); }
-.phase-status.progress { background: var(--mid-dim); color: var(--mid); }
-.phase-status.planned { background: var(--bg-alt); color: #565b6e; }
-.phase-body { color: var(--ink); font-size: 13px; margin: 0 0 6px; }
-.phase-value { color: #565b6e; font-style: italic; font-size: 12px; margin: 0 0 9px; }
-.phase-log { list-style: none; padding: 0; margin: 0; }
-.phase-log li { font-size: 11.5px; color: #565b6e; padding: 5px 0; border-top: 1px dashed var(--border); }
-.phase-log li:first-child { border-top: none; }
-.phase-log .lg-date { color: var(--ink-faint); font-weight: 700; margin-right: 6px; }
+/* roadmap: phase cards (rail-card style, shared with Vinyl Scout) */
+.phase { display: grid; grid-template-columns: 48px 1fr; border: 1px solid var(--border); background: var(--card); border-radius: 8px; overflow: hidden; margin: 0 0 14px; }
+.phase:last-of-type { margin-bottom: 0; }
+.phase__rail { background: var(--bg-alt); border-right: 1px solid var(--border); display: flex; align-items: center; justify-content: center; font-family: var(--serif); font-style: italic; font-weight: 600; font-size: 22px; color: var(--ink-faint); }
+.phase__rail--live { color: var(--good); }
+.phase__rail--progress { color: var(--mid); }
+.phase__body { padding: 16px 18px; }
+.phase__head { display: flex; align-items: baseline; gap: 10px; flex-wrap: wrap; margin: 0 0 6px; }
+.phase__name { font-size: 15px; font-weight: 700; color: var(--ink); margin: 0; }
+.phase__status { font-size: 9.5px; letter-spacing: 0.05em; text-transform: uppercase; padding: 2px 8px; border-radius: 5px; font-weight: 700; white-space: nowrap; }
+.phase__status--live { background: var(--good-dim); color: var(--good); }
+.phase__status--progress { background: var(--mid-dim); color: var(--mid); }
+.phase__status--planned { background: var(--bg-alt); color: var(--ink-dim); }
+.phase__focus { font-family: var(--serif); font-style: italic; font-size: 13px; color: var(--accent); margin: 0 0 7px; }
+.phase__covers { font-size: 13.5px; line-height: 1.6; color: var(--ink-dim); margin: 0; }
 @media (min-width: 640px) {
-.phase { padding: 1.6rem 0; }
-.phase-num { font-size: 20px; }
-.phase-title { font-size: 17px; }
-.phase-body, .phase-value { max-width: 68ch; }
-.phase-body { font-size: 14.5px; }
-.phase-value { font-size: 13.5px; }
-.phase-log li { font-size: 12.5px; }
+.phase { grid-template-columns: 64px 1fr; margin-bottom: 18px; }
+.phase__rail { font-size: 28px; }
+.phase__body { padding: 20px 24px; }
+.phase__name { font-size: 17px; }
+.phase__focus { font-size: 14px; }
+.phase__covers { font-size: 14.5px; max-width: 64ch; }
 }
 
 /* guide */
