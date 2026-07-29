@@ -401,3 +401,11 @@ network) — and per the standing rule in ~/Projects/CLAUDE.md, every
 ## Editorial standard
 
 Editorial standard for external-facing docs: see ~/Projects/project-hub/EDITORIAL_STYLE.md (added 2026-07-28). Also re-verify dimension/Function counts against app.js when touching docs; they drift.
+
+## 2026-07-29 — serif swap: Instrument Serif to Lora
+
+Portfolio-wide taste call: Lora replaces Instrument Serif everywhere
+--serif is used, including the two direct 'Instrument Serif' refs in
+style.css (.watched-route-main, .watched-price-amount). Self-hosted
+(fonts/lora-latin-400-normal.woff2 + -italic.woff2); 404.html's separate
+Google Fonts CDN link just got the family name swapped.

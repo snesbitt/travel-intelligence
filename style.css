@@ -16,7 +16,7 @@
 --mid-dim: #f0e6cd;
 --bad: #a24a3f;
 --bad-dim: #f2e2de;
---serif: "Instrument Serif", Georgia, "Iowan Old Style", "Palatino Linotype", Palatino, serif;
+--serif: "Lora", Georgia, "Iowan Old Style", "Palatino Linotype", Palatino, serif;
 --sans: -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif;
 }
 * { box-sizing: border-box; }
@@ -414,7 +414,7 @@ table.alt-table td.rank-cell { font-family: var(--serif); font-style: italic; co
 .watched-item { display: grid; grid-template-columns: 1fr auto; gap: 14px; padding: 7px 0; border-bottom: 1px solid var(--line, #d8d0bf); align-items: center; }
 .watched-item:last-child { border-bottom: none; }
 .watched-route-card { display: flex; flex-direction: column; gap: 2px; }
-.watched-route-main { font-size: 15.5px; font-weight: 400; font-family: 'Instrument Serif', serif; letter-spacing: -0.3px; text-wrap: balance; }
+.watched-route-main { font-size: 15.5px; font-weight: 400; font-family: 'Lora', serif; letter-spacing: -0.3px; text-wrap: balance; }
 .watched-codes { font-family: ui-monospace, "SF Mono", Menlo, Consolas, monospace; font-size: 10.5px; font-weight: 500; letter-spacing: 0.05em; color: var(--ink-faint, #8a7d6b); background: rgba(33, 31, 26, 0.05); border: 1px solid var(--line, #d8d0bf); padding: 1.5px 7px; border-radius: 999px; vertical-align: 2.5px; margin-left: 6px; white-space: nowrap; }
 .watched-route-meta { font-size: 12px; color: var(--ink-faint, #8a7d6b); display: flex; gap: 8px; flex-wrap: wrap; }
 /* 2026-07-26 vertical-density pass: the price side is a 2-line column with
@@ -422,7 +422,7 @@ table.alt-table td.rank-cell { font-family: var(--serif); font-style: italic; co
    exactly two text lines tall. */
 .watched-price-col { display: flex; flex-direction: column; align-items: flex-end; gap: 2px; min-width: fit-content; }
 .watched-price-line { display: flex; align-items: center; gap: 8px; }
-.watched-price-amount { font-size: 16px; font-weight: 400; font-family: 'Instrument Serif', serif; font-variant-numeric: tabular-nums; }
+.watched-price-amount { font-size: 16px; font-weight: 400; font-family: 'Lora', serif; font-variant-numeric: tabular-nums; }
 .watched-price-meta { font-size: 11px; color: var(--ink-faint, #8a7d6b); text-align: right; }
 .watched-delta { font-weight: 600; font-size: 11px; font-variant-numeric: tabular-nums; padding: 1px 8px; border-radius: 999px; }
 .watched-delta.down { color: var(--good, #3f6b4f); background: rgba(63, 107, 79, 0.10); }
