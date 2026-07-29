@@ -16,7 +16,7 @@
 --mid-dim: #f0e6cd;
 --bad: #a24a3f;
 --bad-dim: #f2e2de;
---serif: "Fraunces", Georgia, "Iowan Old Style", "Palatino Linotype", Palatino, serif;
+--serif: "Instrument Serif", Georgia, "Iowan Old Style", "Palatino Linotype", Palatino, serif;
 --sans: -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif;
 }
 * { box-sizing: border-box; }
@@ -116,7 +116,7 @@ h2.card-title { font-size: 11.5px; text-transform: uppercase; letter-spacing: 0.
 /* roadmap: phase cards (rail-card style, shared with Vinyl Scout) */
 .phase { display: grid; grid-template-columns: 48px 1fr; border: 1px solid var(--border); background: var(--card); border-radius: 8px; overflow: hidden; margin: 0 0 14px; }
 .phase:last-of-type { margin-bottom: 0; }
-.phase__rail { background: var(--bg-alt); border-right: 1px solid var(--border); display: flex; align-items: center; justify-content: center; font-family: var(--serif); font-style: italic; font-weight: 600; font-size: 22px; color: var(--ink-faint); }
+.phase__rail { background: var(--bg-alt); border-right: 1px solid var(--border); display: flex; align-items: center; justify-content: center; font-family: var(--serif); font-style: italic; font-weight: 400; font-size: 22px; color: var(--ink-faint); }
 .phase__rail--live { color: var(--good); }
 .phase__rail--progress { color: var(--mid); }
 .phase__body { padding: 16px 18px; }
@@ -204,7 +204,7 @@ padding: 5px 12px 5px 8px;
 .stat-strip { display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px; margin: 1.1rem 0 1.7rem; }
 @media (min-width: 640px) { .stat-strip { grid-template-columns: repeat(4, 1fr); } }
 .stat-tile { background: var(--card); border: 1px solid var(--border); border-radius: 8px; padding: 0.75rem 0.85rem; text-align: center; }
-.stat-tile .stat-num { font-family: var(--serif); font-style: italic; font-weight: 600; font-size: 22px; color: var(--accent); }
+.stat-tile .stat-num { font-family: var(--serif); font-style: italic; font-weight: 400; font-size: 22px; color: var(--accent); }
 .stat-tile .stat-label { font-size: 10px; letter-spacing: 0.06em; text-transform: uppercase; color: #565b6e; margin-top: 2px; }
 
 .page-card-grid { display: grid; grid-template-columns: 1fr; gap: 10px; margin: 0.9rem 0 0.4rem; }
@@ -283,7 +283,7 @@ figure.diagram figcaption { font-family: var(--sans); font-size: 10px; letter-sp
   display: flex; align-items: center; gap: 8px; font-size: 12.5px;
   background: var(--bg); border: 1px solid var(--border); border-radius: 6px; padding: 7px 10px;
 }
-.rank-list li .rank-num { font-family: var(--serif); font-style: italic; color: var(--accent); font-weight: 600; width: 16px; }
+.rank-list li .rank-num { font-family: var(--serif); font-style: italic; color: var(--accent); font-weight: 400; width: 16px; }
 .run-btn {
   font-family: var(--sans); font-size: 13px; font-weight: 700; color: #fff;
   background: var(--accent); border: none; border-radius: 8px; padding: 12px 20px;
@@ -305,7 +305,7 @@ figure.diagram figcaption { font-family: var(--sans); font-size: 10px; letter-sp
 .rec-route { font-family: var(--serif); font-style: italic; font-size: 19px; }
 .rec-airline { font-size: 11px; color: #565b6e; text-transform: uppercase; letter-spacing: 0.04em; margin-top: 2px; }
 .rec-price-block { text-align: right; }
-.rec-price { font-family: var(--serif); font-size: 22px; font-weight: 600; color: var(--accent); }
+.rec-price { font-family: var(--serif); font-size: 22px; font-weight: 400; color: var(--accent); }
 .rec-price-sub { font-size: 10.5px; color: #565b6e; text-transform: uppercase; letter-spacing: 0.04em; }
 .rec-detail-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 8px; margin: 10px 0; }
 @media (min-width: 640px) { .rec-detail-grid { grid-template-columns: repeat(4, 1fr); } }
@@ -335,7 +335,7 @@ table.alt-table th {
 table.alt-table td { padding: 9px 10px; border-bottom: 1px solid var(--border); vertical-align: top; }
 table.alt-table tr:last-child td { border-bottom: none; }
 table.alt-table tr.best-row { background: var(--accent-dim); }
-table.alt-table td.rank-cell { font-family: var(--serif); font-style: italic; color: var(--accent); font-weight: 600; }
+table.alt-table td.rank-cell { font-family: var(--serif); font-style: italic; color: var(--accent); font-weight: 400; }
 @media (min-width: 640px) { table.alt-table { font-size: 13px; } }
 
 /* ---- strategy blocks ---- */
@@ -347,7 +347,7 @@ table.alt-table td.rank-cell { font-family: var(--serif); font-style: italic; co
 /* ---- insight list (travel advisor insights) ---- */
 .insight-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 10px; }
 .insight-item { display: flex; gap: 10px; background: var(--card); border: 1px solid var(--border); border-radius: 8px; padding: 10px 12px; }
-.insight-item .in-num { font-family: var(--serif); font-style: italic; color: var(--gold); font-weight: 600; font-size: 15px; flex-shrink: 0; }
+.insight-item .in-num { font-family: var(--serif); font-style: italic; color: var(--gold); font-weight: 400; font-size: 15px; flex-shrink: 0; }
 .insight-item p { margin: 0; font-size: 12.5px; color: var(--ink); }
 @media (min-width: 640px) { .insight-item p { font-size: 13.5px; } }
 
@@ -414,7 +414,7 @@ table.alt-table td.rank-cell { font-family: var(--serif); font-style: italic; co
 .watched-item { display: grid; grid-template-columns: 1fr auto; gap: 14px; padding: 7px 0; border-bottom: 1px solid var(--line, #d8d0bf); align-items: center; }
 .watched-item:last-child { border-bottom: none; }
 .watched-route-card { display: flex; flex-direction: column; gap: 2px; }
-.watched-route-main { font-size: 15.5px; font-weight: 600; font-family: 'Fraunces', serif; letter-spacing: -0.3px; text-wrap: balance; }
+.watched-route-main { font-size: 15.5px; font-weight: 400; font-family: 'Instrument Serif', serif; letter-spacing: -0.3px; text-wrap: balance; }
 .watched-codes { font-family: ui-monospace, "SF Mono", Menlo, Consolas, monospace; font-size: 10.5px; font-weight: 500; letter-spacing: 0.05em; color: var(--ink-faint, #8a7d6b); background: rgba(33, 31, 26, 0.05); border: 1px solid var(--line, #d8d0bf); padding: 1.5px 7px; border-radius: 999px; vertical-align: 2.5px; margin-left: 6px; white-space: nowrap; }
 .watched-route-meta { font-size: 12px; color: var(--ink-faint, #8a7d6b); display: flex; gap: 8px; flex-wrap: wrap; }
 /* 2026-07-26 vertical-density pass: the price side is a 2-line column with
@@ -422,7 +422,7 @@ table.alt-table td.rank-cell { font-family: var(--serif); font-style: italic; co
    exactly two text lines tall. */
 .watched-price-col { display: flex; flex-direction: column; align-items: flex-end; gap: 2px; min-width: fit-content; }
 .watched-price-line { display: flex; align-items: center; gap: 8px; }
-.watched-price-amount { font-size: 16px; font-weight: 600; font-family: 'Fraunces', serif; font-variant-numeric: tabular-nums; }
+.watched-price-amount { font-size: 16px; font-weight: 400; font-family: 'Instrument Serif', serif; font-variant-numeric: tabular-nums; }
 .watched-price-meta { font-size: 11px; color: var(--ink-faint, #8a7d6b); text-align: right; }
 .watched-delta { font-weight: 600; font-size: 11px; font-variant-numeric: tabular-nums; padding: 1px 8px; border-radius: 999px; }
 .watched-delta.down { color: var(--good, #3f6b4f); background: rgba(63, 107, 79, 0.10); }
