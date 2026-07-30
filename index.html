@@ -95,6 +95,7 @@
         <h2 class="card-title">Trip details</h2>
         <div class="form-grid">
           <div class="form-field"><label for="viaCity">Via: stopover city (optional)</label><input type="text" id="viaCity" placeholder="e.g. Osaka (routes the trip through it)"></div>
+          <div class="form-field"><label for="viaNights">Nights at the stopover</label><input type="number" id="viaNights" value="2" min="0" max="30"></div>
           <div class="form-field"><label for="preferredAirport">Preferred departure airport</label><input type="text" id="preferredAirport" placeholder="e.g. SFO" value="SFO"></div>
           <div class="form-field"><label for="airportFlexibility">Nearby airports you'd consider</label><input type="text" id="airportFlexibility" placeholder="e.g. SFO, SJC, OAK" value="SFO, SJC, OAK"></div>
           <div class="form-field"><label>Travelers</label>
@@ -533,6 +534,7 @@
       origin: document.getElementById("origin").value || "Origin",
       destination: document.getElementById("destination").value || "Destination",
       viaCity: document.getElementById("viaCity").value.trim(),
+      viaStopoverNights: Math.max(0, parseInt(document.getElementById("viaNights").value, 10) || 0),
       preferredAirport: document.getElementById("preferredAirport").value,
       airportFlexibility: document.getElementById("airportFlexibility").value,
       departDate: departEl.value,
@@ -565,21 +567,52 @@
   // model so the results header can say the true cause, never a generic
   // "awaiting credential" when the real problem is a typo or a timeout
   // (audit finding: one message for three distinct failure causes).
+  // Local to this trip-form date math -- app.js's daysBefore() subtracts,
+  // this adds (stopover nights onto the outbound-leg date).
+  function addDaysIso(dateStr, n) {
+    const dt = new Date(dateStr + "T12:00:00");
+    if (isNaN(dt)) return dateStr;
+    dt.setDate(dt.getDate() + n);
+    return dt.toISOString().slice(0, 10);
+  }
+
   async function fetchLiveOffers(inputs) {
     const T = window.TravelIntel;
-    if (inputs.viaCity) return { data: null, reason: "via" };
     const o = T.toIATA(inputs.preferredAirport) || T.toIATA(inputs.origin);
     const d = T.toIATA(inputs.destination);
     if (!d) return { data: null, reason: "unknown-dest" };
     if (!o) return { data: null, reason: "unknown-origin" };
     if (!inputs.departDate) return { data: null, reason: "no-date" };
-    const q = new URLSearchParams({ origin: o, destination: d, depart: inputs.departDate, adults: String(inputs.travelers || 1), cabin: inputs.cabin });
-    if (inputs.returnDate) q.set("return", inputs.returnDate);
+
+    // Via/stopover routing (2026-07-30): a real multi-city search, not a
+    // model. /api/fares' `legs` path (SerpApi's own multi-city support,
+    // type=3) covers origin->via, via->destination, and -- if a return
+    // date is set -- destination->origin as a third leg. Same "live feed
+    // or honest no-data" rule as the single-route path below.
+    let q;
+    if (inputs.viaCity) {
+      const v = T.toIATA(inputs.viaCity);
+      if (!v) return { data: null, reason: "unknown-via" };
+      const legs = [
+        { origin: o, destination: v, date: inputs.departDate },
+        { origin: v, destination: d, date: addDaysIso(inputs.departDate, inputs.viaStopoverNights || 0) },
+      ];
+      if (inputs.returnDate) legs.push({ origin: d, destination: o, date: inputs.returnDate });
+      q = new URLSearchParams({ legs: JSON.stringify(legs), adults: String(inputs.travelers || 1), cabin: inputs.cabin });
+    } else {
+      q = new URLSearchParams({ origin: o, destination: d, depart: inputs.departDate, adults: String(inputs.travelers || 1), cabin: inputs.cabin });
+      if (inputs.returnDate) q.set("return", inputs.returnDate);
+    }
+
     try {
       const r = await fetch("/api/fares?" + q, { signal: AbortSignal.timeout(15000) });
       if (!r.ok) {
         let reason = "api-fail";
-        try { const j = await r.json(); if (j.reason === "not_configured") reason = "not-configured"; } catch (e2) {}
+        try {
+          const j = await r.json();
+          if (j.reason === "not_configured") reason = "not-configured";
+          else if (j.reason === "bad_request") reason = "via-bad-request";
+        } catch (e2) {}
         return { data: null, reason };
       }
       const data = await r.json();
@@ -630,7 +663,8 @@
   }
 
   const FALLBACK_REASONS = {
-    "via": (inputs) => `via/stopover routings aren't wired to the live search yet; remove the via city (${inputs.viaCity}) to search this route live.`,
+    "unknown-via": (inputs) => `"${inputs.viaCity}" isn't in the city table; check the spelling or use a 3-letter airport code.`,
+    "via-bad-request": () => `the via routing didn't form a valid itinerary -- check that the return date is after the stopover leg (departure date + nights at the stopover).`,
     "unknown-dest": (inputs) => `"${inputs.destination}" isn't in the city table; check the spelling (e.g. Bangkok, not Bankok) or use a 3-letter airport code.`,
     "unknown-origin": (inputs) => `"${inputs.preferredAirport || inputs.origin}" isn't a recognized origin; use a city from the table or a 3-letter airport code.`,
     "no-date": () => `no departure date set; add one to search live fares.`,

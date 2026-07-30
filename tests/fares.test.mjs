@@ -7,7 +7,7 @@
 // package.json). No live network calls, no SerpApi key needed.
 
 import assert from "node:assert/strict";
-import { buildFareCacheKey, isCacheFresh, CACHE_TTL_MS } from "../netlify/functions/fares.mjs";
+import { buildFareCacheKey, isCacheFresh, CACHE_TTL_MS, parseLegs, buildLegsCacheKey } from "../netlify/functions/fares.mjs";
 
 let passed = 0;
 function test(name, fn) {
@@ -90,6 +90,112 @@ test("isCacheFresh: a missing/malformed cachedAt (undefined, from a corrupt or p
 
 test("CACHE_TTL_MS is exactly 15 minutes", () => {
   assert.equal(CACHE_TTL_MS, 15 * 60 * 1000);
+});
+
+
+/* ---------- parseLegs (v3, multi-city via/stopover routing) ---------- */
+
+test("parseLegs: valid 2-leg via routing parses and normalizes to uppercase", () => {
+  const legs = parseLegs(JSON.stringify([
+    { origin: "sfo", destination: "kix", date: "2027-07-10" },
+    { origin: "kix", destination: "bkk", date: "2027-07-12" },
+  ]));
+  assert.deepEqual(legs, [
+    { origin: "SFO", destination: "KIX", date: "2027-07-10" },
+    { origin: "KIX", destination: "BKK", date: "2027-07-12" },
+  ]);
+});
+
+test("parseLegs: valid 3-leg (with return) parses", () => {
+  const legs = parseLegs(JSON.stringify([
+    { origin: "SFO", destination: "KIX", date: "2027-07-10" },
+    { origin: "KIX", destination: "BKK", date: "2027-07-12" },
+    { origin: "BKK", destination: "SFO", date: "2027-07-20" },
+  ]));
+  assert.equal(legs.length, 3);
+});
+
+test("parseLegs: rejects fewer than 2 legs", () => {
+  assert.equal(parseLegs(JSON.stringify([{ origin: "SFO", destination: "KIX", date: "2027-07-10" }])), null);
+});
+
+test("parseLegs: rejects more than 4 legs", () => {
+  const five = Array.from({ length: 5 }, (_, i) => ({ origin: "SFO", destination: "KIX", date: `2027-07-${10 + i}` }));
+  assert.equal(parseLegs(JSON.stringify(five)), null);
+});
+
+test("parseLegs: rejects a non-IATA origin", () => {
+  assert.equal(parseLegs(JSON.stringify([
+    { origin: "San Francisco", destination: "KIX", date: "2027-07-10" },
+    { origin: "KIX", destination: "BKK", date: "2027-07-12" },
+  ])), null);
+});
+
+test("parseLegs: rejects a malformed date", () => {
+  assert.equal(parseLegs(JSON.stringify([
+    { origin: "SFO", destination: "KIX", date: "07/10/2027" },
+    { origin: "KIX", destination: "BKK", date: "2027-07-12" },
+  ])), null);
+});
+
+test("parseLegs: rejects a leg where origin equals destination", () => {
+  assert.equal(parseLegs(JSON.stringify([
+    { origin: "SFO", destination: "SFO", date: "2027-07-10" },
+    { origin: "SFO", destination: "BKK", date: "2027-07-12" },
+  ])), null);
+});
+
+test("parseLegs: rejects legs that go backward in time", () => {
+  assert.equal(parseLegs(JSON.stringify([
+    { origin: "SFO", destination: "KIX", date: "2027-07-12" },
+    { origin: "KIX", destination: "BKK", date: "2027-07-10" },
+  ])), null);
+});
+
+test("parseLegs: accepts the same date across legs (same-day connection)", () => {
+  const legs = parseLegs(JSON.stringify([
+    { origin: "SFO", destination: "KIX", date: "2027-07-10" },
+    { origin: "KIX", destination: "BKK", date: "2027-07-10" },
+  ]));
+  assert.ok(legs);
+});
+
+test("parseLegs: rejects invalid JSON", () => {
+  assert.equal(parseLegs("not json"), null);
+});
+
+test("parseLegs: rejects a non-array JSON value", () => {
+  assert.equal(parseLegs(JSON.stringify({ origin: "SFO" })), null);
+});
+
+test("parseLegs: rejects empty/missing input", () => {
+  assert.equal(parseLegs(""), null);
+  assert.equal(parseLegs(null), null);
+  assert.equal(parseLegs(undefined), null);
+});
+
+/* ---------- buildLegsCacheKey ---------- */
+
+test("buildLegsCacheKey: same legs always produce the same key", () => {
+  const legs = [{ origin: "SFO", destination: "KIX", date: "2027-07-10" }, { origin: "KIX", destination: "BKK", date: "2027-07-12" }];
+  assert.equal(buildLegsCacheKey(legs, 1, "Economy"), buildLegsCacheKey(legs, 1, "Economy"));
+});
+
+test("buildLegsCacheKey: a different via city produces a different key", () => {
+  const a = buildLegsCacheKey([{ origin: "SFO", destination: "KIX", date: "2027-07-10" }, { origin: "KIX", destination: "BKK", date: "2027-07-12" }], 1, "Economy");
+  const b = buildLegsCacheKey([{ origin: "SFO", destination: "NRT", date: "2027-07-10" }, { origin: "NRT", destination: "BKK", date: "2027-07-12" }], 1, "Economy");
+  assert.notEqual(a, b);
+});
+
+test("buildLegsCacheKey: is prefixed 'farecache-' so it shares the quota-cache store cleanly", () => {
+  const key = buildLegsCacheKey([{ origin: "SFO", destination: "KIX", date: "2027-07-10" }, { origin: "KIX", destination: "BKK", date: "2027-07-12" }], 1, "Economy");
+  assert.ok(key.startsWith("farecache-"));
+});
+
+test("buildLegsCacheKey: does not collide with a single-route buildFareCacheKey for the same-looking route", () => {
+  const legsKey = buildLegsCacheKey([{ origin: "SFO", destination: "KIX", date: "2027-07-10" }, { origin: "KIX", destination: "BKK", date: "2027-07-12" }], 1, "Economy");
+  const routeKey = buildFareCacheKey("SFO", "BKK", "2027-07-10", "", 1, "Economy");
+  assert.notEqual(legsKey, routeKey);
 });
 
 console.log(`\n${passed} passed, 0 failed`);

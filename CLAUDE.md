@@ -409,3 +409,43 @@ Portfolio-wide taste call: Lora replaces Instrument Serif everywhere
 style.css (.watched-route-main, .watched-price-amount). Self-hosted
 (fonts/lora-latin-400-normal.woff2 + -italic.woff2); 404.html's separate
 Google Fonts CDN link just got the family name swapped.
+
+## 2026-07-30 — Via/stopover routing wired to the live search
+
+"Put back the Via field" (Susan: "sfo > bangkok via osaka") turned out to
+need more than restoring UI — the field was already there, collapsed in
+Refine, but `fetchLiveOffers()` hard-blocked any search with a via city
+rather than reintroduce the synthetic-model path deleted in the
+radical-simplicity pass (see the 2026-07-26 note above). Fixed by using a
+REAL multi-city search instead of modeling one: SerpApi's Google Flights
+engine already supports multi-city itineraries natively (`type=3`,
+`multi_city_json`), so via-routing stays on the same "live feed or honest
+no-data" rule as everything else here.
+
+- `netlify/functions/fares.mjs` (v3): a `legs` query param (JSON array of
+  2-4 `{origin, destination, date}` legs) switches the handler onto a
+  multi-city SerpApi call instead of the single origin/destination/depart/
+  return path. `parseLegs()` (new, pure, exported) validates IATA codes,
+  dates, and non-decreasing chronology. Offer mapping is factored into a
+  shared `mapOffers()` so the two paths can never map offers differently.
+  Cached the same way as single-route searches, under its own
+  `buildLegsCacheKey()` so the two cache namespaces can't collide.
+- `index.html`: added a "Nights at the stopover" number field next to Via
+  (multi-city needs a date for the via->destination leg; there was no
+  existing input for that). `fetchLiveOffers()` now composes real legs —
+  origin->via, via->destination (departure date + stopover nights), and,
+  if a return date is set, destination->origin as a third leg — instead of
+  refusing the search. New `FALLBACK_REASONS` entries (`unknown-via`,
+  `via-bad-request`) replace the old blanket "not wired up yet" message.
+- `routeContext()`/`buildLiveCandidates()` in app.js needed no changes —
+  they already computed real via-routing geometry for the modeled path;
+  that same logic now backs the live path's distance-scaled figures too.
+
+Tests: 30 new handler-level checks (mocked SerpApi + Blobs, covering both
+paths unchanged/changed behavior, bad legs, no key, cache hit, a 3-leg
+via+return itinerary) plus 16 new `parseLegs`/`buildLegsCacheKey` unit
+tests now in `tests/fares.test.mjs` (28 total there, up from 12), plus 7
+new checks against the actual `fetchLiveOffers()`/`addDaysIso()` source
+verifying real via-search request composition. Full existing suite (`npm
+test`) still green at 81 total (48 + 28 + 5). All run before this was
+committed, per standing instruction.
