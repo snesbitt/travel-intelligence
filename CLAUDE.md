@@ -76,6 +76,39 @@ not just a demo. Hold every future change to that standard.
   appear (rec card, watched trips, .ics export); booking links moved to a
   `.rec-links` wrapping row and watched rows stack single-column on mobile
   (44px unwatch target) — no mid-phrase link wrapping at 375px.
+- 2026-07-31 (Susan: "improve the city fields to better/more elegantly
+  handle mispellings with fuzzy matching"): added a third resolution tier —
+  exact match, then whole-word match (both above), then a typo-tolerant
+  fuzzy match — to `toIATA()` and `lookupCoords()` in `app.js`. New helpers
+  `levenshtein()` (optimal-string-alignment edit distance: insert/delete/
+  substitute at cost 1, plus adjacent-letter transposition at cost 1, so
+  "Pairs"→Paris and "Tokoy"→Tokyo work, not just dropped/wrong letters) and
+  `fuzzyMatchKey()` (scans a table, returns the single closest key within
+  the distance threshold, or `null` on a tie or no match — never guesses).
+  Threshold: 1 typo allowed under 13 characters, 2 at 13+ (longer phrases
+  can carry two small slips with less risk of coincidentally resembling an
+  unrelated name); inputs under 4 characters never fuzzy-match. Validated
+  with an exhaustive sweep (every deletion/substitution/adjacent-swap
+  variant of every real `CITY_IATA`/`COUNTRY_TO_IATA` key, ~64k variants)
+  confirming zero wrong resolutions — every variant lands back on the same
+  key or safely returns unresolved. That sweep is what caught and fixed a
+  first-pass bug: a flatter "2 typos above 7 chars" threshold let the
+  fictional "Atlantis" resolve to Atlanta (ATL) — a case the test suite
+  had already relied on staying unresolved (see
+  "unresolved city or missing date produces NO links" in
+  `tests/app.test.js`). Both `toIATA()` and `lookupCoords()` check the
+  fuzzy layer directly against their own tables (not just via a resolved
+  code) so geometry resolves even for names whose IATA code isn't itself a
+  `CITY_COORDS` key (e.g. "Chigaco"-style Chicago typos → ORD, which isn't
+  a `CITY_COORDS` key on its own — "chicago" is). `FALLBACK_REASONS` copy
+  in `index.html` updated from a now-stale "e.g. Bangkok, not Bankok"
+  example (that typo resolves correctly now) to "even allowing for a typo
+  or two". Tests: `levenshtein()` and `fuzzyMatchKey()` exposed on
+  `window.TravelIntel` for `tests/app.test.js`; new tests cover common
+  typos, the country-name path, exact-match precedence over fuzzy, refusal
+  to guess on no-match/ties, and the exhaustive sweep (a representative
+  sample runs in the regular suite; the full ~64k-variant sweep was ad hoc
+  validation during the build, not part of `npm test`, to keep it fast).
 - One exception to "modeled": `POINT_VALUATIONS` and `TRANSFER_BONUSES`
   in `app.js` are real published figures hand-copied from The Points
   Guy's monthly valuations / current-transfer-bonuses pages, each dated

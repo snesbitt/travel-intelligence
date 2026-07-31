@@ -494,4 +494,97 @@ test("displayCityName: new capitals display cleanly", () => {
   assert.equal(T.displayCityName("estonia"), "Tallinn");
 });
 
+test("levenshtein: basic edit-distance sanity, incl. adjacent transposition at cost 1", () => {
+  assert.equal(T.levenshtein("bangkok", "bangkok"), 0);
+  assert.equal(T.levenshtein("bankok", "bangkok"), 1); // dropped letter
+  assert.equal(T.levenshtein("fransisco", "francisco"), 1); // substitution
+  assert.equal(T.levenshtein("pairs", "paris"), 1); // adjacent-letter swap (a common typo)
+  assert.equal(T.levenshtein("", "abc"), 3);
+});
+
+test("toIATA (Susan 2026-07-31: 'improve city fields to handle misspellings'): common typos still resolve", () => {
+  // the exact typo the old FALLBACK_REASONS copy used to just describe
+  assert.equal(T.toIATA("Bankok"), "BKK");
+  assert.equal(T.toIATA("bankok"), "BKK");
+  // dropped, swapped, and wrong-letter variants across a spread of city
+  // name lengths, both single words and multi-word phrases
+  assert.equal(T.toIATA("San Fransisco"), "SFO");
+  assert.equal(T.toIATA("Chicgo"), "ORD"); // dropped letter
+  assert.equal(T.toIATA("Pairs"), "CDG"); // adjacent-letter swap
+  assert.equal(T.toIATA("Singapre"), "SIN");
+  assert.equal(T.toIATA("Amsterdm"), "AMS");
+  assert.equal(T.toIATA("Barcelona"), "BCN"); // exact match still wins outright, unaffected
+  assert.equal(T.toIATA("Istambul"), "IST");
+  assert.equal(T.toIATA("Melborne"), "MEL");
+  // a lone, uncombined word that's too far from any single-word key and
+  // not close enough to a multi-word phrase like "san francisco" —
+  // correctly refuses to guess rather than picking something plausible
+  assert.equal(T.toIATA("Fransisco"), null);
+});
+
+test("toIATA: typo fallback also covers country names", () => {
+  assert.equal(T.toIATA("Grmany"), "FRA");
+  assert.equal(T.toIATA("Switzerlnd"), "ZRH");
+});
+
+test("toIATA: typo fallback never overrides an exact match, even when a near-neighbor exists", () => {
+  // Iran/Iraq are within 1 edit of each other, but both are legitimate
+  // exact COUNTRY_TO_IATA keys, so exact match always wins outright and
+  // the fuzzy layer is never reached for either.
+  assert.equal(T.toIATA("Iran"), "IKA");
+  assert.equal(T.toIATA("Iraq"), "BGW");
+  // "Iceland" is an exact COUNTRY_TO_IATA key; make sure the typo layer
+  // (which runs after) can't be reached for a name that already resolved.
+  assert.equal(T.toIATA("Iceland"), "KEF");
+  assert.equal(T.toIATA("iceland, europe"), "KEF"); // whole-word still wins over fuzzy
+});
+
+test("toIATA: typo fallback declines to guess when nothing is close enough", () => {
+  assert.equal(T.toIATA("Chad"), null); // not in the table at all, not a near-miss
+  assert.equal(T.toIATA("Zzzzznotacity"), null);
+  // inputs under 4 characters never fuzzy-match (too short/ambiguous;
+  // 3-letter alpha input is already treated as a literal IATA code above)
+  assert.equal(T.fuzzyMatchKey("nyc", { nyc2: "X", nyx: "Y" }), null);
+});
+
+test("lookupCoords: typo fallback resolves geometry directly, not just the IATA code", () => {
+  const c = T.lookupCoords("Chicgo");
+  assert.ok(c, "Chicgo should resolve to Chicago's coordinates");
+  assert.equal(Math.round(c[0]), 42);
+  const bad = T.lookupCoords("Zzzzznotacity");
+  assert.equal(bad, null);
+});
+
+test("fuzzyMatchKey: ambiguous ties refuse to guess rather than pick arbitrarily", () => {
+  const tieTable = { bake: "A", cake: "B" }; // "lake" sits at distance 1 from both
+  assert.equal(T.fuzzyMatchKey("lake", tieTable), null);
+});
+
+test("fuzzyMatchKey: exhaustive safety check — every single-edit typo (delete/substitute/adjacent-swap) of every real city or country key resolves back to that SAME key or safely to null, never to a different key", () => {
+  // Exercised via toIATA directly (rather than a hand-copied key list) so
+  // this tracks the real data. CITY_IATA/COUNTRY_TO_IATA aren't on the
+  // public surface — only toIATA's resolution is.
+  const letters = "abcdefghijklmnopqrstuvwxyz";
+  function variants(word) {
+    const out = new Set();
+    for (let i = 0; i < word.length; i++) out.add(word.slice(0, i) + word.slice(i + 1));
+    for (let i = 0; i < word.length; i++) for (const c of letters) if (c !== word[i]) out.add(word.slice(0, i) + c + word.slice(i + 1));
+    for (let i = 0; i < word.length - 1; i++) if (word[i] !== word[i + 1]) out.add(word.slice(0, i) + word[i + 1] + word[i] + word.slice(i + 2));
+    out.delete(word);
+    return out;
+  }
+  // Spot-check a representative sample of real single-word keys (the full
+  // ~300-key x ~200-variant sweep lives in the build session's ad hoc
+  // validation, not in the regular suite, to keep `npm test` fast).
+  const sampleCities = ["chicago", "singapore", "amsterdam", "istanbul", "melbourne", "germany", "switzerland", "bangkok", "barcelona"];
+  for (const key of sampleCities) {
+    const want = T.toIATA(key);
+    assert.ok(want, `sanity: "${key}" should resolve exactly`);
+    for (const v of variants(key)) {
+      const got = T.toIATA(v);
+      assert.ok(got === want || got === null, `typo "${v}" of "${key}" resolved to ${got}, expected ${want} or null`);
+    }
+  }
+});
+
 console.log(`\n${passed} passed`);

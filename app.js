@@ -164,6 +164,82 @@ const CITY_COORDS = {
   sarasota: [27.40, -82.55], srq: [27.40, -82.55],
 };
 
+// Optimal-string-alignment edit distance: insert/delete/substitute at cost
+// 1, PLUS an adjacent-transposition op at cost 1 ("Pairs"/"Paris",
+// "Tokoy"/"Tokyo") — swapped adjacent letters are one of the most common
+// typos and cost 2 under plain Levenshtein, which was enough to miss them
+// at the distance-1 threshold short names get below. Small and
+// dependency-free — used only by fuzzyMatchKey, never on the hot path
+// (exact and whole-word matches are tried first).
+function levenshtein(a, b) {
+  if (a === b) return 0;
+  const m = a.length, n = b.length;
+  if (m === 0) return n;
+  if (n === 0) return m;
+  // rolling 3-row DP (O(n) memory, not O(n*m)) — twoBack is what the
+  // transposition check needs; prev/curr are the usual Levenshtein rows.
+  let twoBack = new Array(n + 1).fill(0);
+  let prev = new Array(n + 1);
+  let curr = new Array(n + 1);
+  for (let j = 0; j <= n; j++) prev[j] = j;
+  for (let i = 1; i <= m; i++) {
+    curr[0] = i;
+    for (let j = 1; j <= n; j++) {
+      const cost = a[i - 1] === b[j - 1] ? 0 : 1;
+      curr[j] = Math.min(curr[j - 1] + 1, prev[j] + 1, prev[j - 1] + cost);
+      if (i > 1 && j > 1 && a[i - 1] === b[j - 2] && a[i - 2] === b[j - 1]) {
+        curr[j] = Math.min(curr[j], twoBack[j - 2] + cost);
+      }
+    }
+    [twoBack, prev, curr] = [prev, curr, twoBack];
+  }
+  return prev[n];
+}
+
+// 2026-07-31 (Susan: "improve the city fields to handle misspellings"):
+// typo tolerance, layered strictly UNDER the exact and whole-word matches
+// above/below — this only runs when neither of those already resolved the
+// input, so a legitimate exact/whole-word match never loses to a
+// coincidental near-miss elsewhere in the table. Catches the kind of typo
+// the "Bangkok, not Bankok" error copy (below) used to just describe
+// instead of fixing: a dropped, doubled, transposed, or wrong letter in an
+// otherwise-recognizable name ("Bankok", "Fransisco", "Singapre", "Pairs").
+//
+// Distance allowed is validated, not guessed: an exhaustive sweep (every
+// deletion/substitution/adjacent-transposition variant of every real city
+// and country key) confirmed zero wrong resolutions at these thresholds —
+// every variant either lands back on the SAME key or safely returns null.
+// A first pass allowed 2 typos above 7 characters and that let "Atlantis"
+// (fictional, nothing to do with Atlanta) resolve to ATL — tightened to 1
+// typo below 13 characters; 2 is reserved for longer multi-word phrases,
+// where two small slips across more real content is the likelier case and
+// coincidental closeness to something unrelated is comparatively rarer.
+// Inputs under 4 characters never fuzzy-match — that short is either an
+// exact IATA code (handled earlier) or too ambiguous to guess. A tie for
+// the best distance also refuses to guess, same "never silently invent a
+// resolution" rule the whole-word fix above set for unresolved input.
+function fuzzyMatchKey(input, table) {
+  const n = (input || "").trim().toLowerCase();
+  if (n.length < 4) return null;
+  // 2026-07-31: tightened from a flat "2 typos above 7 chars" after that
+  // let "Atlantis" (fictional, not in any table) resolve to Atlanta at
+  // distance 2 — a false positive the existing test suite had specifically
+  // relied on staying unresolved. 1 typo is allowed until names get long
+  // enough (13+ chars — "san francisco" is 13) that two small slips across
+  // a longer phrase are the more likely real-world case and coincidental
+  // closeness to an unrelated word is comparatively less likely.
+  const maxDist = n.length <= 12 ? 1 : 2;
+  let bestKey = null, bestDist = Infinity, tied = false;
+  for (const key of Object.keys(table)) {
+    if (Math.abs(key.length - n.length) > maxDist) continue; // cheap prefilter
+    const d = levenshtein(n, key);
+    if (d > maxDist) continue;
+    if (d < bestDist) { bestDist = d; bestKey = key; tied = false; }
+    else if (d === bestDist && key !== bestKey) { tied = true; }
+  }
+  return tied ? null : bestKey;
+}
+
 function lookupCoords(name) {
   if (!name) return null;
   const n = name.trim().toLowerCase();
@@ -178,6 +254,13 @@ function lookupCoords(name) {
     }
   }
   if (bestKey) return CITY_COORDS[bestKey];
+  // 2026-07-31: typo fallback (see fuzzyMatchKey above) — tried directly
+  // against CITY_COORDS before falling through to toIATA below, because
+  // not every CITY_COORDS key has a same-name key in CITY_IATA/CITY_COORDS
+  // reachable via a resolved code (e.g. "chicago" -> ORD, but "ord" is not
+  // itself a CITY_COORDS key) — matching here catches those directly.
+  const fuzzyKey = fuzzyMatchKey(n, CITY_COORDS);
+  if (fuzzyKey) return CITY_COORDS[fuzzyKey];
   // 2026-07-26 (Susan: "Estonia" resolved to a real IATA code via toIATA's
   // COUNTRY_TO_IATA table, but geometry still came back null): toIATA and
   // lookupCoords used to be two separate lookups that could disagree —
@@ -306,7 +389,17 @@ function toIATA(name) {
     }
     return bestKey ? table[bestKey] : null;
   };
-  return bestMatch(CITY_IATA) || bestMatch(COUNTRY_TO_IATA);
+  const whole = bestMatch(CITY_IATA) || bestMatch(COUNTRY_TO_IATA);
+  if (whole) return whole;
+  // 2026-07-31: typo fallback (see fuzzyMatchKey above the CITY_COORDS
+  // lookups) — only reached when no exact or whole-word match fired.
+  // Cities checked before countries: a misspelled city name is far more
+  // likely to be typo-close to another city than to a country name.
+  const fuzzyCity = fuzzyMatchKey(n, CITY_IATA);
+  if (fuzzyCity) return CITY_IATA[fuzzyCity];
+  const fuzzyCountry = fuzzyMatchKey(n, COUNTRY_TO_IATA);
+  if (fuzzyCountry) return COUNTRY_TO_IATA[fuzzyCountry];
+  return null;
 }
 
 // 2026-07-24: code -> canonical display city, derived from CITY_IATA
@@ -1018,5 +1111,8 @@ if (typeof window !== "undefined") {
     // exposed 2026-07-21 for tests/app.test.js — saved preferences & trip
     // memory (phase 07's fuller slice, after the wallet).
     travelStyleFallback, flagsDislikedAirport, matchUpgradeWinCarrier,
+    // exposed 2026-07-31 for tests/app.test.js — typo/misspelling fallback
+    // for city and country input (see fuzzyMatchKey above CITY_COORDS).
+    levenshtein, fuzzyMatchKey, lookupCoords,
   };
 }

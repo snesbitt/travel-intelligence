@@ -677,10 +677,14 @@
   }
 
   const FALLBACK_REASONS = {
-    "unknown-via": (inputs) => `"${inputs.viaCity}" isn't in the city table; check the spelling or use a 3-letter airport code.`,
+    // 2026-07-31: toIATA now auto-corrects a stray typo or two (a dropped,
+    // doubled, swapped, or wrong letter — "Bankok" now resolves to Bangkok
+    // on its own), so this message only fires for names it genuinely
+    // doesn't recognize, not a one-letter slip.
+    "unknown-via": (inputs) => `"${inputs.viaCity}" isn't in the city table, even allowing for a typo or two; check the spelling or use a 3-letter airport code.`,
     "via-bad-request": () => `the via routing didn't form a valid itinerary -- check that the return date is after the stopover leg (departure date + nights at the stopover).`,
-    "unknown-dest": (inputs) => `"${inputs.destination}" isn't in the city table; check the spelling (e.g. Bangkok, not Bankok) or use a 3-letter airport code.`,
-    "unknown-origin": (inputs) => `"${inputs.preferredAirport || inputs.origin}" isn't a recognized origin; use a city from the table or a 3-letter airport code.`,
+    "unknown-dest": (inputs) => `"${inputs.destination}" isn't in the city table, even allowing for a typo or two; check the spelling or use a 3-letter airport code.`,
+    "unknown-origin": (inputs) => `"${inputs.preferredAirport || inputs.origin}" isn't a recognized origin, even allowing for a typo or two; use a city from the table or a 3-letter airport code.`,
     "no-date": () => `no departure date set; add one to search live fares.`,
     "not-configured": () => `demo mode: the live backend awaits its API credential.`,
     "no-offers": () => `the live search returned no offers for this route/date.`,
