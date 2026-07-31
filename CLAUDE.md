@@ -449,3 +449,32 @@ new checks against the actual `fetchLiveOffers()`/`addDaysIso()` source
 verifying real via-search request composition. Full existing suite (`npm
 test`) still green at 81 total (48 + 28 + 5). All run before this was
 committed, per standing instruction.
+
+## 2026-07-31 — Via field promoted to main form + security audit fixes
+
+- The Via/stopover field (wired to the live multi-city search 2026-07-30)
+  was still sitting inside the collapsed `<details class="refine">`
+  section from the 2026-07-26 radical-simplicity pass, which predates it —
+  live but easy to miss. Promoted `viaCity`/`viaNights` into the main
+  `#optimize` form grid, between Destination and Departure date. Refine
+  now covers preferred airports, travelers, cabin, airlines, budget,
+  wallet.
+- `renderWatched(t)`: `t.origin`/`t.destination`/`t.cabin`/`t.id` went
+  into the row template unescaped. `netlify/functions/watch.mjs` confirmed
+  `origin`/`destination` are raw user strings (capped at 60 chars, never
+  escaped server-side) — the real vector; `id`/`cabin` turned out to
+  already be validated/allowlisted server-side, so escaping them
+  client-side too is defense-in-depth, not a real gap closed. Escaped all
+  four with `escapeHtml()`, and replaced the unwatch button's
+  `onclick="tiUnwatch('${t.id}')"` (vulnerable to a double-decode trap:
+  HTML-escaping quotes in an attribute doesn't protect the JS string
+  literal the browser re-parses after decoding it) with a `data-watch-id`
+  attribute plus one delegated click listener on `#watching-list`.
+- `fetchScanOffers(inputs)`: escaped at the point scan offers enter the
+  data model (the trust boundary), not at every downstream render site —
+  avoids a double-encoding bug from escaping in both places.
+  `netlify/functions/scan-offers.mjs`'s `sanitizeScan()` allowlists
+  `source` but never escapes `carrier` (capped at 60 chars only) — that
+  was the real vector.
+- Committed `ac252c3`. All 81 pre-existing tests plus 4 new ad hoc XSS
+  checks green before commit, per standing instruction.
