@@ -46,6 +46,8 @@
         <div class="form-grid">
           <div class="form-field"><label for="origin">Origin</label><input type="text" id="origin" placeholder="e.g. San Francisco" value="San Francisco"></div>
           <div class="form-field"><label for="destination">Destination</label><input type="text" id="destination" placeholder="e.g. Tokyo" value="Tokyo"></div>
+          <div class="form-field"><label for="viaCity">Via: stopover city (optional)</label><input type="text" id="viaCity" placeholder="e.g. Osaka (routes the trip through it)"></div>
+          <div class="form-field"><label for="viaNights">Nights at the stopover</label><input type="number" id="viaNights" value="2" min="0" max="30"></div>
           <div class="form-field"><label for="departDate">Departure date</label><input type="date" id="departDate"></div>
           <div class="form-field"><label for="returnDate">Return date</label><input type="date" id="returnDate"></div>
           <div class="form-field">
@@ -86,16 +88,16 @@
         <p class="form-hint" id="prio-suggest" style="margin-top:10px;"></p>
       </section>
 
-      <!-- 2026-07-26 radical simplicity: four essential fields above; every
-           refinement folds away here and the open/closed state persists. -->
+      <!-- 2026-07-26 radical simplicity: essential fields above (2026-07-31:
+           via/stopover promoted here too, it's a headline routing feature,
+           not an edge case); every remaining refinement folds away here and
+           the open/closed state persists. -->
       <details class="refine" id="refine">
-        <summary>Refine: airports, travelers, cabin, airlines, budget, wallet</summary>
+        <summary>Refine: preferred airports, travelers, cabin, airlines, budget, wallet</summary>
 
       <section class="block card" id="trip-more">
         <h2 class="card-title">Trip details</h2>
         <div class="form-grid">
-          <div class="form-field"><label for="viaCity">Via: stopover city (optional)</label><input type="text" id="viaCity" placeholder="e.g. Osaka (routes the trip through it)"></div>
-          <div class="form-field"><label for="viaNights">Nights at the stopover</label><input type="number" id="viaNights" value="2" min="0" max="30"></div>
           <div class="form-field"><label for="preferredAirport">Preferred departure airport</label><input type="text" id="preferredAirport" placeholder="e.g. SFO" value="SFO"></div>
           <div class="form-field"><label for="airportFlexibility">Nearby airports you'd consider</label><input type="text" id="airportFlexibility" placeholder="e.g. SFO, SJC, OAK" value="SFO, SJC, OAK"></div>
           <div class="form-field"><label>Travelers</label>
@@ -636,12 +638,24 @@
       const j = await r.json();
       const now = Date.now();
       const offers = [], labels = [];
+      // 2026-07-31: everything from j.scans is attacker-controllable (POST
+      // /api/scan-offers is unauthenticated by design, like /api/watch), and
+      // it later flows unchanged through the scoring engine into dozens of
+      // innerHTML render sites (execSummary, rec-airline, altRowsHtml, ...).
+      // Escaping every string field once, right here at the trust boundary,
+      // is far more reliable than trying to remember to escape it at each
+      // of those render sites individually.
       for (const scan of j.scans || []) {
         const ageH = (now - new Date(scan.scannedAt).getTime()) / 36e5;
         if (!(ageH >= 0 && ageH < SCAN_TTL_H)) continue;
         const ageTxt = ageH < 1 ? "under 1h ago" : Math.round(ageH) + "h ago";
-        labels.push(scan.source + " scan (" + ageTxt + ")");
-        for (const of2 of scan.offers) offers.push({ ...of2, src: scan.source + " · scanned " + ageTxt });
+        const safeSource = escapeHtml(scan.source);
+        labels.push(safeSource + " scan (" + ageTxt + ")");
+        for (const of2 of scan.offers || []) {
+          const safeOffer = {};
+          for (const k in of2) safeOffer[k] = typeof of2[k] === "string" ? escapeHtml(of2[k]) : of2[k];
+          offers.push({ ...safeOffer, src: safeSource + " · scanned " + ageTxt });
+        }
       }
       return { offers, label: labels.join(" + ") };
     } catch (e) { return { offers: [], label: "" }; }
@@ -832,6 +846,9 @@
       return parts.length ? '<span class="alt-links">' + parts.join("") + "</span>" : "";
     }
     function altRowsHtml(rows) {
+      // Untrusted strings (from the deep-scan feed) are already escaped
+      // once, at the source, in fetchScanOffers -- escaping again here would
+      // double-encode legitimate "&"/quotes in carrier or alliance names.
       return rows.map((c) => `
       <tr class="${c.id === best.id ? "best-row" : ""}">
         <td><strong>${c.carrier}</strong><br><span class="form-hint">${c.alliance}</span>${c.src ? `<br><span class="rec-src">${c.src}</span>` : ""}${altLinks(c)}</td>
@@ -1091,6 +1108,16 @@
     const T = window.TravelIntel;
     const card = document.getElementById("watched");
     const rows = document.getElementById("watched-rows");
+    if (!rows.__tiDelegated) {
+      // Delegated, not inline onclick: watch records are user-submitted
+      // (via POST /api/watch) and rendered back here, so their text must
+      // never be interpolated into an executable attribute (2026-07-31).
+      rows.addEventListener("click", (ev) => {
+        const btn = ev.target.closest(".watched-unwatch");
+        if (btn) window.tiUnwatch(btn.dataset.watchId);
+      });
+      rows.__tiDelegated = true;
+    }
     if (!trips || !trips.length) { card.classList.add("ti-hidden"); return; }
     card.classList.remove("ti-hidden");
     rows.innerHTML = trips.map((t) => {
@@ -1120,19 +1147,27 @@
       const wCarrier = (checks.length && checks[checks.length - 1] && checks[checks.length - 1].carrier) || (t.baseline && t.baseline.carrier) || "";
       const wUrls = T.liveSearchUrls({ origin: t.origin, destination: t.destination, departDate: t.departDate, returnDate: t.returnDate, travelers: t.travelers }, /american|\bAA\b/i.test(wCarrier) ? "American" : "");
       const wBook = wUrls.carrierDeep || wUrls.googleFlights;
-      return `<div class="watched-item" data-id="${t.id}">
+      // 2026-07-31: origin/destination/cabin/id all come straight from the
+      // POST /api/watch body a visitor submits, so every one of them gets
+      // HTML-escaped before it's interpolated back into markup or an
+      // attribute -- this row is a stored-XSS surface otherwise.
+      const safeOrigin = escapeHtml(T.displayCityName(t.origin));
+      const safeDest = escapeHtml(T.displayCityName(t.destination));
+      const safeCabin = escapeHtml(t.cabin);
+      const safeId = escapeHtml(t.id);
+      return `<div class="watched-item" data-id="${safeId}">
         <div class="watched-route-card">
-          <span class="watched-route-main">${T.displayCityName(t.origin)} → ${T.displayCityName(t.destination)}${codeChip}</span>
-          <span class="watched-route-meta">${fmtWatchRange(t.departDate, t.returnDate)} · ${t.cabin} · ${travLabel}</span>
+          <span class="watched-route-main">${safeOrigin} → ${safeDest}${codeChip}</span>
+          <span class="watched-route-meta">${fmtWatchRange(t.departDate, t.returnDate)} · ${safeCabin} · ${travLabel}</span>
         </div>
         <div class="watched-side" style="display:flex;align-items:center;gap:12px;">
           ${spark}
           <div class="watched-price-col">
-            <span class="watched-price-line">${wBook ? `<a class="watched-book" href="${wBook}" target="_blank" rel="noopener" aria-label="Book ${t.origin} to ${t.destination}"><span class="watched-price-amount">${priceAmount}</span> ↗</a>` : `<span class="watched-price-amount">${priceAmount}</span>`}${delta}</span>
+            <span class="watched-price-line">${wBook ? `<a class="watched-book" href="${wBook}" target="_blank" rel="noopener" aria-label="Book ${safeOrigin} to ${safeDest}"><span class="watched-price-amount">${priceAmount}</span> ↗</a>` : `<span class="watched-price-amount">${priceAmount}</span>`}${delta}</span>
             <span class="watched-price-meta">${priceMeta}</span>
           </div>
           <div class="watched-actions">
-            <button type="button" class="watched-unwatch" aria-label="Stop watching ${t.origin} to ${t.destination}" onclick="tiUnwatch('${t.id.replace(/'/g, "")}')">×</button>
+            <button type="button" class="watched-unwatch" aria-label="Stop watching ${safeOrigin} to ${safeDest}" data-watch-id="${safeId}">×</button>
           </div>
         </div>
       </div>`;
