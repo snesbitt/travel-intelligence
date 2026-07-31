@@ -109,6 +109,49 @@ not just a demo. Hold every future change to that standard.
   to guess on no-match/ties, and the exhaustive sweep (a representative
   sample runs in the regular suite; the full ~64k-variant sweep was ad hoc
   validation during the build, not part of `npm test`, to keep it fast).
+- 2026-07-31, same session, two follow-ups after Susan tried "Pairs" as a
+  destination and asked about the Stops field:
+  1. **Live typeahead.** New `suggestCities(query, limit)` in `app.js`,
+     exposed on `window.TravelIntel`, returns ranked, deduped-by-code
+     suggestions (exact match, then prefix, then whole-word substring, then
+     the same typo tolerance `toIATA` uses) — deliberately a separate,
+     *more permissive* function than `toIATA`/`fuzzyMatchKey` rather than a
+     reuse of either: a typeahead shows several candidates and lets the
+     person pick, so it's fine to surface near-misses the silent resolver
+     correctly refuses to guess between. `attachCityAutocomplete()` in
+     `index.html` wires this to an ARIA 1.2 combobox (role=combobox/
+     listbox/option, aria-expanded/aria-activedescendant, full keyboard
+     nav, 44px touch rows matching the site's existing target-size
+     convention) on origin, destination, viaCity, and preferredAirport.
+     Selecting a suggestion always fills the field with a string that
+     exact-matches on resolve (verified by test — see
+     "every suggested value resolves back to the same code via toIATA").
+  2. **The Stops field didn't do anything — a real bug, not just a UX
+     gap.** `inputs.maxStops` was collected from a "Maximum stops" select
+     (including a "Nonstop only" option) and saved as a preference, but
+     `buildLiveCandidates` never read it — stops only ever cost points via
+     the Risk/Comfort scores, never excluded an offer. Same "control that
+     silently does nothing" bug class as the resolution/scoring gaps this
+     file's whole history has caught (SFO→Greenville, Muscat→Chicago,
+     etc.) — a UI element that doesn't do what it says is its own kind of
+     invented result. Now a real hard filter in `buildLiveCandidates`
+     (`stopsLimit = inputs.maxStops == null ? Infinity : inputs.maxStops`,
+     so every existing caller that predates this field being wired to
+     anything is unaffected). "Nonstop only" with no nonstop offer in the
+     live set correctly returns the existing honest `noLiveData` empty
+     state (same generic empty-state path avoided-airline filtering to
+     zero already used — no new distinct reason string added, matching
+     this codebase's radical-simplicity precedent of not over-distinguishing
+     *why* zero candidates resulted). The field itself was promoted from
+     the "Flight preferences" fold to the main Trip card as a pill-toggle
+     (same reasoning Via/stopover was promoted for: "a headline feature,
+     not an edge case" — arguably more so for Susan, who said "I always
+     want to fly nonstop if available"), default changed to Nonstop only.
+     Still persists via the same `savePreferences`/`loadPreferences`
+     mechanism as before (`pillVal("maxStops")`/`setPillVal("maxStops", …)`
+     replacing the old `document.getElementById("maxStops").value` reads/
+     writes) — visually it's on the main card now, behaviorally it's still
+     a saved cross-trip preference, not a per-trip field.
 - One exception to "modeled": `POINT_VALUATIONS` and `TRANSFER_BONUSES`
   in `app.js` are real published figures hand-copied from The Points
   Guy's monthly valuations / current-transfer-bonuses pages, each dated

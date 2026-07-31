@@ -433,6 +433,65 @@ function displayCity(nameOrCode) {
   return city ? city + " (" + code + ")" : code.toUpperCase();
 }
 
+// 2026-07-31 (Susan: "the field to fuzzy match so as I'm typing the
+// correct city or airport code shows up"): ranked suggestions for
+// live-typing autocomplete, built from the same CITY_IATA/COUNTRY_TO_IATA
+// tables toIATA resolves against. Deliberately a DIFFERENT, more permissive
+// function than toIATA/fuzzyMatchKey rather than a reuse of either: a
+// typeahead shows several candidates and lets the person pick one, so it's
+// fine to surface ties and near-misses that the silent resolver correctly
+// refuses to guess between. One row per airport code (deduped across every
+// alias that points to it — "chicago", "usa", and "us" all collapse to one
+// ORD row), ranked exact match first, then prefix, then whole-word
+// substring, then edit-distance typo tolerance, each tier sorted by how
+// close the match is. Pure and side-effect-free like the rest of this file;
+// the index is built lazily once and cached (the table data never changes
+// at runtime).
+let CITY_SUGGEST_ALIASES = null;
+function suggestAliases() {
+  if (CITY_SUGGEST_ALIASES) return CITY_SUGGEST_ALIASES;
+  const aliases = [];
+  for (const [name, code] of Object.entries(CITY_IATA)) aliases.push({ key: name, code });
+  for (const [name, code] of Object.entries(COUNTRY_TO_IATA)) aliases.push({ key: name, code });
+  CITY_SUGGEST_ALIASES = aliases;
+  return aliases;
+}
+function titleCase(s) {
+  return s.replace(/(^|[\s-])[a-z]/g, (m) => m.toUpperCase());
+}
+function suggestCities(query, limit) {
+  const n = (query || "").trim().toLowerCase();
+  if (n.length < 2) return [];
+  const cap = limit || 8;
+  const maxFuzzyDist = n.length <= 5 ? 1 : 2;
+  const byCode = new Map(); // code -> best {tier, dist, key} seen across all its aliases
+  for (const { key, code } of suggestAliases()) {
+    let tier = null, dist = 0;
+    if (key === n) { tier = 0; }
+    else if (key.startsWith(n)) { tier = 1; dist = key.length - n.length; }
+    else if (wholeWordIncludes(key, n)) { tier = 2; dist = key.length - n.length; }
+    else if (n.length >= 4) {
+      const d = levenshtein(n, key);
+      if (d <= maxFuzzyDist) { tier = 3; dist = d; }
+    }
+    if (tier === null) continue;
+    const best = byCode.get(code);
+    if (!best || tier < best.tier || (tier === best.tier && dist < best.dist)) byCode.set(code, { tier, dist, key });
+  }
+  // IATA_DISPLAY only has an entry for codes CITY_IATA names directly; a
+  // code reached only through a COUNTRY_TO_IATA alias (e.g. "paraguay" ->
+  // ASU, "iran" -> IKA, neither city listed in CITY_IATA) falls back to the
+  // matched alias itself, title-cased ("Paraguay (ASU)") rather than a bare
+  // code — still an exact key either way, so filling it in guarantees a
+  // clean resolve.
+  const results = Array.from(byCode.entries()).map(([code, r]) => {
+    const name = IATA_DISPLAY[code] || titleCase(r.key);
+    return { code, tier: r.tier, dist: r.dist, value: name, label: `${name} (${code})` };
+  });
+  results.sort((a, b) => a.tier - b.tier || a.dist - b.dist || a.label.localeCompare(b.label));
+  return results.slice(0, cap).map(({ code, value, label }) => ({ code, value, label }));
+}
+
 // Direct booking sites per carrier — the "book it" handoff the audit
 // flagged as missing. Fuzzy-matched by name; unknown carriers fall back
 // to the Google Flights link in Purchase Strategy.
@@ -613,9 +672,22 @@ function buildLiveCandidates(inputs, offers) {
   const avoid = (inputs.avoidAirlines || []).map((a) => a.toLowerCase());
   const range = AWARD_RANGES[inputs.cabin] || AWARD_RANGES.Economy;
   const mLow = range.milesLow * milesFactor, mHigh = range.milesHigh * milesFactor;
+  // 2026-07-31 (Susan: "I always want to fly nonstop if available" — bug
+  // found while building the UI for this): "Maximum stops" was collected
+  // into inputs.maxStops and had a "Nonstop only" option in the UI, but
+  // nothing ever read it — every offer was scored and eligible regardless
+  // of stops; stops only ever cost points via Risk/Comfort, never excluded
+  // an offer outright. Same "silently does nothing" bug class as every
+  // other resolution/scoring gap this file's history has caught: a control
+  // that doesn't do what it says is its own kind of invented result.
+  // inputs.maxStops missing/null means "no limit" (matches every existing
+  // test call that predates this field being wired to anything and never
+  // set it) so this can't change behavior for callers that don't pass it.
+  const stopsLimit = inputs.maxStops == null ? Infinity : inputs.maxStops;
 
   return offers
     .filter((o) => !avoid.some((a) => (o.carrier || "").toLowerCase().includes(a)))
+    .filter((o) => Math.max(0, o.stops || 0) <= stopsLimit)
     .slice(0, 12)
     .map((o, i) => {
       const price = Math.round(o.priceTotal / travelers); // per person, matching the model's display convention
@@ -1102,7 +1174,7 @@ function runOptimization(inputs, liveOffers) {
 
 if (typeof window !== "undefined") {
   window.TravelIntel = {
-    runOptimization, computeWeights, upgradeTactics, bestPointsAnswers, toIATA, carrierSite, liveSearchUrls, scanSourceUrl, displayCity, displayCityName, priceIntelligence, suggestPriorities,
+    runOptimization, computeWeights, upgradeTactics, bestPointsAnswers, toIATA, carrierSite, liveSearchUrls, scanSourceUrl, displayCity, displayCityName, priceIntelligence, suggestPriorities, suggestCities,
     ALLIANCES, ALL_CARRIERS, TRANSFER_PARTNERS, POINT_VALUATIONS, TRANSFER_BONUSES,
     DIMENSIONS, DIM_LABEL, fmtUSD,
     // exposed 2026-07-20 for tests/app.test.js — these were already pure,

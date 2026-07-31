@@ -245,6 +245,32 @@ test("runOptimization: offers all filtered out (avoided airline) also returns no
   assert.equal(r.candidates.length, 0);
 });
 
+test("buildLiveCandidates (Susan 2026-07-31: 'I always want to fly nonstop if available'): maxStops actually excludes offers now — it used to be collected and silently ignored", () => {
+  const inputs = { destination: "Tokyo", origin: "San Francisco", cabin: "Economy", maxBudget: 2000,
+    departDate: "2026-08-10", travelers: 1, avoidAirlines: [] };
+  const offers = [
+    { carrier: "United", priceTotal: 900, stops: 0, durationMinutes: 620 },
+    { carrier: "ANA", priceTotal: 850, stops: 1, durationMinutes: 780 },
+    { carrier: "Delta", priceTotal: 700, stops: 2, durationMinutes: 900 },
+  ];
+  // no limit set (field omitted): every existing caller that predates this
+  // filter behaves exactly as before — all offers still score
+  assert.equal(T.buildLiveCandidates({ ...inputs }, offers).length, 3);
+  assert.deepEqual(T.buildLiveCandidates({ ...inputs, maxStops: 0 }, offers).map((c) => c.stops), [0]);
+  assert.deepEqual(T.buildLiveCandidates({ ...inputs, maxStops: 1 }, offers).map((c) => c.stops), [0, 1]);
+  assert.deepEqual(T.buildLiveCandidates({ ...inputs, maxStops: 2 }, offers).map((c) => c.stops), [0, 1, 2]);
+  assert.equal(T.buildLiveCandidates({ ...inputs, maxStops: 3 }, offers).length, 3, "3 = 'Any stops' in the UI, same as no limit");
+});
+
+test("runOptimization: 'Nonstop only' with no nonstop offer available correctly returns the honest empty state, not a stopped itinerary", () => {
+  const r = T.runOptimization({ origin: "San Francisco", destination: "Tokyo",
+    departDate: "2026-08-10", cabin: "Economy", maxStops: 0, maxBudget: 2000, priorityRanks: { Cheapest: 1 },
+    preferredAlliances: [], preferredAirlines: [], avoidAirlines: [], programBalances: [], dateFlexibility: "Exact", travelers: 1 },
+    [{ carrier: "ANA", priceTotal: 850, stops: 1, durationMinutes: 780 }]);
+  assert.equal(r.noLiveData, true);
+  assert.equal(r.candidates.length, 0);
+});
+
 
 /* ---------- 2026-07-24: route-prefilled booking deep links ---------- */
 
@@ -585,6 +611,40 @@ test("fuzzyMatchKey: exhaustive safety check — every single-edit typo (delete/
       assert.ok(got === want || got === null, `typo "${v}" of "${key}" resolved to ${got}, expected ${want} or null`);
     }
   }
+});
+
+test("suggestCities (Susan 2026-07-31: live typeahead as you type): ranked, deduped-by-code suggestions", () => {
+  assert.deepEqual(T.suggestCities("x"), [], "queries under 2 chars never suggest");
+  assert.deepEqual(T.suggestCities(""), []);
+  assert.deepEqual(T.suggestCities(null), []);
+  const paris = T.suggestCities("pari");
+  assert.equal(paris.length, 1);
+  assert.deepEqual(paris[0], { code: "CDG", value: "Paris", label: "Paris (CDG)" });
+  // exact match beats a shorter prefix elsewhere in the table
+  const par = T.suggestCities("par");
+  assert.equal(par[0].code, "CDG", "exact-prefix-tier city sorts before other 'par...' matches");
+  // typo tolerance: same distance-1 case toIATA resolves
+  const bankok = T.suggestCities("bankok");
+  assert.equal(bankok.length, 1);
+  assert.equal(bankok[0].code, "BKK");
+  // multiple real prefix matches, deduped by code, alphabetical within tier
+  const chi = T.suggestCities("chi").map((r) => r.code).sort();
+  assert.deepEqual(chi, ["KIV", "ORD", "PEK", "SCL"], "Chicago, China, Chile, Chisinau all legitimately start with 'chi'");
+  // a code reached only via a COUNTRY_TO_IATA alias with no CITY_IATA
+  // entry falls back to the alias itself as the label, not a bare code
+  const par2 = T.suggestCities("par", 5).find((r) => r.code === "ASU");
+  assert.ok(par2, "Paraguay should still surface for 'par'");
+  assert.equal(par2.label, "Paraguay (ASU)");
+  // limit is respected
+  assert.ok(T.suggestCities("a", 3).length <= 3);
+});
+
+test("suggestCities: every suggested value resolves back to the same code via toIATA (selecting a suggestion always exact-matches)", () => {
+  ["par", "lon", "tok", "sing", "chi", "ber", "san", "new"].forEach((q) => {
+    T.suggestCities(q, 8).forEach((s) => {
+      assert.equal(T.toIATA(s.value), s.code, `suggestion "${s.value}" for query "${q}" should resolve to ${s.code}`);
+    });
+  });
 });
 
 console.log(`\n${passed} passed`);
