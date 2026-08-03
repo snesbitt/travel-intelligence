@@ -162,6 +162,16 @@ const CITY_COORDS = {
   jacksonville: [30.49, -81.69], jax: [30.49, -81.69], "fort lauderdale": [26.07, -80.15], fll: [26.07, -80.15],
   "west palm beach": [26.68, -80.10], pbi: [26.68, -80.10], "fort myers": [26.54, -81.76], rsw: [26.54, -81.76],
   sarasota: [27.40, -82.55], srq: [27.40, -82.55],
+  // 2026-07-31 (Susan: "paris has several airports"): coordinates for every
+  // CITY_ALT_AIRPORTS code above that didn't already have an entry — a few
+  // (oak, sjc, bur, sna, bwi, nrt) were already here as standalone cities
+  // and are reused as-is.
+  lga: [40.78, -73.87], dca: [38.85, -77.04], mdw: [41.79, -87.75],
+  lgb: [33.82, -118.15], ont: [34.06, -117.60], hou: [29.65, -95.28], dal: [32.85, -96.85],
+  lgw: [51.15, -0.18], stn: [51.89, 0.24], ltn: [51.87, -0.37], lcy: [51.51, 0.06],
+  ory: [48.73, 2.36], bva: [49.45, 2.11], itm: [34.79, 135.44], sha: [31.20, 121.34],
+  pkx: [39.51, 116.41], gmp: [37.56, 126.80], cia: [41.80, 12.59], aep: [-34.56, -58.42],
+  cgh: [-23.63, -46.66], sdu: [-22.91, -43.16], dmk: [13.91, 100.61], ytz: [43.63, -79.40],
 };
 
 // Optimal-string-alignment edit distance: insert/delete/substitute at cost
@@ -361,6 +371,44 @@ const CITY_IATA = {
   "fort myers": "RSW", sarasota: "SRQ",
 };
 
+// 2026-07-31 (Susan: "with the Paris example only CDG came up but paris
+// has several airports — fix and do better"): CITY_IATA deliberately maps
+// each city to exactly ONE primary code — that's the code an actual search
+// books against, and it should stay a single deterministic choice rather
+// than picking a different airport per search. The autocomplete was reusing
+// that same 1:1 table for suggestions, so a multi-airport metro only ever
+// offered its primary airport even though "Paris" obviously also means
+// Orly. This table adds each metro's other real commercial airports —
+// SUGGESTIONS ONLY, never a resolution target on its own — so typing
+// "paris" surfaces CDG, Orly, and Beauvais as distinct choices; picking one
+// resolves to that airport's own code exactly as if she'd typed the code
+// directly. Every code listed here gets a CITY_COORDS entry below (so
+// distance/flight-time works for whichever one she picks) and, where it
+// isn't already implied by an existing city name, an IATA_DISPLAY label so
+// the suggestion reads as "Paris–Orly (ORY)" rather than a bare code.
+const CITY_ALT_AIRPORTS = {
+  "new york": ["EWR", "LGA"],
+  washington: ["DCA", "BWI"],
+  chicago: ["MDW"],
+  "los angeles": ["BUR", "LGB", "SNA", "ONT"],
+  houston: ["HOU"],
+  dallas: ["DAL"],
+  "san francisco": ["OAK", "SJC"],
+  london: ["LGW", "STN", "LTN", "LCY"],
+  paris: ["ORY", "BVA"],
+  tokyo: ["NRT"],
+  osaka: ["ITM"],
+  shanghai: ["SHA"],
+  beijing: ["PKX"],
+  seoul: ["GMP"],
+  rome: ["CIA"],
+  "buenos aires": ["AEP"],
+  "sao paulo": ["CGH"],
+  "rio de janeiro": ["SDU"],
+  bangkok: ["DMK"],
+  toronto: ["YTZ"],
+};
+
 // Whole-word substring test: true if `needle` appears in `haystack` as a
 // complete word/phrase (flanked by non-letters or the string edges), not
 // merely as a run of matching characters. Prevents short keys like "us"
@@ -377,6 +425,14 @@ function toIATA(name) {
   if (/^[a-z]{3}$/.test(n)) return n.toUpperCase();
   if (COUNTRY_TO_IATA[n]) return COUNTRY_TO_IATA[n];
   if (CITY_IATA[n]) return CITY_IATA[n];
+  // 2026-07-31 (Susan: multi-airport metros): an exact match on an
+  // alt-airport's own display name ("paris–orly") resolves straight to
+  // THAT airport's code. This has to come before the whole-word fallback
+  // below — "Paris–Orly" contains "paris" as a whole word, so without this
+  // check it would silently resolve back to CDG, the metro's primary code,
+  // defeating the entire point of offering Orly as its own suggestion.
+  const altCode = altAirportNameToCode()[n];
+  if (altCode) return altCode;
   // Fuzzy fallback: scan every key for a whole-word match in either
   // direction, and prefer the longest matching key so a specific entry
   // ("north korea") wins over a shorter, more general one ("korea").
@@ -418,7 +474,42 @@ Object.assign(IATA_DISPLAY, {
   CHS: "Charleston, SC",
   CAE: "Columbia, SC",
   SAV: "Savannah, GA",
+  // 2026-07-31 (Susan: multi-airport metros — see CITY_ALT_AIRPORTS): these
+  // codes have no CITY_IATA entry of their own (they're secondary airports,
+  // never a primary resolution target), so IATA_DISPLAY's auto-build above
+  // never sees them. Named "City–Airport" so a suggestion row reads clearly
+  // next to its metro's primary code, e.g. "Paris–Orly (ORY)" beside
+  // "Paris (CDG)".
+  EWR: "New York–Newark", LGA: "New York–LaGuardia",
+  DCA: "Washington–Reagan National", MDW: "Chicago–Midway",
+  LGB: "Los Angeles–Long Beach", ONT: "Los Angeles–Ontario",
+  HOU: "Houston–Hobby", DAL: "Dallas–Love Field",
+  LGW: "London–Gatwick", STN: "London–Stansted", LTN: "London–Luton", LCY: "London–City",
+  ORY: "Paris–Orly", BVA: "Paris–Beauvais",
+  NRT: "Tokyo–Narita", ITM: "Osaka–Itami", SHA: "Shanghai–Hongqiao",
+  PKX: "Beijing–Daxing", GMP: "Seoul–Gimpo", CIA: "Rome–Ciampino",
+  AEP: "Buenos Aires–Aeroparque", CGH: "Sao Paulo–Congonhas", SDU: "Rio de Janeiro–Santos Dumont",
+  DMK: "Bangkok–Don Mueang", YTZ: "Toronto–Billy Bishop",
 });
+// 2026-07-31: reverse lookup — alt-airport display name ("paris–orly") ->
+// its own code (ORY). Used by toIATA above so selecting an alt-airport
+// autocomplete suggestion resolves to that exact airport, not its metro's
+// primary code. Lazy + cached like suggestAliases, built from the same
+// CITY_ALT_AIRPORTS/IATA_DISPLAY data suggestCities already draws its
+// labels from, so the two can never drift out of sync with each other.
+let ALT_AIRPORT_NAME_TO_CODE = null;
+function altAirportNameToCode() {
+  if (ALT_AIRPORT_NAME_TO_CODE) return ALT_AIRPORT_NAME_TO_CODE;
+  const map = {};
+  for (const codes of Object.values(CITY_ALT_AIRPORTS)) {
+    for (const code of codes) {
+      const label = IATA_DISPLAY[code];
+      if (label) map[label.toLowerCase()] = code;
+    }
+  }
+  ALT_AIRPORT_NAME_TO_CODE = map;
+  return map;
+}
 function displayCityName(nameOrCode) {
   if (!nameOrCode) return nameOrCode;
   const code = toIATA(nameOrCode);
@@ -451,7 +542,16 @@ let CITY_SUGGEST_ALIASES = null;
 function suggestAliases() {
   if (CITY_SUGGEST_ALIASES) return CITY_SUGGEST_ALIASES;
   const aliases = [];
-  for (const [name, code] of Object.entries(CITY_IATA)) aliases.push({ key: name, code });
+  for (const [name, code] of Object.entries(CITY_IATA)) {
+    aliases.push({ key: name, code });
+    // 2026-07-31: also alias this city name to each of its OTHER real
+    // airports (CITY_ALT_AIRPORTS) — same key, different code — so a
+    // multi-airport metro surfaces every one of them as its own row
+    // instead of just the primary. suggestCities below dedupes by CODE,
+    // not by key, so these coexist with the primary-code alias above.
+    const alts = CITY_ALT_AIRPORTS[name];
+    if (alts) for (const altCode of alts) aliases.push({ key: name, code: altCode });
+  }
   for (const [name, code] of Object.entries(COUNTRY_TO_IATA)) aliases.push({ key: name, code });
   CITY_SUGGEST_ALIASES = aliases;
   return aliases;

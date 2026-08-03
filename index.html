@@ -481,6 +481,19 @@
   const prefsStatus = document.getElementById("prefs-status");
   let upgradeWins = [];
   let upgradeWinsCollapsed = true;
+  // 2026-07-31 (Susan: "default to Nonstop only" wasn't sticking): maxStops
+  // used to live on a plain <select> with no "this is a deliberate choice"
+  // signal, so a value saved back then (e.g. from whatever the select's own
+  // default was) is indistinguishable from an accidental leftover — but
+  // loadPreferences() below was restoring it unconditionally, silently
+  // overriding the new Nonstop-only default the whole stops filter fix
+  // exists to serve. This flag is only ever set true by an actual click on
+  // the Stops pill row (see the maxStops click handler below); until then,
+  // any saved maxStops from before today is treated as not-a-real-choice
+  // and left unapplied, so the page keeps its HTML default of Nonstop only.
+  // A genuine choice — made today or any day after — is still fully sticky,
+  // exactly as the "saved as your default across trips" label promises.
+  let maxStopsConfirmed = false;
 
   function setPillVal(group, val) {
     const el = document.querySelector(`.pill-toggle[data-group="${group}"]`);
@@ -499,6 +512,7 @@
       savedAt: new Date().toISOString(),
       cabin: pillVal("cabin"),
       maxStops: pillVal("maxStops"),
+      maxStopsConfirmed,
       preferredAirlines: document.getElementById("preferredAirlines").value,
       avoidAirlines: document.getElementById("avoidAirlines").value,
       preferredAlliances: Array.from(document.querySelectorAll(".alliance-check:checked")).map((el) => el.value),
@@ -518,7 +532,11 @@
     try { prefs = JSON.parse(localStorage.getItem(PREFS_KEY) || "null"); } catch (e) { return; }
     if (!prefs) return;
     if (prefs.cabin) setPillVal("cabin", prefs.cabin);
-    if (prefs.maxStops != null && prefs.maxStops !== "") setPillVal("maxStops", prefs.maxStops);
+    // only restore a saved maxStops once it's been confirmed as a real,
+    // deliberate choice (see maxStopsConfirmed above) — otherwise the page
+    // keeps its HTML default of Nonstop only instead of a stale carryover
+    if (prefs.maxStopsConfirmed && prefs.maxStops != null && prefs.maxStops !== "") setPillVal("maxStops", prefs.maxStops);
+    maxStopsConfirmed = !!prefs.maxStopsConfirmed;
     if (prefs.preferredAirlines) document.getElementById("preferredAirlines").value = prefs.preferredAirlines;
     if (prefs.avoidAirlines) document.getElementById("avoidAirlines").value = prefs.avoidAirlines;
     (prefs.preferredAlliances || []).forEach((v) => {
@@ -596,7 +614,12 @@
   // PREFS_FIELD_IDS) to a promoted pill-toggle on the main card (2026-07-31)
   // — pills save on click the same way the cabin pill already does.
   ["cabin", "maxStops"].forEach((group) => {
-    document.querySelector(`.pill-toggle[data-group="${group}"]`).addEventListener("click", () => setTimeout(() => savePreferences(true), 0));
+    document.querySelector(`.pill-toggle[data-group="${group}"]`).addEventListener("click", (e) => {
+      // a real click on a Stops pill IS the deliberate choice that makes
+      // this preference sticky going forward (see maxStopsConfirmed above)
+      if (group === "maxStops" && e.target.closest("button")) maxStopsConfirmed = true;
+      setTimeout(() => savePreferences(true), 0);
+    });
   });
   loadPreferences();
 
@@ -670,7 +693,13 @@
       travelers: Math.max(1, parseInt(document.getElementById("travelers").value, 10) || 1),
       cabin: pillVal("cabin") || "Economy",
       maxBudget: parseInt(document.getElementById("maxBudget").value, 10) || 1000,
-      maxStops: parseInt(pillVal("maxStops") || "3", 10),
+      // 2026-07-31 (Susan: "default to Nonstop only"): fallback used to be
+      // "3" (Any stops) if no pill read as selected — directly contradicting
+      // the HTML default (Nonstop only has the "sel" class) and the whole
+      // reason this filter exists. Falling back to "0" here means even an
+      // unexpected DOM state still defaults to nonstop, never silently to
+      // the least-restrictive option.
+      maxStops: parseInt(pillVal("maxStops") || "0", 10),
       checkedBags: parseInt(document.getElementById("checkedBags").value, 10) || 0,
       carryOnOnly: document.getElementById("carryOnOnly").checked,
       preferredAirlines: matchCarrierNames(listVal("#preferredAirlines"), T.ALL_CARRIERS),

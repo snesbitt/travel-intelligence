@@ -617,19 +617,29 @@ test("suggestCities (Susan 2026-07-31: live typeahead as you type): ranked, dedu
   assert.deepEqual(T.suggestCities("x"), [], "queries under 2 chars never suggest");
   assert.deepEqual(T.suggestCities(""), []);
   assert.deepEqual(T.suggestCities(null), []);
+  // 2026-07-31 (Susan: "with the Paris example only CDG came up but paris
+  // has several airports"): "pari" now surfaces every Paris-area airport,
+  // not just the primary CDG, each as its own distinct, dedup-safe row.
   const paris = T.suggestCities("pari");
-  assert.equal(paris.length, 1);
-  assert.deepEqual(paris[0], { code: "CDG", value: "Paris", label: "Paris (CDG)" });
+  assert.equal(paris.length, 3, "Paris should surface CDG, Orly, and Beauvais");
+  assert.deepEqual(paris[0], { code: "CDG", value: "Paris", label: "Paris (CDG)" }, "the primary airport still sorts first");
+  const parisCodes = paris.map((r) => r.code).sort();
+  assert.deepEqual(parisCodes, ["BVA", "CDG", "ORY"]);
+  const orly = paris.find((r) => r.code === "ORY");
+  assert.equal(orly.label, "Paris–Orly (ORY)");
   // exact match beats a shorter prefix elsewhere in the table
   const par = T.suggestCities("par");
   assert.equal(par[0].code, "CDG", "exact-prefix-tier city sorts before other 'par...' matches");
-  // typo tolerance: same distance-1 case toIATA resolves
+  // typo tolerance: same distance-1 case toIATA resolves — Bangkok's
+  // second airport (Don Mueang, DMK) is typo-fuzzy-matched right alongside
+  // the primary, same as an exact "bangkok" query would surface both
   const bankok = T.suggestCities("bankok");
-  assert.equal(bankok.length, 1);
-  assert.equal(bankok[0].code, "BKK");
+  assert.equal(bankok.length, 2);
+  assert.deepEqual(bankok.map((r) => r.code).sort(), ["BKK", "DMK"]);
   // multiple real prefix matches, deduped by code, alphabetical within tier
+  // — includes Chicago's second airport (Midway) alongside its primary
   const chi = T.suggestCities("chi").map((r) => r.code).sort();
-  assert.deepEqual(chi, ["KIV", "ORD", "PEK", "SCL"], "Chicago, China, Chile, Chisinau all legitimately start with 'chi'");
+  assert.deepEqual(chi, ["KIV", "MDW", "ORD", "PEK", "SCL"], "Chicago (+Midway), China, Chile, Chisinau all legitimately start with 'chi'");
   // a code reached only via a COUNTRY_TO_IATA alias with no CITY_IATA
   // entry falls back to the alias itself as the label, not a bare code
   const par2 = T.suggestCities("par", 5).find((r) => r.code === "ASU");
@@ -640,11 +650,37 @@ test("suggestCities (Susan 2026-07-31: live typeahead as you type): ranked, dedu
 });
 
 test("suggestCities: every suggested value resolves back to the same code via toIATA (selecting a suggestion always exact-matches)", () => {
-  ["par", "lon", "tok", "sing", "chi", "ber", "san", "new"].forEach((q) => {
+  ["par", "lon", "tok", "sing", "chi", "ber", "san", "new", "wash", "hous", "dall", "sao", "rio", "bang", "toro", "seo", "osa", "beij", "shan", "rom"].forEach((q) => {
     T.suggestCities(q, 8).forEach((s) => {
       assert.equal(T.toIATA(s.value), s.code, `suggestion "${s.value}" for query "${q}" should resolve to ${s.code}`);
     });
   });
+});
+
+test("suggestCities / toIATA (Susan 2026-07-31: 'paris has several airports — fix and do better'): multi-airport metros surface every real airport, each resolving to itself", () => {
+  const metros = {
+    "new york": ["JFK", "EWR", "LGA"],
+    washington: ["IAD", "DCA", "BWI"],
+    chicago: ["ORD", "MDW"],
+    london: ["LHR", "LGW", "STN", "LTN", "LCY"],
+    paris: ["CDG", "ORY", "BVA"],
+    tokyo: ["HND", "NRT"],
+  };
+  for (const [city, codes] of Object.entries(metros)) {
+    const results = T.suggestCities(city, 10);
+    const gotCodes = results.map((r) => r.code).sort();
+    assert.deepEqual(gotCodes, [...codes].sort(), `"${city}" should surface exactly ${codes.join(", ")}`);
+    for (const r of results) {
+      assert.equal(T.toIATA(r.value), r.code, `selecting "${r.value}" for "${city}" must resolve to ${r.code}, not a different airport in the same metro`);
+    }
+  }
+  // an alt airport's own name resolves directly too, not just via suggestCities
+  assert.equal(T.toIATA("Paris–Orly"), "ORY");
+  // a plain hyphen instead of the en dash the label actually uses isn't an
+  // exact alt-airport match, so it falls through to the existing whole-word
+  // fallback on "paris" and lands on the metro's primary code (CDG) — a
+  // safe, already-tested behavior, not a new guess.
+  assert.equal(T.toIATA("paris-orly"), "CDG");
 });
 
 console.log(`\n${passed} passed`);

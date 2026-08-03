@@ -554,3 +554,71 @@ committed, per standing instruction.
   was the real vector.
 - Committed `ac252c3`. All 81 pre-existing tests plus 4 new ad hoc XSS
   checks green before commit, per standing instruction.
+
+## 2026-07-31 — Nonstop default wasn't sticking + Paris-only-shows-CDG (Susan: "fix and do better")
+
+- **Multi-airport metros.** `suggestCities`/`suggestAliases` in `app.js`
+  deduped strictly by IATA code, and `CITY_IATA` maps each city name to
+  exactly ONE primary code by design — so a metro with more than one
+  commercial airport (Paris: CDG/Orly/Beauvais) only ever had one alias to
+  dedupe from in the first place. Typing "paris" could never surface Orly;
+  there was no second alias for it to lose a dedupe race against. Fixed
+  with a new `CITY_ALT_AIRPORTS` table (city name → array of its other real
+  airports — New York/EWR+LGA, Washington/DCA+BWI, Chicago/MDW, LA/BUR+LGB+
+  SNA+ONT, Houston/HOU, Dallas/DAL, SF/OAK+SJC, London/LGW+STN+LTN+LCY,
+  Paris/ORY+BVA, Tokyo/NRT, Osaka/ITM, Shanghai/SHA, Beijing/PKX, Seoul/GMP,
+  Rome/CIA, Buenos Aires/AEP, Sao Paulo/CGH, Rio/SDU, Bangkok/DMK, Toronto/
+  YTZ), consulted only by `suggestAliases()` (suggestions), never by
+  `toIATA`/`fuzzyMatchKey` (resolution) — a search still books against
+  exactly one deterministic primary code unless the traveler explicitly
+  picks a different one from the list. Every alt code got a `CITY_COORDS`
+  entry (so distance/flight-time works for whichever one gets picked) and,
+  where `IATA_DISPLAY` had no existing entry, a "City–Airport" label (e.g.
+  "Paris–Orly (ORY)") so the suggestion reads clearly next to the metro's
+  primary. Selecting an alt-airport suggestion has to resolve back to THAT
+  airport, not silently downgrade to the metro's primary — "Paris–Orly"
+  contains "paris" as a whole word, which would otherwise hit `toIATA`'s
+  existing whole-word fallback and return CDG. Added `altAirportNameToCode()`
+  (built from the same `CITY_ALT_AIRPORTS`/`IATA_DISPLAY` data, so it can't
+  drift from what `suggestCities` actually shows), checked in `toIATA`
+  right after the exact-match checks and before the whole-word fallback.
+  Typo tolerance benefits too: "bankok" now surfaces both BKK and DMK, same
+  as an exact "bangkok" query would.
+- **Nonstop default wasn't reliable.** Two separate bugs, both in
+  `index.html`: (1) `collectInputs()`'s fallback if no Stops pill read as
+  selected was `"3"` (Any stops) — directly contradicting the HTML default
+  (Nonstop only has the `sel` class) and the entire point of the filter;
+  changed to `"0"`. (2) The real-world cause of what Susan actually saw:
+  `maxStops` used to live on a plain `<select>` with no "this is a
+  deliberate choice" signal, and any value saved back then (whatever the
+  select's own default was) is indistinguishable from an accidental
+  leftover — but `loadPreferences()` restored a saved `maxStops`
+  unconditionally, silently overriding the new Nonstop-only default for
+  anyone with pre-existing saved prefs (confirmed via Claude-in-Chrome: a
+  stale `maxStops: "1"` from before today carried forward and beat the new
+  default). Fixed with a `maxStopsConfirmed` flag, saved alongside
+  `maxStops` and set `true` only by an actual click on the Stops pill row
+  (not by cabin changes or other fields' blur events, which also trigger
+  `savePreferences`). `loadPreferences()` now only restores a saved
+  `maxStops` when `maxStopsConfirmed` is true — pre-existing unconfirmed
+  values are left unapplied (page keeps the Nonstop-only HTML default) —
+  while a genuine choice, made today or any day after, is still fully
+  sticky across trips exactly as the "saved as your default across trips"
+  label promises. Verified via Claude-in-Chrome with a simulated stale
+  `localStorage` entry: unconfirmed `maxStops: "1"` still loads as Nonstop
+  only; clicking "1 stop" once and reloading correctly restores "1 stop".
+- `tests/app.test.js`: updated the two `suggestCities` tests whose exact
+  counts changed now that multi-airport metros surface more than one row
+  (Paris: 1 → 3; "chi" query: +MDW; "bankok" typo: 1 → 2, now includes
+  DMK), and added a dedicated test asserting every alt airport across all
+  six covered multi-airport metros round-trips through `toIATA` back to
+  its OWN code, never a sibling airport in the same metro. 61 tests green
+  (up from 60). The `maxStopsConfirmed` migration logic lives entirely in
+  `index.html`'s inline script (DOM/localStorage), outside the Node test
+  harness's reach (it only loads `app.js`) — verified instead via
+  Claude-in-Chrome against a live local server, per the scenario above.
+- Not yet pushed as of this write-up — Susan is away for the weekend and
+  asked for this queued up for her to commit/push herself from her desktop
+  when she's back (Sun/Mon). Files are staged to her local working copy;
+  nothing has been committed. See the build log doc in the Travel
+  Intelligence Agent project for the exact commands to run.
