@@ -35,19 +35,19 @@
     <h1 class="page-title">Travel Intelligence is one build old.</h1>
     <p class="lede">Phase 1 is live: the full input card, the seven-dimension scoring engine, and every output page, deployed as a static site. What's next is listed honestly below, including the parts that require your explicit go-ahead before they happen.</p>
 
-    <nav class="roadmap-overview" aria-label="All phases at a glance">
+    <nav class="roadmap-overview" aria-label="All phases at a glance, live first in ship order, then planned">
       <a href="#phase-01" class="ro-chip ro-live"><span class="ro-dot" aria-hidden="true">●</span>01 optimization engine</a>
       <a href="#phase-02" class="ro-chip ro-live"><span class="ro-dot" aria-hidden="true">●</span>02 four-page site</a>
       <a href="#phase-03" class="ro-chip ro-live"><span class="ro-dot" aria-hidden="true">●</span>03 GitHub repo</a>
       <a href="#phase-04" class="ro-chip ro-live"><span class="ro-dot" aria-hidden="true">●</span>04 iOS app</a>
       <a href="#phase-05" class="ro-chip ro-live"><span class="ro-dot" aria-hidden="true">●</span>05 live fare &amp; award data</a>
+      <a href="#phase-06" class="ro-chip ro-live"><span class="ro-dot" aria-hidden="true">●</span>06 a real domain</a>
+      <a href="#phase-07" class="ro-chip ro-live"><span class="ro-dot" aria-hidden="true">●</span>07 saved preferences</a>
+      <a href="#phase-09" class="ro-chip ro-live"><span class="ro-dot" aria-hidden="true">●</span>09 2026 simplicity pass</a>
       <a href="#phase-05b" class="ro-chip ro-planned"><span class="ro-dot" aria-hidden="true">○</span>05b region search</a>
       <a href="#phase-05c" class="ro-chip ro-planned"><span class="ro-dot" aria-hidden="true">○</span>05c date-range sweep</a>
-      <a href="#phase-06" class="ro-chip ro-live"><span class="ro-dot" aria-hidden="true">●</span>06 a real domain</a>
       <a href="#phase-07a" class="ro-chip ro-planned"><span class="ro-dot" aria-hidden="true">○</span>07a loyalty balances</a>
-      <a href="#phase-07" class="ro-chip ro-live"><span class="ro-dot" aria-hidden="true">●</span>07 saved preferences</a>
       <a href="#phase-08" class="ro-chip ro-planned"><span class="ro-dot" aria-hidden="true">○</span>08 protect watched trips</a>
-      <a href="#phase-09" class="ro-chip ro-live"><span class="ro-dot" aria-hidden="true">●</span>09 2026 simplicity pass</a>
     </nav>
 
     <div class="phase" id="phase-01">
@@ -110,6 +110,42 @@
       </div>
     </div>
 
+    <div class="phase" id="phase-06">
+      <div class="phase__rail phase__rail--live">6</div>
+      <div class="phase__body">
+        <div class="phase__head">
+          <h2 class="phase__name">A real domain</h2>
+          <span class="phase__status phase__status--live">Live</span>
+        </div>
+        <p class="phase__focus">One address, not a netlify.app subdomain</p>
+        <p class="phase__covers">travelintelligence.org, registered and connected via Netlify DNS, matching the rest of the portfolio. TLS provisions automatically within a few minutes of connecting.</p>
+      </div>
+    </div>
+
+    <div class="phase" id="phase-07">
+      <div class="phase__rail phase__rail--live">7</div>
+      <div class="phase__body">
+        <div class="phase__head">
+          <h2 class="phase__name">Saved preferences &amp; trip memory</h2>
+          <span class="phase__status phase__status--live">Live</span>
+        </div>
+        <p class="phase__focus">Gets better at optimizing for you specifically, trip over trip</p>
+        <p class="phase__covers">Preferred airlines, seats, hotels, disliked airports, connection tolerance, and travel style now auto-save and reload across sessions, alongside the wallet (cards and 13 loyalty balances). A saved travel style only steers the optimization lens when the trip itself hasn't already picked one. The fare watcher (up to 3 trips) re-searches daily and shows day-over-day price changes, budgeted against SerpApi's real 100-search monthly quota.</p>
+      </div>
+    </div>
+
+    <div class="phase" id="phase-09">
+      <div class="phase__rail phase__rail--live">9</div>
+      <div class="phase__body">
+        <div class="phase__head">
+          <h2 class="phase__name">2026 simplicity pass</h2>
+          <span class="phase__status phase__status--live">Live</span>
+        </div>
+        <p class="phase__focus">Every number on screen is a real quote, never a guess</p>
+        <p class="phase__covers">The input form was cut to four essential fields, with everything else folded into an optional Refine panel that remembers whether you left it open. The synthetic modeled-fare fallback was deleted outright: with no live fare or scan data for a route, the site now says so instead of showing an invented number. Fonts moved to self-hosted files across the whole portfolio.</p>
+      </div>
+    </div>
+
     <div class="phase" id="phase-05b">
       <div class="phase__rail">5b</div>
       <div class="phase__body">
@@ -134,18 +170,6 @@
       </div>
     </div>
 
-    <div class="phase" id="phase-06">
-      <div class="phase__rail phase__rail--live">6</div>
-      <div class="phase__body">
-        <div class="phase__head">
-          <h2 class="phase__name">A real domain</h2>
-          <span class="phase__status phase__status--live">Live</span>
-        </div>
-        <p class="phase__focus">One address, not a netlify.app subdomain</p>
-        <p class="phase__covers">travelintelligence.org, registered and connected via Netlify DNS, matching the rest of the portfolio. TLS provisions automatically within a few minutes of connecting.</p>
-      </div>
-    </div>
-
     <div class="phase" id="phase-07a">
       <div class="phase__rail">7a</div>
       <div class="phase__body">
@@ -158,18 +182,6 @@
       </div>
     </div>
 
-    <div class="phase" id="phase-07">
-      <div class="phase__rail phase__rail--live">7</div>
-      <div class="phase__body">
-        <div class="phase__head">
-          <h2 class="phase__name">Saved preferences &amp; trip memory</h2>
-          <span class="phase__status phase__status--live">Live</span>
-        </div>
-        <p class="phase__focus">Gets better at optimizing for you specifically, trip over trip</p>
-        <p class="phase__covers">Preferred airlines, seats, hotels, disliked airports, connection tolerance, and travel style now auto-save and reload across sessions, alongside the wallet (cards and 13 loyalty balances). A saved travel style only steers the optimization lens when the trip itself hasn't already picked one. The fare watcher (up to 3 trips) re-searches daily and shows day-over-day price changes, budgeted against SerpApi's real 100-search monthly quota.</p>
-      </div>
-    </div>
-
     <div class="phase" id="phase-08">
       <div class="phase__rail">8</div>
       <div class="phase__body">
@@ -179,18 +191,6 @@
         </div>
         <p class="phase__focus">A shared link can't quietly spend your watch slots</p>
         <p class="phase__covers">Watching a trip spends a metered daily search against a shared store that's currently open to anyone with the link. Worth gating behind a shared edit key, remembered per device, the same pattern used across the portfolio. Running the optimizer and browsing results stay open.</p>
-      </div>
-    </div>
-
-    <div class="phase" id="phase-09">
-      <div class="phase__rail phase__rail--live">9</div>
-      <div class="phase__body">
-        <div class="phase__head">
-          <h2 class="phase__name">2026 simplicity pass</h2>
-          <span class="phase__status phase__status--live">Live</span>
-        </div>
-        <p class="phase__focus">Every number on screen is a real quote, never a guess</p>
-        <p class="phase__covers">The input form was cut to four essential fields, with everything else folded into an optional Refine panel that remembers whether you left it open. The synthetic modeled-fare fallback was deleted outright: with no live fare or scan data for a route, the site now says so instead of showing an invented number. Fonts moved to self-hosted files across the whole portfolio.</p>
       </div>
     </div>
 
