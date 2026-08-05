@@ -31,7 +31,7 @@
 
 import { getStore } from "@netlify/blobs";
 
-const MAX_TRIPS = 3; // see quota math in the header comment above before changing this
+export const MAX_TRIPS = 3; // see quota math in the header comment above before changing this
 
 function json(body, status) {
   return new Response(JSON.stringify(body), {
@@ -41,6 +41,77 @@ function json(body, status) {
 }
 
 export const config = { path: "/api/watch" };
+
+// 2026-08-05: pure request-validation + id-building, split out of the
+// handler so it's testable the same "export the pure logic" way
+// buildFareCacheKey/parseLegs already are in fares.mjs — no @netlify/blobs
+// needed to exercise any of this.
+export function validateTripInput(t) {
+  if (!t || !/^[A-Z]{3}$/.test(t.originIata || "") || !/^[A-Z]{3}$/.test(t.destIata || "") || !/^\d{4}-\d{2}-\d{2}$/.test(t.departDate || "")) {
+    return { error: "trip needs originIata, destIata (3-letter codes) and departDate (YYYY-MM-DD)" };
+  }
+  if (/^\d{4}-\d{2}-\d{2}$/.test(t.returnDate || "") && t.returnDate < t.departDate) {
+    return { error: "returnDate is before departDate — a watch with an impossible range can never search real fares" };
+  }
+  return { ok: true };
+}
+
+// 2026-08-05: id used to be [origin, dest, departDate, cabin] only —
+// watch-check.mjs's actual SerpApi request also varies on returnDate
+// (one-way vs. round-trip, a real search difference) and travelers (the
+// adults= param), so two watches that only differed in one of those were
+// silently treated as "already watching" and the second request's
+// returnDate/travelers were dropped on the floor. Both are now part of the
+// id. Pre-existing stored trips keep whatever id they were created with
+// (id is stored per-trip, never recomputed) — the only transition cost is
+// that a trip watched before this fix won't dedupe against a same-route
+// request made after it; it'll just be judged as a new watch (subject to
+// the normal MAX_TRIPS cap) rather than silently dropping the new
+// returnDate/travelers, which is the correct direction to fail in.
+export function buildWatchId(t) {
+  const returnDate = /^\d{4}-\d{2}-\d{2}$/.test(t.returnDate || "") ? t.returnDate : null;
+  const travelers = Math.min(9, Math.max(1, parseInt(t.travelers, 10) || 1));
+  return [t.originIata, t.destIata, t.departDate, t.cabin || "Economy", returnDate || "-", travelers].join("|");
+}
+
+function normalizeTrip(t, id) {
+  const returnDate = /^\d{4}-\d{2}-\d{2}$/.test(t.returnDate || "") ? t.returnDate : null;
+  const travelers = Math.min(9, Math.max(1, parseInt(t.travelers, 10) || 1));
+  return {
+    id,
+    originIata: t.originIata, destIata: t.destIata,
+    origin: String(t.origin || t.originIata).slice(0, 60), destination: String(t.destination || t.destIata).slice(0, 60),
+    departDate: t.departDate, returnDate,
+    cabin: ["Economy", "Premium Economy", "Business", "First", "Best Value"].includes(t.cabin) ? t.cabin : "Economy",
+    travelers,
+    createdAt: new Date().toISOString(),
+    baseline: t.baseline && typeof t.baseline.price === "number" ? { price: Math.round(t.baseline.price), carrier: String(t.baseline.carrier || "").slice(0, 60), at: new Date().toISOString() } : null,
+    checks: [], // appended by watch-check.mjs, newest last, capped at 30
+  };
+}
+
+// Pure decision function for a POST: given the CURRENT trips list (as read
+// at some point in time) and the incoming request, decide what should
+// happen — never touches storage itself, so it's fully unit-testable and
+// the handler's optimistic-concurrency retry loop (below) just calls this
+// fresh against whatever the latest read was.
+export function planAddTrip(trips, t) {
+  const valid = validateTripInput(t);
+  if (valid.error) return { action: "error", error: valid.error, status: 400 };
+  const id = buildWatchId(t);
+  if (trips.some((x) => x.id === id)) return { action: "duplicate", trips };
+  if (trips.length >= MAX_TRIPS) {
+    return { action: "error", error: `Watch cap is ${MAX_TRIPS} trips (each costs one live search per day — quota discipline). Stop watching one first.`, status: 409 };
+  }
+  return { action: "add", trips: trips.concat([normalizeTrip(t, id)]) };
+}
+
+// Same idea for DELETE.
+export function planRemoveTrip(trips, id) {
+  const next = trips.filter((x) => x.id !== id);
+  if (next.length === trips.length) return { action: "noop", trips: next };
+  return { action: "remove", trips: next };
+}
 
 export default async (req) => {
   // strong consistency: a GET right after a watch/unwatch must reflect it
@@ -58,39 +129,51 @@ export default async (req) => {
     let body;
     try { body = await req.json(); } catch (e) { return json({ error: "Invalid JSON body" }, 400); }
     const t = body && body.trip;
-    if (!t || !/^[A-Z]{3}$/.test(t.originIata || "") || !/^[A-Z]{3}$/.test(t.destIata || "") || !/^\d{4}-\d{2}-\d{2}$/.test(t.departDate || "")) {
-      return json({ error: "trip needs originIata, destIata (3-letter codes) and departDate (YYYY-MM-DD)" }, 400);
+    const valid = validateTripInput(t);
+    if (valid.error) return json({ error: valid.error }, 400);
+    // 2026-08-05: optimistic-concurrency guard around the cap check — the
+    // old code read the list, checked .length, then wrote, with no
+    // protection against two near-simultaneous POSTs (e.g. a double-click,
+    // or two open tabs) both reading the same under-cap list and both
+    // writing, pushing the count past MAX_TRIPS and breaking the quota
+    // math watch-check.mjs depends on. getWithMetadata/onlyIfMatch (both
+    // already part of @netlify/blobs, no new dependency) makes the write
+    // conditional on nothing else having changed the list since this read;
+    // a lost race just retries against the fresh list, bounded so a
+    // pathological case can't loop forever. planAddTrip is the pure
+    // decision function (see above) — this loop is just I/O around it.
+    for (let attempt = 0; attempt < 5; attempt++) {
+      const current = await store.getWithMetadata("list", { type: "json" });
+      const trips = (current && current.data) || [];
+      const etag = current && current.etag;
+      const plan = planAddTrip(trips, t);
+      if (plan.action === "error") return json({ error: plan.error }, plan.status);
+      if (plan.action === "duplicate") return json({ ok: true, trips: plan.trips, note: "already watching" });
+      const result = etag
+        ? await store.setJSON("list", plan.trips, { onlyIfMatch: etag })
+        : await store.setJSON("list", plan.trips, { onlyIfNew: true });
+      if (result.modified) return json({ ok: true, trips: plan.trips });
+      // someone else wrote in between (or created the key first) — loop and retry against the fresh list
     }
-    if (/^\d{4}-\d{2}-\d{2}$/.test(t.returnDate || "") && t.returnDate < t.departDate) {
-      return json({ error: "returnDate is before departDate — a watch with an impossible range can never search real fares" }, 400);
-    }
-    const trips = (await store.get("list", { type: "json" })) || [];
-    const id = [t.originIata, t.destIata, t.departDate, t.cabin || "Economy"].join("|");
-    if (trips.some((x) => x.id === id)) return json({ ok: true, trips, note: "already watching" });
-    if (trips.length >= MAX_TRIPS) {
-      return json({ error: `Watch cap is ${MAX_TRIPS} trips (each costs one live search per day — quota discipline). Stop watching one first.` }, 409);
-    }
-    trips.push({
-      id,
-      originIata: t.originIata, destIata: t.destIata,
-      origin: String(t.origin || t.originIata).slice(0, 60), destination: String(t.destination || t.destIata).slice(0, 60),
-      departDate: t.departDate, returnDate: /^\d{4}-\d{2}-\d{2}$/.test(t.returnDate || "") ? t.returnDate : null,
-      cabin: ["Economy", "Premium Economy", "Business", "First", "Best Value"].includes(t.cabin) ? t.cabin : "Economy",
-      travelers: Math.min(9, Math.max(1, parseInt(t.travelers, 10) || 1)),
-      createdAt: new Date().toISOString(),
-      baseline: t.baseline && typeof t.baseline.price === "number" ? { price: Math.round(t.baseline.price), carrier: String(t.baseline.carrier || "").slice(0, 60), at: new Date().toISOString() } : null,
-      checks: [], // appended by watch-check.mjs, newest last, capped at 30
-    });
-    await store.setJSON("list", trips);
-    return json({ ok: true, trips });
+    return json({ error: "Could not save the watch right now — please try again." }, 409);
   }
 
   if (req.method === "DELETE") {
     const id = url.searchParams.get("id") || "";
-    const trips = (await store.get("list", { type: "json" })) || [];
-    const next = trips.filter((x) => x.id !== id);
-    await store.setJSON("list", next);
-    return json({ ok: true, trips: next });
+    // same optimistic-concurrency pattern as POST, for the same reason —
+    // an unwatch racing another write shouldn't be able to silently lose.
+    for (let attempt = 0; attempt < 5; attempt++) {
+      const current = await store.getWithMetadata("list", { type: "json" });
+      const trips = (current && current.data) || [];
+      const etag = current && current.etag;
+      const plan = planRemoveTrip(trips, id);
+      if (plan.action === "noop") return json({ ok: true, trips: plan.trips }); // nothing to remove, no write needed
+      const result = etag
+        ? await store.setJSON("list", plan.trips, { onlyIfMatch: etag })
+        : await store.setJSON("list", plan.trips, { onlyIfNew: true });
+      if (result.modified) return json({ ok: true, trips: plan.trips });
+    }
+    return json({ error: "Could not update watched trips right now — please try again." }, 409);
   }
 
   return json({ error: "Method not allowed" }, 405);
