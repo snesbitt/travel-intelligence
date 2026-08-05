@@ -767,6 +767,16 @@
           const j = await r.json();
           if (j.reason === "not_configured") reason = "not-configured";
           else if (j.reason === "bad_request") reason = "via-bad-request";
+          // 2026-08-05: distinct reason strings (not the generic "api-fail"
+          // bucket) for fares.mjs's two abuse guards -- both are
+          // deterministic, not transient, so they must NOT trigger the
+          // one-retry-on-timeout logic below (retrying a daily cap or an
+          // origin block just wastes a round trip and can't ever succeed
+          // until the cause changes), and the honesty-over-confidence rule
+          // means the empty state should say what actually happened rather
+          // than the generic "failed or timed out, re-run to retry".
+          else if (j.reason === "daily_cap_reached") reason = "daily-cap";
+          else if (j.reason === "origin_not_allowed") reason = "origin-blocked";
         } catch (e2) {}
         return { data: null, reason };
       }
@@ -842,6 +852,13 @@
     "not-configured": () => `demo mode: the live backend awaits its API credential.`,
     "no-offers": () => `the live search returned no offers for this route/date.`,
     "api-fail": () => `the live search failed or timed out; re-run to retry.`,
+    // 2026-08-05: fares.mjs's two abuse guards (an Origin/Referer allowlist
+    // and a daily SerpApi-call cap, both protecting the 100/month quota) —
+    // deterministic failures, so unlike "api-fail" these are never retried
+    // automatically (see fetchLiveOffers above) and get their own honest
+    // copy instead of "re-run to retry", which would be false for both.
+    "daily-cap": () => `today's live-search quota is used up (protects the monthly SerpApi budget); try again tomorrow.`,
+    "origin-blocked": () => `the live backend didn't recognize this request's origin; reload the page and try again.`,
   };
 
   form.addEventListener("submit", async (e) => {

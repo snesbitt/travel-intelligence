@@ -7,7 +7,7 @@
 // package.json). No live network calls, no SerpApi key needed.
 
 import assert from "node:assert/strict";
-import { buildFareCacheKey, isCacheFresh, CACHE_TTL_MS, parseLegs, buildLegsCacheKey } from "../netlify/functions/fares.mjs";
+import { buildFareCacheKey, isCacheFresh, CACHE_TTL_MS, parseLegs, buildLegsCacheKey, isAllowedOrigin, isOverDailyCap, DAILY_SEARCH_CAP, todayQuotaKey } from "../netlify/functions/fares.mjs";
 
 let passed = 0;
 function test(name, fn) {
@@ -196,6 +196,89 @@ test("buildLegsCacheKey: does not collide with a single-route buildFareCacheKey 
   const legsKey = buildLegsCacheKey([{ origin: "SFO", destination: "KIX", date: "2027-07-10" }, { origin: "KIX", destination: "BKK", date: "2027-07-12" }], 1, "Economy");
   const routeKey = buildFareCacheKey("SFO", "BKK", "2027-07-10", "", 1, "Economy");
   assert.notEqual(legsKey, routeKey);
+});
+
+/* ---------- isAllowedOrigin (2026-08-05 abuse-protection backlog item) ---------- */
+
+test("isAllowedOrigin: a matching Origin header is allowed", () => {
+  assert.equal(isAllowedOrigin("https://travelintelligence.org", null), true);
+});
+
+test("isAllowedOrigin: the www subdomain is allowed", () => {
+  assert.equal(isAllowedOrigin("https://www.travelintelligence.org", null), true);
+});
+
+test("isAllowedOrigin: a trailing slash on Origin is tolerated", () => {
+  assert.equal(isAllowedOrigin("https://travelintelligence.org/", null), true);
+});
+
+test("isAllowedOrigin: local dev (netlify dev's default port) is allowed", () => {
+  assert.equal(isAllowedOrigin("http://localhost:8888", null), true);
+});
+
+test("isAllowedOrigin: an unrelated Origin is rejected even with no Referer", () => {
+  assert.equal(isAllowedOrigin("https://evil.example.com", null), false);
+});
+
+test("isAllowedOrigin: no Origin header falls back to a matching Referer (the real-world case -- same-origin browser fetch() calls often omit Origin)", () => {
+  assert.equal(isAllowedOrigin(null, "https://travelintelligence.org/index.html?foo=bar"), true);
+});
+
+test("isAllowedOrigin: an unrelated Referer is rejected", () => {
+  assert.equal(isAllowedOrigin(null, "https://some-scraper.example.com/"), false);
+});
+
+test("isAllowedOrigin: neither header present is rejected", () => {
+  assert.equal(isAllowedOrigin(null, null), false);
+  assert.equal(isAllowedOrigin(undefined, undefined), false);
+  assert.equal(isAllowedOrigin("", ""), false);
+});
+
+test("isAllowedOrigin: a malformed Referer does not throw and is rejected", () => {
+  assert.equal(isAllowedOrigin(null, "not a url"), false);
+});
+
+test("isAllowedOrigin: Origin takes precedence and a bad Referer alongside a good Origin still passes", () => {
+  assert.equal(isAllowedOrigin("https://travelintelligence.org", "not a url"), true);
+});
+
+/* ---------- isOverDailyCap / DAILY_SEARCH_CAP ---------- */
+
+test("isOverDailyCap: under the cap is not blocked", () => {
+  assert.equal(isOverDailyCap(0), false);
+  assert.equal(isOverDailyCap(DAILY_SEARCH_CAP - 1), false);
+});
+
+test("isOverDailyCap: exactly at the cap IS blocked (cap is a ceiling on calls made, not a trigger point)", () => {
+  assert.equal(isOverDailyCap(DAILY_SEARCH_CAP), true);
+});
+
+test("isOverDailyCap: over the cap is blocked", () => {
+  assert.equal(isOverDailyCap(DAILY_SEARCH_CAP + 5), true);
+});
+
+test("isOverDailyCap: a custom cap argument overrides the default (used by the above tests implicitly via the default param, exercised explicitly here)", () => {
+  assert.equal(isOverDailyCap(5, 10), false);
+  assert.equal(isOverDailyCap(10, 10), true);
+});
+
+/* ---------- todayQuotaKey ---------- */
+
+test("todayQuotaKey: formats as farequota-YYYY-MM-DD in UTC", () => {
+  const key = todayQuotaKey(new Date("2026-08-05T23:30:00Z"));
+  assert.equal(key, "farequota-2026-08-05");
+});
+
+test("todayQuotaKey: two calls the same UTC day produce the same key (so concurrent requests share one counter)", () => {
+  const a = todayQuotaKey(new Date("2026-08-05T00:00:01Z"));
+  const b = todayQuotaKey(new Date("2026-08-05T23:59:59Z"));
+  assert.equal(a, b);
+});
+
+test("todayQuotaKey: crossing a UTC day boundary produces a different key (the cap resets, not accumulates forever)", () => {
+  const a = todayQuotaKey(new Date("2026-08-05T23:59:59Z"));
+  const b = todayQuotaKey(new Date("2026-08-06T00:00:01Z"));
+  assert.notEqual(a, b);
 });
 
 console.log(`\n${passed} passed, 0 failed`);

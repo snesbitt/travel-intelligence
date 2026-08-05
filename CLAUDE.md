@@ -617,8 +617,68 @@ committed, per standing instruction.
   `index.html`'s inline script (DOM/localStorage), outside the Node test
   harness's reach (it only loads `app.js`) — verified instead via
   Claude-in-Chrome against a live local server, per the scenario above.
-- Not yet pushed as of this write-up — Susan is away for the weekend and
-  asked for this queued up for her to commit/push herself from her desktop
-  when she's back (Sun/Mon). Files are staged to her local working copy;
-  nothing has been committed. See the build log doc in the Travel
-  Intelligence Agent project for the exact commands to run.
+- **Update:** pushed by Susan as commit `093342f` and confirmed live via
+  Claude-in-Chrome against the real site — the "not yet pushed" note above
+  described a since-resolved in-between state, kept for its own history
+  rather than rewritten.
+
+## 2026-08-05 — /api/fares abuse protection (audit backlog item)
+
+`fares.mjs` has no auth (same open-by-design model as `watch.mjs`/
+`scan-offers.mjs` — nothing sensitive is stored or returned), which meant
+anything that could find the URL could spend the 100-search/month SerpApi
+quota: a scraper hitting it directly, another site embedding it, a
+shared/indexed link. Two lightweight guards, deliberately not a full
+per-IP rate limiter (more infrastructure than this problem needs, per the
+radical-simplicity rule):
+
+1. **Origin/Referer allowlist** (`isAllowedOrigin`, exported/pure) —
+   rejects a real search request (not the `?ping=1` health check, which
+   returns before this runs and costs no quota either way) that didn't
+   come from `travelintelligence.org`/`www.travelintelligence.org`/local
+   dev. Checked first, before even revealing whether the SerpApi key is
+   configured. Not real auth — both headers are spoofable by a determined
+   scraper — but it stops the actually-likely case of something hitting
+   the bare API URL directly. `netlify.toml`'s `Referrer-Policy:
+   strict-origin-when-cross-origin` means a real same-origin `fetch()`
+   from `index.html` always sends a full-URL Referer, so the allowlist
+   checks Referer's origin as a fallback when Origin itself is absent
+   (browsers often omit Origin on same-origin GET fetches).
+2. **A daily circuit-breaker cap** (`DAILY_SEARCH_CAP = 20`, shared across
+   both the single-route and multi-city search paths) — tracked with the
+   same `getWithMetadata`/`onlyIfMatch`/`onlyIfNew` optimistic-concurrency
+   retry loop `watch.mjs`'s POST handler already uses, so a burst of
+   concurrent requests can't race past it. Only counts real SerpApi calls
+   — a 15-minute cache hit returns before the counter is touched, exactly
+   like it already returns before hitting SerpApi. Bounds the worst case
+   (guard #1 defeated, or a genuine bug loop in Susan's own browser) to
+   losing at most one day's headroom, not the whole month. Like
+   `MAX_TRIPS` in `watch.mjs`, raising this cap is a quota/spend decision
+   — Susan's call, not something to bump without her sign-off.
+
+Both failures return their own `reason` string (`origin_not_allowed` 403,
+`daily_cap_reached` 429) rather than folding into the generic
+`upstream_error`/`api-fail` bucket — `index.html`'s `fetchLiveOffers()`
+maps them to distinct frontend reasons (`origin-blocked`, `daily-cap`)
+specifically so they're excluded from the existing one-retry-on-timeout
+logic (retrying a deterministic block wastes a round trip and can never
+succeed until the cause changes) and get honest copy in `FALLBACK_REASONS`
+instead of "the live search failed or timed out; re-run to retry", which
+would be false for both.
+
+Tests: 17 new pure-function assertions in `tests/fares.test.mjs`
+(`isAllowedOrigin`, `isOverDailyCap`, `todayQuotaKey`) — no
+`@netlify/blobs` mocking needed, same pattern the rest of this file's
+tests already use. Full suite: 130/130 green (61 app + 45 fares + 5 scan +
+19 watch — the last two shipped the same day, see below).
+
+## 2026-08-05 — watch.mjs race condition + returnDate/travelers id bug
+
+Shipped the same day as the abuse-protection work above. Full detail is in
+this project's `claude/travel-intelligence-build-log.md`, not duplicated
+here — short version: `watch.mjs`'s POST handler had a read-then-write
+race on the `MAX_TRIPS` cap (fixed with the same optimistic-concurrency
+pattern used for the fares quota cap above), and the watch id silently
+dropped `returnDate`/`travelers`, so two watches differing only in those
+fields collided as "already watching." 19 new tests in
+`tests/watch.test.mjs`.

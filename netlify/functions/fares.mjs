@@ -55,6 +55,95 @@ const MAX_LEGS = 4; // origin->via(s)->destination[->origin]; guards against a m
 
 export const CACHE_TTL_MS = 15 * 60 * 1000; // 15 min - protects quota, short enough fares never feel stale
 
+// ---------- abuse protection (2026-08-05 audit backlog item) ----------
+// This endpoint has no auth (same open-by-design model as watch.mjs/
+// scan-offers.mjs — nothing sensitive is stored or returned), which means
+// anything that can find the URL can spend Susan's 100-search/month
+// SerpApi quota: a scraper crawling it directly, another site embedding
+// it, a shared/indexed link. Two lightweight guards, deliberately NOT a
+// full per-IP rate limiter (more infrastructure than this problem needs,
+// per the radical-simplicity rule):
+//   1. Origin/Referer allowlist — rejects requests that didn't come from
+//      a page this site actually serves. Not real auth (both headers are
+//      trivially spoofable by a determined scraper), but it stops the
+//      common, actually-observed case: something hitting the bare API
+//      URL directly rather than loading the page and letting the browser
+//      set these headers for real.
+//   2. A daily circuit-breaker cap, shared across both search paths,
+//      tracked the same optimistic-concurrency way watch.mjs's write
+//      loop is (getWithMetadata + onlyIfMatch/onlyIfNew) so a burst of
+//      concurrent requests can't blow past it via a race. Bounds the
+//      worst case (quota guard #1 defeated, or Susan's own browser in a
+//      genuine bug loop) to losing at most one day's headroom, not the
+//      whole month, and fails with an honest 429 rather than silently
+//      degrading to modeled data (no modeled path exists to fall back to
+//      — see the radical-simplicity note in CLAUDE.md).
+// Neither guard applies to the `?ping=1` health check above — it returns
+// before either check runs and never touches SerpApi, so it costs no
+// quota and needs no protecting.
+
+const ALLOWED_ORIGINS = [
+  "https://travelintelligence.org",
+  "https://www.travelintelligence.org",
+  "http://localhost:8888", // `netlify dev`'s default port, per package.json's `dev` script
+  "http://127.0.0.1:8888",
+];
+
+// Pure — given a request's Origin and Referer headers, did this call come
+// from a page this site actually serves? `netlify.toml`'s
+// Referrer-Policy is "strict-origin-when-cross-origin", so a real
+// same-origin browser fetch() from index.html always sends a full-URL
+// Referer; Origin is checked first because it's the more precise signal
+// when present (fetch() cross-origin/unsafe-method requests set it).
+export function isAllowedOrigin(originHeader, refererHeader) {
+  if (originHeader && ALLOWED_ORIGINS.includes(originHeader.replace(/\/$/, ""))) return true;
+  if (refererHeader) {
+    try {
+      if (ALLOWED_ORIGINS.includes(new URL(refererHeader).origin)) return true;
+    } catch (e) {
+      // malformed Referer — falls through to false, same as missing
+    }
+  }
+  return false;
+}
+
+export const DAILY_SEARCH_CAP = 20; // real SerpApi calls/day across both search paths — a spend/quota decision, Susan's call to raise (same convention as MAX_TRIPS in watch.mjs), not something to bump without her sign-off
+
+// Pure — given today's already-used count, should the next real SerpApi
+// call be blocked? Exported so the cap logic itself is unit-testable
+// without needing @netlify/blobs.
+export function isOverDailyCap(count, cap = DAILY_SEARCH_CAP) {
+  return count >= cap;
+}
+
+// Pure — the store key for today's counter, UTC calendar day (matches
+// how watch-check.mjs and the rest of this file already reason about
+// "today"). Exported so tests can assert on it directly.
+export function todayQuotaKey(now = new Date()) {
+  return "farequota-" + now.toISOString().slice(0, 10);
+}
+
+// I/O — reserves one slot in today's counter with the same
+// getWithMetadata/onlyIfMatch retry loop watch.mjs's handler already
+// uses, so concurrent requests can't both read an under-cap count and
+// both proceed. Returns {ok:true} once a slot is reserved (the caller is
+// clear to make the real SerpApi call), or {ok:false, reason} otherwise.
+async function reserveDailySearchSlot(store) {
+  const quotaKey = todayQuotaKey();
+  for (let attempt = 0; attempt < 5; attempt++) {
+    const current = await store.getWithMetadata(quotaKey, { type: "json" });
+    const count = (current && typeof current.data === "number") ? current.data : 0;
+    const etag = current && current.etag;
+    if (isOverDailyCap(count)) return { ok: false, reason: "cap" };
+    const result = etag
+      ? await store.setJSON(quotaKey, count + 1, { onlyIfMatch: etag })
+      : await store.setJSON(quotaKey, count + 1, { onlyIfNew: true });
+    if (result.modified) return { ok: true };
+    // someone else incremented (or created the key) in between — loop and retry against the fresh count
+  }
+  return { ok: false, reason: "contention" };
+}
+
 // Pure, no I/O — exported so the quota-cache logic is directly unit-testable
 // without mocking fetch/@netlify/blobs (same pattern as audio-preview.mjs's
 // named exports in the vinyl-scout repo). Stable/deterministic: same search
@@ -191,6 +280,14 @@ export default async (req) => {
     return json({ live: Boolean(key), reason: key ? "ready" : "not_configured", provider: "serpapi-google-flights" });
   }
 
+  // Abuse guard #1 (see the block comment above CACHE_TTL_MS/ALLOWED_ORIGINS
+  // for the full reasoning) — checked before anything else in a real search
+  // request, so an untrusted caller learns nothing about whether the key is
+  // configured, cache state, etc.
+  if (!isAllowedOrigin(req.headers.get("origin"), req.headers.get("referer"))) {
+    return json({ live: false, reason: "origin_not_allowed", detail: "This endpoint only serves search requests referred from travelintelligence.org." }, 403);
+  }
+
   const adults = Math.min(9, Math.max(1, parseInt(url.searchParams.get("adults") || "1", 10)));
   const cabin = url.searchParams.get("cabin") || "";
   const legsRaw = url.searchParams.get("legs");
@@ -214,6 +311,16 @@ export default async (req) => {
       }
     } catch (e) {
       console.warn("fares.mjs: cache read failed", e && e.message);
+    }
+
+    // Abuse guard #2 — only reached on a cache miss (a cache hit above
+    // already returned and never touches SerpApi, so it correctly costs
+    // nothing against the daily cap).
+    const quota = await reserveDailySearchSlot(store);
+    if (!quota.ok) {
+      return quota.reason === "cap"
+        ? json({ live: false, reason: "daily_cap_reached", detail: `Daily live-search cap (${DAILY_SEARCH_CAP}) reached — protects the monthly SerpApi quota. Try again tomorrow.` }, 429)
+        : json({ live: false, reason: "quota_check_failed", detail: "Could not verify today's search quota right now — please try again." }, 503);
     }
 
     const q = new URLSearchParams({
@@ -289,6 +396,14 @@ export default async (req) => {
     }
   } catch (e) {
     console.warn("fares.mjs: cache read failed", e && e.message);
+  }
+
+  // Abuse guard #2 — see the matching comment in the multi-city path above.
+  const quota = await reserveDailySearchSlot(store);
+  if (!quota.ok) {
+    return quota.reason === "cap"
+      ? json({ live: false, reason: "daily_cap_reached", detail: `Daily live-search cap (${DAILY_SEARCH_CAP}) reached — protects the monthly SerpApi quota. Try again tomorrow.` }, 429)
+      : json({ live: false, reason: "quota_check_failed", detail: "Could not verify today's search quota right now — please try again." }, 503);
   }
 
   const q = new URLSearchParams({
