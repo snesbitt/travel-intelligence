@@ -116,7 +116,7 @@ h2.card-title { font-size: 11.5px; text-transform: uppercase; letter-spacing: 0.
 /* roadmap: phase cards (rail-card style, shared with Vinyl Scout) */
 .phase { display: grid; grid-template-columns: 48px 1fr; border: 1px solid var(--border); background: var(--card); border-radius: 8px; overflow: hidden; margin: 0 0 14px; }
 .phase:last-of-type { margin-bottom: 0; }
-.phase__rail { background: var(--bg-alt); border-right: 1px solid var(--border); display: flex; align-items: center; justify-content: center; font-family: var(--serif); font-style: italic; font-weight: 400; font-size: 22px; color: var(--ink-faint); }
+.phase__rail { background: var(--bg-alt); border-right: 1px solid var(--border); display: flex; align-items: center; justify-content: center; font-family: var(--serif); font-style: italic; font-weight: 400; font-size: 22px; color: #565b6e; }
 .phase__rail--live { color: var(--good); }
 .phase__rail--progress { color: var(--mid); }
 .phase__body { padding: 16px 18px; }
@@ -125,9 +125,9 @@ h2.card-title { font-size: 11.5px; text-transform: uppercase; letter-spacing: 0.
 .phase__status { font-size: 9.5px; letter-spacing: 0.05em; text-transform: uppercase; padding: 2px 8px; border-radius: 5px; font-weight: 700; white-space: nowrap; }
 .phase__status--live { background: var(--good-dim); color: var(--good); }
 .phase__status--progress { background: var(--mid-dim); color: var(--mid); }
-.phase__status--planned { background: var(--bg-alt); color: var(--ink-dim); }
+.phase__status--planned { background: var(--bg-alt); color: #565b6e; }
 .phase__focus { font-family: var(--serif); font-style: italic; font-size: 13px; color: var(--accent); margin: 0 0 7px; }
-.phase__covers { font-size: 13.5px; line-height: 1.6; color: var(--ink-dim); margin: 0; }
+.phase__covers { font-size: 13.5px; line-height: 1.6; color: #565b6e; margin: 0; }
 @media (min-width: 640px) {
 .phase { grid-template-columns: 64px 1fr; margin-bottom: 18px; }
 .phase__rail { font-size: 28px; }
@@ -177,7 +177,7 @@ h2.card-title { font-size: 11.5px; text-transform: uppercase; letter-spacing: 0.
 @media (min-width: 640px) { .field-note { padding: 1rem 1.2rem; margin-bottom: 2.25rem; } .field-note p { font-size: 14px; } }
 
 footer.site-footer { border-top: 1px solid var(--border); padding: 1.2rem 0 2.2rem; margin-top: 0.75rem; }
-footer.site-footer .wrap { font-size: 10px; letter-spacing: 0.05em; text-transform: uppercase; color: var(--ink-faint); text-align: center; }
+footer.site-footer .wrap { font-size: 10px; letter-spacing: 0.05em; text-transform: uppercase; color: #565b6e; text-align: center; }
 @media (min-width: 640px) { footer.site-footer { padding: 1.5rem 0 3rem; } footer.site-footer .wrap { font-size: 11px; } }
 
 /* ---- pill nav index (guide/about) ---- */
@@ -223,7 +223,7 @@ padding: 5px 12px 5px 8px;
 /* ---- diagrams ---- */
 figure.diagram { margin: 1.4rem 0 1.8rem; text-align: center; }
 figure.diagram svg { max-width: 100%; height: auto; }
-figure.diagram figcaption { font-family: var(--sans); font-size: 10px; letter-spacing: 0.08em; text-transform: uppercase; color: var(--ink-faint); margin-top: 8px; }
+figure.diagram figcaption { font-family: var(--sans); font-size: 10px; letter-spacing: 0.08em; text-transform: uppercase; color: #565b6e; margin-top: 8px; }
 
 .callout-row { display: grid; grid-template-columns: 1fr; gap: 10px; margin: 1rem 0 1.6rem; }
 @media (min-width: 640px) { .callout-row { grid-template-columns: 1fr 1fr; } }
@@ -280,7 +280,7 @@ figure.diagram figcaption { font-family: var(--sans); font-size: 10px; letter-sp
 }
 .ac-option mark { background: none; color: var(--accent); font-weight: 700; padding: 0; }
 .ac-option.active, .ac-option:hover { background: var(--accent-dim); }
-.ac-option .ac-code { font-size: 10.5px; color: var(--ink-dim); flex-shrink: 0; }
+.ac-option .ac-code { font-size: 10.5px; color: #565b6e; flex-shrink: 0; }
 /* Cabin/purpose/date-flex pills — padding bumped 2026-07-20 so the
    button box clears the 44px touch-target guideline (was ~26-30px tall);
    min-height is the floor, flex centering keeps the compact pill look. */
@@ -331,7 +331,7 @@ figure.diagram figcaption { font-family: var(--sans); font-size: 10px; letter-sp
 .rec-detail-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 8px; margin: 10px 0; }
 @media (min-width: 640px) { .rec-detail-grid { grid-template-columns: repeat(4, 1fr); } }
 .rec-detail { background: var(--bg); border: 1px solid var(--border); border-radius: 7px; padding: 8px 10px; }
-.rec-detail .rd-label { font-size: 9.5px; text-transform: uppercase; letter-spacing: 0.05em; color: var(--ink-faint); }
+.rec-detail .rd-label { font-size: 9.5px; text-transform: uppercase; letter-spacing: 0.05em; color: #565b6e; }
 .rec-detail .rd-val { font-size: 13px; font-weight: 700; margin-top: 2px; }
 .rec-why { font-size: 12.5px; color: var(--ink); border-top: 1px solid var(--border); padding-top: 10px; margin-top: 10px; }
 .rec-why strong { color: var(--accent); }
@@ -382,7 +382,7 @@ table.alt-table td.rank-cell { font-family: var(--serif); font-style: italic; co
 /* 2026-07-26 vertical-density pass (Susan): the run-button neighborhood
    wastes no height before, during, or after a run. */
 .empty-state { text-align: center; padding: 1.1rem 1rem; color: #565b6e; }
-.empty-state .es-icon { font-family: var(--serif); font-style: italic; font-size: 22px; color: var(--ink-faint); margin-bottom: 4px; }
+.empty-state .es-icon { font-family: var(--serif); font-style: italic; font-size: 22px; color: #565b6e; margin-bottom: 4px; }
 .empty-state p { font-size: 13px; max-width: 52ch; margin: 0 auto; }
 .empty-state.es-searching { padding: 0.8rem 1rem; }
 .es-actions { display: flex; align-items: center; justify-content: center; gap: 8px 18px; flex-wrap: wrap; margin-top: 12px; }
@@ -422,7 +422,30 @@ table.alt-table td.rank-cell { font-family: var(--serif); font-style: italic; co
    color to #565b6e (passes 4.5:1 against every background token in this
    file, --bg through --gold-dim) directly at each declaration instead of
    bolting on more possibly-losing overrides; removed the two dead
-   overrides below now that their target rules carry the fix themselves. */
+   overrides below now that their target rules carry the fix themselves.
+   2026-08-05 follow-up: that "every remaining" claim was still wrong —
+   ~13 more direct var(--ink-dim)/var(--ink-faint) text-color declarations
+   were still unswept (.phase__rail, .phase__status--planned,
+   .phase__covers, footer .wrap, figure.diagram figcaption, .ac-option
+   .ac-code, .rec-detail .rd-label, .empty-state .es-icon, details.refine
+   > summary, the WATCHED TRIPS REDESIGN block added 2026-07-22, plus
+   guide.html's .next-card p and .mode-caption), including some added
+   after this comment was written and never checked against it. All are
+   now #565b6e (ink-dim's job) or #6b7080 (ink-faint's job) directly at
+   the declaration. #6b7080 does NOT clear 4.5:1 on every background,
+   though — only on --card (4.53:1); it drops to 3.66–4.05:1 on --bg,
+   --bg-alt and the *-dim tokens. So ink-faint text sitting on --card
+   (the watched-trips card body, minus .watched-codes' rgba(33,31,26,0.05)
+   chip tint, which darkens the effective backdrop just enough to also
+   drop below 4.5:1) keeps #6b7080; every ink-faint text usage on --bg or
+   --bg-alt (.phase__rail, footer, rd-label, figcaption, es-icon,
+   watched-codes) got #565b6e instead, same as ink-dim's fix, since it's
+   the one literal in this file proven to clear AA everywhere. Border-only
+   uses of these variables (.ro-chip:hover, .pill-nav a:hover) are left
+   alone — not text, not a contrast requirement. Left unmodified per an
+   explicitly scoped-out request: index.html:576's inline
+   `color:var(--ink-faint)` on the upgrade-wins delete button — same bug
+   class, different file; flagged for a follow-up pass, not fixed here. */
 .form-hint { color: #6b7080; }
 @media (max-width: 639px) {
   input, select, textarea { font-size: 16px; }
@@ -431,25 +454,25 @@ table.alt-table td.rank-cell { font-family: var(--serif); font-style: italic; co
 /* ===== WATCHED TRIPS REDESIGN (2026-07-22) ===== */
 .watched-header { margin-bottom: 20px; }
 .watched-header h2 { margin: 0 0 4px 0; font-size: 18px; font-weight: 600; }
-.watched-subtitle { margin: 0; font-size: 12px; color: var(--ink-faint, #8a7d6b); font-weight: 400; }
+.watched-subtitle { margin: 0; font-size: 12px; color: #6b7080; font-weight: 400; }
 .watched-item { display: grid; grid-template-columns: 1fr auto; gap: 14px; padding: 7px 0; border-bottom: 1px solid var(--line, #d8d0bf); align-items: center; }
 .watched-item:last-child { border-bottom: none; }
 .watched-route-card { display: flex; flex-direction: column; gap: 2px; }
 .watched-route-main { font-size: 15.5px; font-weight: 400; font-family: 'Lora', serif; letter-spacing: -0.3px; text-wrap: balance; }
-.watched-codes { font-family: ui-monospace, "SF Mono", Menlo, Consolas, monospace; font-size: 10.5px; font-weight: 500; letter-spacing: 0.05em; color: var(--ink-faint, #8a7d6b); background: rgba(33, 31, 26, 0.05); border: 1px solid var(--line, #d8d0bf); padding: 1.5px 7px; border-radius: 999px; vertical-align: 2.5px; margin-left: 6px; white-space: nowrap; }
-.watched-route-meta { font-size: 12px; color: var(--ink-faint, #8a7d6b); display: flex; gap: 8px; flex-wrap: wrap; }
+.watched-codes { font-family: ui-monospace, "SF Mono", Menlo, Consolas, monospace; font-size: 10.5px; font-weight: 500; letter-spacing: 0.05em; color: #565b6e; background: rgba(33, 31, 26, 0.05); border: 1px solid var(--line, #d8d0bf); padding: 1.5px 7px; border-radius: 999px; vertical-align: 2.5px; margin-left: 6px; white-space: nowrap; }
+.watched-route-meta { font-size: 12px; color: #6b7080; display: flex; gap: 8px; flex-wrap: wrap; }
 /* 2026-07-26 vertical-density pass: the price side is a 2-line column with
    the sparkline BESIDE it, not a 4-item stack — each watched row is now
    exactly two text lines tall. */
 .watched-price-col { display: flex; flex-direction: column; align-items: flex-end; gap: 2px; min-width: fit-content; }
 .watched-price-line { display: flex; align-items: center; gap: 8px; }
 .watched-price-amount { font-size: 16px; font-weight: 400; font-family: 'Lora', serif; font-variant-numeric: tabular-nums; }
-.watched-price-meta { font-size: 11px; color: var(--ink-faint, #8a7d6b); text-align: right; }
+.watched-price-meta { font-size: 11px; color: #6b7080; text-align: right; }
 .watched-delta { font-weight: 600; font-size: 11px; font-variant-numeric: tabular-nums; padding: 1px 8px; border-radius: 999px; }
 .watched-delta.down { color: var(--good, #3f6b4f); background: rgba(63, 107, 79, 0.10); }
 .watched-delta.up { color: var(--bad, #a24a3f); background: rgba(162, 74, 63, 0.10); }
 .watched-actions { display: flex; gap: 8px; align-items: center; padding-left: 8px; }
-.watched-unwatch { background: none; border: none; font-size: 16px; color: var(--ink-faint, #8a7d6b); cursor: pointer; padding: 4px 6px; line-height: 1; flex-shrink: 0; }
+.watched-unwatch { background: none; border: none; font-size: 16px; color: #6b7080; cursor: pointer; padding: 4px 6px; line-height: 1; flex-shrink: 0; }
 .watched-unwatch:hover { color: var(--ink, #2a241b); }
 /* 2026-07-24 mobile pass: watched rows stack cleanly at phone widths —
    route on its own line, price row beneath, 44px unwatch target, no
@@ -498,7 +521,7 @@ table.alt-table td.rank-cell { font-family: var(--serif); font-style: italic; co
 /* 2026-07-26 radical simplicity: the four essential fields stay visible;
    everything else lives in this folding panel. */
 details.refine { margin: 0 0 0.6rem; }
-details.refine > summary { cursor: pointer; list-style: none; display: flex; align-items: center; gap: 8px; font-size: 13px; font-weight: 600; letter-spacing: 0.02em; color: var(--ink-dim); padding: 10px 4px; user-select: none; }
+details.refine > summary { cursor: pointer; list-style: none; display: flex; align-items: center; gap: 8px; font-size: 13px; font-weight: 600; letter-spacing: 0.02em; color: #565b6e; padding: 10px 4px; user-select: none; }
 details.refine > summary::-webkit-details-marker { display: none; }
 details.refine > summary::before { content: "▸"; font-size: 11px; transition: transform 0.15s ease; }
 details.refine[open] > summary::before { transform: rotate(90deg); }
