@@ -85,6 +85,24 @@
             <button type="button" data-val="±7 days">± 7 days</button>
           </div>
         </div>
+        <!-- 2026-07-31 (Susan: "I always want to fly nonstop if available"):
+             promoted out of the Flight preferences fold, same reasoning the
+             Via field got promoted for above — a standing rule, not an edge
+             case. Still saved as a preference (auto-saves across trips, see
+             savePreferences/loadPreferences) even though it now lives on
+             the main card; values are the same 0/1/2/3 maxStops the
+             optimizer has always taken, now actually enforced as a hard
+             filter (see buildLiveCandidates in app.js — it used to be
+             collected and silently ignored). -->
+        <div class="form-field" style="margin-top:10px;">
+          <label>Stops <span class="form-hint">(saved as your default across trips)</span></label>
+          <div class="pill-toggle" data-group="maxStops">
+            <button type="button" data-val="0" class="sel">Nonstop only</button>
+            <button type="button" data-val="1">1 stop</button>
+            <button type="button" data-val="2">2 stops</button>
+            <button type="button" data-val="3">Any stops</button>
+          </div>
+        </div>
         <p class="form-hint" id="prio-suggest" style="margin-top:10px;"></p>
       </section>
 
@@ -120,7 +138,7 @@
 
       <section class="block card" id="preferences">
         <h2 class="card-title">Flight preferences <span class="form-hint" id="prefs-status" style="font-weight:400;"></span></h2>
-        <p class="form-hint" style="margin-bottom:10px;">Everything in this card auto-saves to this browser and reloads next visit; nothing leaves your device. Cabin, stops, airlines, alliances, times, and travel style all feed the optimizer and its suggestions; preferred seat and hotel brand are saved for reference only (this site doesn't score seats or hotels).</p>
+        <p class="form-hint" style="margin-bottom:10px;">Everything in this card auto-saves to this browser and reloads next visit; nothing leaves your device. Cabin, airlines, alliances, times, and travel style all feed the optimizer and its suggestions; preferred seat and hotel brand are saved for reference only (this site doesn't score seats or hotels). Checked bags and carry-on-only are collected for context too, not scored — live fare data doesn't include baggage fees, so inventing a bag-fee estimate would be a guess dressed up as a number. Stops now lives on the main Trip card, next to Date flexibility — same saved preference, just promoted.</p>
         <div class="form-field">
           <label>Cabin</label>
           <div class="pill-toggle" data-group="cabin">
@@ -133,10 +151,6 @@
         </div>
         <div class="form-grid" style="margin-top:12px;">
           <div class="form-field"><label for="maxBudget">Maximum budget (round-trip, USD)</label><input type="number" id="maxBudget" value="2000" min="100" step="50"></div>
-          <div class="form-field">
-            <label for="maxStops">Maximum stops</label>
-            <select id="maxStops"><option value="0">Nonstop only</option><option value="1" selected>1 stop</option><option value="2">2 stops</option><option value="3">No preference</option></select>
-          </div>
           <div class="form-field"><label for="checkedBags">Checked bags needed</label><input type="number" id="checkedBags" value="0" min="0" max="5"></div>
           <div class="form-field" style="justify-content:center;">
             <label class="check-row" style="margin-top:16px;"><input type="checkbox" id="carryOnOnly"> Carry-on only</label>
@@ -264,6 +278,111 @@
     });
   });
 
+  /* ---------- city/airport autocomplete (2026-07-31, Susan: "I also want
+     the field to fuzzy match so as I'm typing the correct city or airport
+     code shows up") ----------
+   * ARIA 1.2 combobox pattern over T.suggestCities: role=combobox on the
+   * input, role=listbox/option below it, aria-expanded/aria-activedescendant
+   * kept in sync with keyboard/mouse selection — a screen reader gets the
+   * same state a sighted user sees, not just a floating div. Debounced
+   * (~100ms) since it recomputes on every keystroke; the underlying lookup
+   * itself is cheap (a few hundred short-string comparisons), the debounce
+   * is purely to keep fast typing smooth. mousedown (not click) commits a
+   * selection so it fires before the input's blur closes the list —
+   * click would lose the race and the list would already be gone. */
+  function attachCityAutocomplete(inputId) {
+    const input = document.getElementById(inputId);
+    if (!input) return;
+    const wrap = document.createElement("div");
+    wrap.className = "ac-wrap";
+    input.parentNode.insertBefore(wrap, input);
+    wrap.appendChild(input);
+    const list = document.createElement("ul");
+    list.className = "ac-list";
+    list.id = inputId + "-ac-list";
+    list.setAttribute("role", "listbox");
+    list.hidden = true;
+    wrap.appendChild(list);
+
+    input.setAttribute("role", "combobox");
+    input.setAttribute("aria-autocomplete", "list");
+    input.setAttribute("aria-expanded", "false");
+    input.setAttribute("aria-controls", list.id);
+    input.setAttribute("autocomplete", "off");
+
+    let items = [];
+    let activeIndex = -1;
+    let debounceTimer = null;
+
+    function highlight(text, q) {
+      const i = q ? text.toLowerCase().indexOf(q.toLowerCase()) : -1;
+      if (i === -1) return escapeHtml(text);
+      return escapeHtml(text.slice(0, i)) + "<mark>" + escapeHtml(text.slice(i, i + q.length)) + "</mark>" + escapeHtml(text.slice(i + q.length));
+    }
+    function render(query) {
+      list.innerHTML = items.map((it, i) =>
+        `<li class="ac-option${i === activeIndex ? " active" : ""}" id="${list.id}-opt-${i}" role="option" aria-selected="${i === activeIndex}" data-idx="${i}">` +
+        `<span>${highlight(it.value, query)}</span><span class="ac-code">${escapeHtml(it.code)}</span></li>`
+      ).join("");
+    }
+    function updateActiveDescendant() {
+      if (activeIndex >= 0) input.setAttribute("aria-activedescendant", `${list.id}-opt-${activeIndex}`);
+      else input.removeAttribute("aria-activedescendant");
+    }
+    function open(query) {
+      const T = window.TravelIntel;
+      items = (T && T.suggestCities) ? T.suggestCities(query, 8) : [];
+      activeIndex = -1;
+      if (!items.length) { close(); return; }
+      render(query);
+      list.hidden = false;
+      input.setAttribute("aria-expanded", "true");
+      updateActiveDescendant();
+    }
+    function close() {
+      list.hidden = true;
+      items = [];
+      activeIndex = -1;
+      input.setAttribute("aria-expanded", "false");
+      updateActiveDescendant();
+    }
+    function select(idx) {
+      const it = items[idx];
+      if (!it) return;
+      input.value = it.value;
+      close();
+      input.dispatchEvent(new Event("input", { bubbles: true }));
+      input.dispatchEvent(new Event("change", { bubbles: true }));
+    }
+    input.addEventListener("input", () => {
+      clearTimeout(debounceTimer);
+      const q = input.value;
+      debounceTimer = setTimeout(() => { if (q.trim().length >= 2) open(q); else close(); }, 100);
+    });
+    input.addEventListener("keydown", (e) => {
+      if (list.hidden && (e.key === "ArrowDown" || e.key === "ArrowUp")) { open(input.value); return; }
+      if (list.hidden) return;
+      if (e.key === "ArrowDown") { e.preventDefault(); activeIndex = Math.min(items.length - 1, activeIndex + 1); render(input.value); updateActiveDescendant(); scrollActiveIntoView(); }
+      else if (e.key === "ArrowUp") { e.preventDefault(); activeIndex = Math.max(0, activeIndex - 1); render(input.value); updateActiveDescendant(); scrollActiveIntoView(); }
+      else if (e.key === "Enter") { if (activeIndex >= 0) { e.preventDefault(); select(activeIndex); } else close(); }
+      else if (e.key === "Escape") { close(); }
+      else if (e.key === "Tab") { close(); }
+    });
+    function scrollActiveIntoView() {
+      const el = list.querySelector(".ac-option.active");
+      if (el) el.scrollIntoView({ block: "nearest" });
+    }
+    list.addEventListener("mousedown", (e) => {
+      const li = e.target.closest(".ac-option");
+      if (!li) return;
+      e.preventDefault(); // beats the input's blur, which would otherwise close the list first
+      select(parseInt(li.dataset.idx, 10));
+    });
+    input.addEventListener("blur", () => setTimeout(close, 120));
+    input.addEventListener("focus", () => { if (input.value.trim().length >= 2) open(input.value); });
+  }
+  ["origin", "destination", "viaCity", "preferredAirport"].forEach(attachCityAutocomplete);
+
   // accessible names for the 13 wallet inputs
   document.querySelectorAll(".prog-bal").forEach((el) => el.setAttribute("aria-label", el.dataset.program + " miles balance"));
 
@@ -362,6 +481,19 @@
   const prefsStatus = document.getElementById("prefs-status");
   let upgradeWins = [];
   let upgradeWinsCollapsed = true;
+  // 2026-07-31 (Susan: "default to Nonstop only" wasn't sticking): maxStops
+  // used to live on a plain <select> with no "this is a deliberate choice"
+  // signal, so a value saved back then (e.g. from whatever the select's own
+  // default was) is indistinguishable from an accidental leftover — but
+  // loadPreferences() below was restoring it unconditionally, silently
+  // overriding the new Nonstop-only default the whole stops filter fix
+  // exists to serve. This flag is only ever set true by an actual click on
+  // the Stops pill row (see the maxStops click handler below); until then,
+  // any saved maxStops from before today is treated as not-a-real-choice
+  // and left unapplied, so the page keeps its HTML default of Nonstop only.
+  // A genuine choice — made today or any day after — is still fully sticky,
+  // exactly as the "saved as your default across trips" label promises.
+  let maxStopsConfirmed = false;
 
   function setPillVal(group, val) {
     const el = document.querySelector(`.pill-toggle[data-group="${group}"]`);
@@ -379,7 +511,8 @@
     const prefs = {
       savedAt: new Date().toISOString(),
       cabin: pillVal("cabin"),
-      maxStops: document.getElementById("maxStops").value,
+      maxStops: pillVal("maxStops"),
+      maxStopsConfirmed,
       preferredAirlines: document.getElementById("preferredAirlines").value,
       avoidAirlines: document.getElementById("avoidAirlines").value,
       preferredAlliances: Array.from(document.querySelectorAll(".alliance-check:checked")).map((el) => el.value),
@@ -399,7 +532,11 @@
     try { prefs = JSON.parse(localStorage.getItem(PREFS_KEY) || "null"); } catch (e) { return; }
     if (!prefs) return;
     if (prefs.cabin) setPillVal("cabin", prefs.cabin);
-    if (prefs.maxStops != null && prefs.maxStops !== "") document.getElementById("maxStops").value = prefs.maxStops;
+    // only restore a saved maxStops once it's been confirmed as a real,
+    // deliberate choice (see maxStopsConfirmed above) — otherwise the page
+    // keeps its HTML default of Nonstop only instead of a stale carryover
+    if (prefs.maxStopsConfirmed && prefs.maxStops != null && prefs.maxStops !== "") setPillVal("maxStops", prefs.maxStops);
+    maxStopsConfirmed = !!prefs.maxStopsConfirmed;
     if (prefs.preferredAirlines) document.getElementById("preferredAirlines").value = prefs.preferredAirlines;
     if (prefs.avoidAirlines) document.getElementById("avoidAirlines").value = prefs.avoidAirlines;
     (prefs.preferredAlliances || []).forEach((v) => {
@@ -467,13 +604,23 @@
     setTimeout(updateSuggestion, 0);
   });
 
-  const PREFS_FIELD_IDS = ["maxStops", "preferredAirlines", "avoidAirlines", "preferredDepartTime", "preferredArrivalTime", "dislikedAirports", "preferredSeat", "preferredHotel", "travelStyle"];
+  const PREFS_FIELD_IDS = ["preferredAirlines", "avoidAirlines", "preferredDepartTime", "preferredArrivalTime", "dislikedAirports", "preferredSeat", "preferredHotel", "travelStyle"];
   PREFS_FIELD_IDS.forEach((id) => {
     const el = document.getElementById(id);
     el.addEventListener(el.tagName === "SELECT" ? "change" : "blur", () => savePreferences(true));
   });
   document.querySelectorAll(".alliance-check").forEach((el) => el.addEventListener("change", () => savePreferences(true)));
-  document.querySelector('.pill-toggle[data-group="cabin"]').addEventListener("click", () => setTimeout(() => savePreferences(true), 0));
+  // maxStops moved from a plain <select> (handled generically above via
+  // PREFS_FIELD_IDS) to a promoted pill-toggle on the main card (2026-07-31)
+  // — pills save on click the same way the cabin pill already does.
+  ["cabin", "maxStops"].forEach((group) => {
+    document.querySelector(`.pill-toggle[data-group="${group}"]`).addEventListener("click", (e) => {
+      // a real click on a Stops pill IS the deliberate choice that makes
+      // this preference sticky going forward (see maxStopsConfirmed above)
+      if (group === "maxStops" && e.target.closest("button")) maxStopsConfirmed = true;
+      setTimeout(() => savePreferences(true), 0);
+    });
+  });
   loadPreferences();
 
   /* ---------- collapsible balances: show only funded programs by default ---------- */
@@ -546,7 +693,13 @@
       travelers: Math.max(1, parseInt(document.getElementById("travelers").value, 10) || 1),
       cabin: pillVal("cabin") || "Economy",
       maxBudget: parseInt(document.getElementById("maxBudget").value, 10) || 1000,
-      maxStops: parseInt(document.getElementById("maxStops").value, 10),
+      // 2026-07-31 (Susan: "default to Nonstop only"): fallback used to be
+      // "3" (Any stops) if no pill read as selected — directly contradicting
+      // the HTML default (Nonstop only has the "sel" class) and the whole
+      // reason this filter exists. Falling back to "0" here means even an
+      // unexpected DOM state still defaults to nonstop, never silently to
+      // the least-restrictive option.
+      maxStops: parseInt(pillVal("maxStops") || "0", 10),
       checkedBags: parseInt(document.getElementById("checkedBags").value, 10) || 0,
       carryOnOnly: document.getElementById("carryOnOnly").checked,
       preferredAirlines: matchCarrierNames(listVal("#preferredAirlines"), T.ALL_CARRIERS),
@@ -614,6 +767,16 @@
           const j = await r.json();
           if (j.reason === "not_configured") reason = "not-configured";
           else if (j.reason === "bad_request") reason = "via-bad-request";
+          // 2026-08-05: distinct reason strings (not the generic "api-fail"
+          // bucket) for fares.mjs's two abuse guards -- both are
+          // deterministic, not transient, so they must NOT trigger the
+          // one-retry-on-timeout logic below (retrying a daily cap or an
+          // origin block just wastes a round trip and can't ever succeed
+          // until the cause changes), and the honesty-over-confidence rule
+          // means the empty state should say what actually happened rather
+          // than the generic "failed or timed out, re-run to retry".
+          else if (j.reason === "daily_cap_reached") reason = "daily-cap";
+          else if (j.reason === "origin_not_allowed") reason = "origin-blocked";
         } catch (e2) {}
         return { data: null, reason };
       }
@@ -677,14 +840,25 @@
   }
 
   const FALLBACK_REASONS = {
-    "unknown-via": (inputs) => `"${inputs.viaCity}" isn't in the city table; check the spelling or use a 3-letter airport code.`,
+    // 2026-07-31: toIATA now auto-corrects a stray typo or two (a dropped,
+    // doubled, swapped, or wrong letter — "Bankok" now resolves to Bangkok
+    // on its own), so this message only fires for names it genuinely
+    // doesn't recognize, not a one-letter slip.
+    "unknown-via": (inputs) => `"${inputs.viaCity}" isn't in the city table, even allowing for a typo or two; check the spelling or use a 3-letter airport code.`,
     "via-bad-request": () => `the via routing didn't form a valid itinerary -- check that the return date is after the stopover leg (departure date + nights at the stopover).`,
-    "unknown-dest": (inputs) => `"${inputs.destination}" isn't in the city table; check the spelling (e.g. Bangkok, not Bankok) or use a 3-letter airport code.`,
-    "unknown-origin": (inputs) => `"${inputs.preferredAirport || inputs.origin}" isn't a recognized origin; use a city from the table or a 3-letter airport code.`,
+    "unknown-dest": (inputs) => `"${inputs.destination}" isn't in the city table, even allowing for a typo or two; check the spelling or use a 3-letter airport code.`,
+    "unknown-origin": (inputs) => `"${inputs.preferredAirport || inputs.origin}" isn't a recognized origin, even allowing for a typo or two; use a city from the table or a 3-letter airport code.`,
     "no-date": () => `no departure date set; add one to search live fares.`,
     "not-configured": () => `demo mode: the live backend awaits its API credential.`,
     "no-offers": () => `the live search returned no offers for this route/date.`,
     "api-fail": () => `the live search failed or timed out; re-run to retry.`,
+    // 2026-08-05: fares.mjs's two abuse guards (an Origin/Referer allowlist
+    // and a daily SerpApi-call cap, both protecting the 100/month quota) —
+    // deterministic failures, so unlike "api-fail" these are never retried
+    // automatically (see fetchLiveOffers above) and get their own honest
+    // copy instead of "re-run to retry", which would be false for both.
+    "daily-cap": () => `today's live-search quota is used up (protects the monthly SerpApi budget); try again tomorrow.`,
+    "origin-blocked": () => `the live backend didn't recognize this request's origin; reload the page and try again.`,
   };
 
   form.addEventListener("submit", async (e) => {

@@ -76,6 +76,82 @@ not just a demo. Hold every future change to that standard.
   appear (rec card, watched trips, .ics export); booking links moved to a
   `.rec-links` wrapping row and watched rows stack single-column on mobile
   (44px unwatch target) — no mid-phrase link wrapping at 375px.
+- 2026-07-31 (Susan: "improve the city fields to better/more elegantly
+  handle mispellings with fuzzy matching"): added a third resolution tier —
+  exact match, then whole-word match (both above), then a typo-tolerant
+  fuzzy match — to `toIATA()` and `lookupCoords()` in `app.js`. New helpers
+  `levenshtein()` (optimal-string-alignment edit distance: insert/delete/
+  substitute at cost 1, plus adjacent-letter transposition at cost 1, so
+  "Pairs"→Paris and "Tokoy"→Tokyo work, not just dropped/wrong letters) and
+  `fuzzyMatchKey()` (scans a table, returns the single closest key within
+  the distance threshold, or `null` on a tie or no match — never guesses).
+  Threshold: 1 typo allowed under 13 characters, 2 at 13+ (longer phrases
+  can carry two small slips with less risk of coincidentally resembling an
+  unrelated name); inputs under 4 characters never fuzzy-match. Validated
+  with an exhaustive sweep (every deletion/substitution/adjacent-swap
+  variant of every real `CITY_IATA`/`COUNTRY_TO_IATA` key, ~64k variants)
+  confirming zero wrong resolutions — every variant lands back on the same
+  key or safely returns unresolved. That sweep is what caught and fixed a
+  first-pass bug: a flatter "2 typos above 7 chars" threshold let the
+  fictional "Atlantis" resolve to Atlanta (ATL) — a case the test suite
+  had already relied on staying unresolved (see
+  "unresolved city or missing date produces NO links" in
+  `tests/app.test.js`). Both `toIATA()` and `lookupCoords()` check the
+  fuzzy layer directly against their own tables (not just via a resolved
+  code) so geometry resolves even for names whose IATA code isn't itself a
+  `CITY_COORDS` key (e.g. "Chigaco"-style Chicago typos → ORD, which isn't
+  a `CITY_COORDS` key on its own — "chicago" is). `FALLBACK_REASONS` copy
+  in `index.html` updated from a now-stale "e.g. Bangkok, not Bankok"
+  example (that typo resolves correctly now) to "even allowing for a typo
+  or two". Tests: `levenshtein()` and `fuzzyMatchKey()` exposed on
+  `window.TravelIntel` for `tests/app.test.js`; new tests cover common
+  typos, the country-name path, exact-match precedence over fuzzy, refusal
+  to guess on no-match/ties, and the exhaustive sweep (a representative
+  sample runs in the regular suite; the full ~64k-variant sweep was ad hoc
+  validation during the build, not part of `npm test`, to keep it fast).
+- 2026-07-31, same session, two follow-ups after Susan tried "Pairs" as a
+  destination and asked about the Stops field:
+  1. **Live typeahead.** New `suggestCities(query, limit)` in `app.js`,
+     exposed on `window.TravelIntel`, returns ranked, deduped-by-code
+     suggestions (exact match, then prefix, then whole-word substring, then
+     the same typo tolerance `toIATA` uses) — deliberately a separate,
+     *more permissive* function than `toIATA`/`fuzzyMatchKey` rather than a
+     reuse of either: a typeahead shows several candidates and lets the
+     person pick, so it's fine to surface near-misses the silent resolver
+     correctly refuses to guess between. `attachCityAutocomplete()` in
+     `index.html` wires this to an ARIA 1.2 combobox (role=combobox/
+     listbox/option, aria-expanded/aria-activedescendant, full keyboard
+     nav, 44px touch rows matching the site's existing target-size
+     convention) on origin, destination, viaCity, and preferredAirport.
+     Selecting a suggestion always fills the field with a string that
+     exact-matches on resolve (verified by test — see
+     "every suggested value resolves back to the same code via toIATA").
+  2. **The Stops field didn't do anything — a real bug, not just a UX
+     gap.** `inputs.maxStops` was collected from a "Maximum stops" select
+     (including a "Nonstop only" option) and saved as a preference, but
+     `buildLiveCandidates` never read it — stops only ever cost points via
+     the Risk/Comfort scores, never excluded an offer. Same "control that
+     silently does nothing" bug class as the resolution/scoring gaps this
+     file's whole history has caught (SFO→Greenville, Muscat→Chicago,
+     etc.) — a UI element that doesn't do what it says is its own kind of
+     invented result. Now a real hard filter in `buildLiveCandidates`
+     (`stopsLimit = inputs.maxStops == null ? Infinity : inputs.maxStops`,
+     so every existing caller that predates this field being wired to
+     anything is unaffected). "Nonstop only" with no nonstop offer in the
+     live set correctly returns the existing honest `noLiveData` empty
+     state (same generic empty-state path avoided-airline filtering to
+     zero already used — no new distinct reason string added, matching
+     this codebase's radical-simplicity precedent of not over-distinguishing
+     *why* zero candidates resulted). The field itself was promoted from
+     the "Flight preferences" fold to the main Trip card as a pill-toggle
+     (same reasoning Via/stopover was promoted for: "a headline feature,
+     not an edge case" — arguably more so for Susan, who said "I always
+     want to fly nonstop if available"), default changed to Nonstop only.
+     Still persists via the same `savePreferences`/`loadPreferences`
+     mechanism as before (`pillVal("maxStops")`/`setPillVal("maxStops", …)`
+     replacing the old `document.getElementById("maxStops").value` reads/
+     writes) — visually it's on the main card now, behaviorally it's still
+     a saved cross-trip preference, not a per-trip field.
 - One exception to "modeled": `POINT_VALUATIONS` and `TRANSFER_BONUSES`
   in `app.js` are real published figures hand-copied from The Points
   Guy's monthly valuations / current-transfer-bonuses pages, each dated
@@ -479,6 +555,201 @@ committed, per standing instruction.
 - Committed `ac252c3`. All 81 pre-existing tests plus 4 new ad hoc XSS
   checks green before commit, per standing instruction.
 
+## 2026-07-31 — Nonstop default wasn't sticking + Paris-only-shows-CDG (Susan: "fix and do better")
+
+- **Multi-airport metros.** `suggestCities`/`suggestAliases` in `app.js`
+  deduped strictly by IATA code, and `CITY_IATA` maps each city name to
+  exactly ONE primary code by design — so a metro with more than one
+  commercial airport (Paris: CDG/Orly/Beauvais) only ever had one alias to
+  dedupe from in the first place. Typing "paris" could never surface Orly;
+  there was no second alias for it to lose a dedupe race against. Fixed
+  with a new `CITY_ALT_AIRPORTS` table (city name → array of its other real
+  airports — New York/EWR+LGA, Washington/DCA+BWI, Chicago/MDW, LA/BUR+LGB+
+  SNA+ONT, Houston/HOU, Dallas/DAL, SF/OAK+SJC, London/LGW+STN+LTN+LCY,
+  Paris/ORY+BVA, Tokyo/NRT, Osaka/ITM, Shanghai/SHA, Beijing/PKX, Seoul/GMP,
+  Rome/CIA, Buenos Aires/AEP, Sao Paulo/CGH, Rio/SDU, Bangkok/DMK, Toronto/
+  YTZ), consulted only by `suggestAliases()` (suggestions), never by
+  `toIATA`/`fuzzyMatchKey` (resolution) — a search still books against
+  exactly one deterministic primary code unless the traveler explicitly
+  picks a different one from the list. Every alt code got a `CITY_COORDS`
+  entry (so distance/flight-time works for whichever one gets picked) and,
+  where `IATA_DISPLAY` had no existing entry, a "City–Airport" label (e.g.
+  "Paris–Orly (ORY)") so the suggestion reads clearly next to the metro's
+  primary. Selecting an alt-airport suggestion has to resolve back to THAT
+  airport, not silently downgrade to the metro's primary — "Paris–Orly"
+  contains "paris" as a whole word, which would otherwise hit `toIATA`'s
+  existing whole-word fallback and return CDG. Added `altAirportNameToCode()`
+  (built from the same `CITY_ALT_AIRPORTS`/`IATA_DISPLAY` data, so it can't
+  drift from what `suggestCities` actually shows), checked in `toIATA`
+  right after the exact-match checks and before the whole-word fallback.
+  Typo tolerance benefits too: "bankok" now surfaces both BKK and DMK, same
+  as an exact "bangkok" query would.
+- **Nonstop default wasn't reliable.** Two separate bugs, both in
+  `index.html`: (1) `collectInputs()`'s fallback if no Stops pill read as
+  selected was `"3"` (Any stops) — directly contradicting the HTML default
+  (Nonstop only has the `sel` class) and the entire point of the filter;
+  changed to `"0"`. (2) The real-world cause of what Susan actually saw:
+  `maxStops` used to live on a plain `<select>` with no "this is a
+  deliberate choice" signal, and any value saved back then (whatever the
+  select's own default was) is indistinguishable from an accidental
+  leftover — but `loadPreferences()` restored a saved `maxStops`
+  unconditionally, silently overriding the new Nonstop-only default for
+  anyone with pre-existing saved prefs (confirmed via Claude-in-Chrome: a
+  stale `maxStops: "1"` from before today carried forward and beat the new
+  default). Fixed with a `maxStopsConfirmed` flag, saved alongside
+  `maxStops` and set `true` only by an actual click on the Stops pill row
+  (not by cabin changes or other fields' blur events, which also trigger
+  `savePreferences`). `loadPreferences()` now only restores a saved
+  `maxStops` when `maxStopsConfirmed` is true — pre-existing unconfirmed
+  values are left unapplied (page keeps the Nonstop-only HTML default) —
+  while a genuine choice, made today or any day after, is still fully
+  sticky across trips exactly as the "saved as your default across trips"
+  label promises. Verified via Claude-in-Chrome with a simulated stale
+  `localStorage` entry: unconfirmed `maxStops: "1"` still loads as Nonstop
+  only; clicking "1 stop" once and reloading correctly restores "1 stop".
+- `tests/app.test.js`: updated the two `suggestCities` tests whose exact
+  counts changed now that multi-airport metros surface more than one row
+  (Paris: 1 → 3; "chi" query: +MDW; "bankok" typo: 1 → 2, now includes
+  DMK), and added a dedicated test asserting every alt airport across all
+  six covered multi-airport metros round-trips through `toIATA` back to
+  its OWN code, never a sibling airport in the same metro. 61 tests green
+  (up from 60). The `maxStopsConfirmed` migration logic lives entirely in
+  `index.html`'s inline script (DOM/localStorage), outside the Node test
+  harness's reach (it only loads `app.js`) — verified instead via
+  Claude-in-Chrome against a live local server, per the scenario above.
+- **Update:** pushed by Susan as commit `093342f` and confirmed live via
+  Claude-in-Chrome against the real site — the "not yet pushed" note above
+  described a since-resolved in-between state, kept for its own history
+  rather than rewritten.
+
+## 2026-08-05 — /api/fares abuse protection (audit backlog item)
+
+`fares.mjs` has no auth (same open-by-design model as `watch.mjs`/
+`scan-offers.mjs` — nothing sensitive is stored or returned), which meant
+anything that could find the URL could spend the 100-search/month SerpApi
+quota: a scraper hitting it directly, another site embedding it, a
+shared/indexed link. Two lightweight guards, deliberately not a full
+per-IP rate limiter (more infrastructure than this problem needs, per the
+radical-simplicity rule):
+
+1. **Origin/Referer allowlist** (`isAllowedOrigin`, exported/pure) —
+   rejects a real search request (not the `?ping=1` health check, which
+   returns before this runs and costs no quota either way) that didn't
+   come from `travelintelligence.org`/`www.travelintelligence.org`/local
+   dev. Checked first, before even revealing whether the SerpApi key is
+   configured. Not real auth — both headers are spoofable by a determined
+   scraper — but it stops the actually-likely case of something hitting
+   the bare API URL directly. `netlify.toml`'s `Referrer-Policy:
+   strict-origin-when-cross-origin` means a real same-origin `fetch()`
+   from `index.html` always sends a full-URL Referer, so the allowlist
+   checks Referer's origin as a fallback when Origin itself is absent
+   (browsers often omit Origin on same-origin GET fetches).
+2. **A daily circuit-breaker cap** (`DAILY_SEARCH_CAP = 20`, shared across
+   both the single-route and multi-city search paths) — tracked with the
+   same `getWithMetadata`/`onlyIfMatch`/`onlyIfNew` optimistic-concurrency
+   retry loop `watch.mjs`'s POST handler already uses, so a burst of
+   concurrent requests can't race past it. Only counts real SerpApi calls
+   — a 15-minute cache hit returns before the counter is touched, exactly
+   like it already returns before hitting SerpApi. Bounds the worst case
+   (guard #1 defeated, or a genuine bug loop in Susan's own browser) to
+   losing at most one day's headroom, not the whole month. Like
+   `MAX_TRIPS` in `watch.mjs`, raising this cap is a quota/spend decision
+   — Susan's call, not something to bump without her sign-off.
+
+Both failures return their own `reason` string (`origin_not_allowed` 403,
+`daily_cap_reached` 429) rather than folding into the generic
+`upstream_error`/`api-fail` bucket — `index.html`'s `fetchLiveOffers()`
+maps them to distinct frontend reasons (`origin-blocked`, `daily-cap`)
+specifically so they're excluded from the existing one-retry-on-timeout
+logic (retrying a deterministic block wastes a round trip and can never
+succeed until the cause changes) and get honest copy in `FALLBACK_REASONS`
+instead of "the live search failed or timed out; re-run to retry", which
+would be false for both.
+
+Tests: 17 new pure-function assertions in `tests/fares.test.mjs`
+(`isAllowedOrigin`, `isOverDailyCap`, `todayQuotaKey`) — no
+`@netlify/blobs` mocking needed, same pattern the rest of this file's
+tests already use. Full suite: 130/130 green (61 app + 45 fares + 5 scan +
+19 watch — the last two shipped the same day, see below).
+
+## 2026-08-05 — watch.mjs race condition + returnDate/travelers id bug
+
+Shipped the same day as the abuse-protection work above. Full detail is in
+this project's `claude/travel-intelligence-build-log.md`, not duplicated
+here — short version: `watch.mjs`'s POST handler had a read-then-write
+race on the `MAX_TRIPS` cap (fixed with the same optimistic-concurrency
+pattern used for the fares quota cap above), and the watch id silently
+dropped `returnDate`/`travelers`, so two watches differing only in those
+fields collided as "already watching." 19 new tests in
+`tests/watch.test.mjs`.
+
+## 2026-08-05 — wired the six dead preference fields into real scoring (audit backlog item)
+
+`preferredAirlines`, `preferredAlliances`, `preferredDepartTime`,
+`preferredArrivalTime`, `carryOnOnly`, and `checkedBags` were all collected
+in `collectInputs()` (and the first four saved via `savePreferences()`) but
+`buildLiveCandidates` never read any of them — the exact "control that
+silently does nothing" bug class this file's whole history has already
+caught and fixed (SFO→Greenville, the Stops filter). Split into two
+honest treatments rather than forcing all six into fake scoring:
+
+**Four got real Comfort scoring**, same additive-clamp pattern
+`ASIA_COMFORT_BONUS` already uses, and the same "announce it in insights,
+never a hidden thumb on the scale" rule:
+
+- `PREFERRED_AIRLINE_BONUS` (+8) — a saved preferred airline
+  (case-insensitive substring match, same style `avoidAirlines`'s
+  exclusion filter already uses) gets a Comfort bump. Soft preference, not
+  a filter — Susan said "preferred," not "only," so non-preferred
+  airlines still show up, just score slightly lower on this one
+  dimension.
+- `PREFERRED_ALLIANCE_BONUS` (+5) — matches a saved alliance checkbox
+  against `fuzzyAlliance(carrier)`, the same alliance-lookup the
+  candidate object already carries.
+- `PREFERRED_TIME_BONUS` (+4, applied independently for depart and
+  arrival, so up to +8 combined) — required extending `fares.mjs`'s
+  `mapOffers()` to pass through each offer's `departTimeRaw`/
+  `arriveTimeRaw` (the outbound leg's first-segment departure and
+  last-segment arrival, straight from SerpApi's
+  `flights[].departure_airport.time` / `.arrival_airport.time`, a
+  "YYYY-MM-DD HH:MM" string). `app.js`'s `parseHourFromApiTime()` +
+  `departTimeBucket()`/`arriveTimeBucket()` read just the hour and bucket
+  it into the same five bands the two `<select>` dropdowns use (bucket
+  boundaries: Early morning 5-7, Morning 8-11, Afternoon 12-16, Evening
+  17-20, tail 21-4 — labeled "Red-eye" for departure and "Late night" for
+  arrival, matching each dropdown's own option text). **Not yet verified
+  against a live SerpApi response** — no `SERPAPI_KEY` in this build
+  environment, and a real search costs real quota, so the exact
+  `departure_airport.time`/`arrival_airport.time` field path is a
+  reasonable-confidence read of SerpApi's documented Google Flights
+  response shape, not a live-checked one (contrast with `liveSearchUrls()`
+  2026-07-24, which WAS verified live before shipping — same standard,
+  just not yet met here). Designed to fail safe either way: a wrong or
+  missing field just returns `null` and the preference has zero effect,
+  same as before this feature existed — it can't invent a wrong bucket or
+  show a wrong time. **Next time a real search runs, spot-check one
+  offer's `departTimeRaw`/`arriveTimeRaw` in the network response against
+  what the results card shows for that flight, and update this note.**
+
+**Two stayed honestly unscored.** `carryOnOnly`/`checkedBags` are still
+collected (they're per-trip fields, not saved preferences — see "Saved
+preferences & trip memory" below, unchanged) but never touch scoring,
+because live offers carry zero baggage-fee or fare-class data to check
+them against (`cabins` in `mapOffers()` is always `[]`). Inventing a
+bag-fee estimate to score against would be exactly the "invented
+specifics" this file's SFO→Greenville incident exists to warn against.
+Same treatment as `preferredSeat`/`preferredHotel` already got: the
+"Flight preferences" card's intro copy in `index.html` now says plainly
+that these two are collected for context, not scored.
+
+Tests: 12 new assertions in `tests/app.test.js` (hour parsing, bucket
+boundaries against the exact dropdown option text, isolated single-bonus
+checks, a stacking check, a missing-data-degrades-safely check, and an
+insight-announcement check) and 4 new assertions in `tests/fares.test.mjs`
+for `mapOffers()`'s new `departTimeRaw`/`arriveTimeRaw` fields (multi-segment
+uses first/last, single-segment, missing data, missing `flights` array
+entirely — none throw). Full suite: 146/146 green (73 app + 49 fares + 5
+scan + 19 watch).
 ## 2026-08-05 — Concert Radar (Vinyl Scout) ↔ Travel Intelligence: built
 
 Susan asked (2026-08-04, a separate unattended Vinyl Scout session) "if
