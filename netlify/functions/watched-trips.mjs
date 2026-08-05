@@ -18,12 +18,18 @@
 // watch.mjs already owns (read-only here) — no new store, no new write
 // path, per this repo's "radical simplicity" rule.
 //
-// lat/lon come from app.js's own CITY_COORDS table (loaded here via
-// createRequire, same technique tests/app.test.js already uses to run
-// app.js under Node) rather than a second, hand-duplicated IATA->lat/lon
-// table — one source of truth, so the two can't silently drift apart. A
-// destIata with no CITY_COORDS entry is honestly reported in
-// meta.unmapped rather than guessed at or silently dropped.
+// lat/lon come from netlify/functions/lib/city-coords.mjs, a verified-
+// in-sync duplicate of app.js's own CITY_COORDS table — see that file's
+// header comment for why this is a real static import rather than the
+// createRequire("../../app.js") trick the first version of this file
+// used: that worked in every local test but 502'd in production, because
+// Netlify's function bundler only packages files reachable through
+// static imports, and a dynamic require to a path outside this function's
+// own directory tree is invisible to it. Fixed 2026-08-05, the same day
+// it shipped. tests/watched-trips.test.mjs still cross-checks this file's
+// table against app.js's own (loaded via createRequire, which is safe in
+// a Node test process — just not in the deployed function) so the two
+// can never silently drift apart.
 //
 // One-way trips (no returnDate) report dateStart === dateEnd === departDate
 // — an honest simplification: this repo has no signal for how long a
@@ -38,9 +44,7 @@
 // subset of one that already exists.
 
 import { getStore } from "@netlify/blobs";
-import { createRequire } from "node:module";
-
-const require = createRequire(import.meta.url);
+import { CITY_COORDS } from "./lib/city-coords.mjs";
 
 function json(body, status) {
   return new Response(JSON.stringify(body), {
@@ -51,24 +55,11 @@ function json(body, status) {
 
 export const config = { path: "/api/watched-trips" };
 
-// Loads app.js's CITY_COORDS the same way tests/app.test.js does: give it
-// a `window` to attach to, require it, read the table back out. Cached at
-// module scope so repeated invocations in the same warm function instance
-// don't re-parse app.js every request.
-let _cityCoords = null;
+// Static import (see the import above and lib/city-coords.mjs's header
+// comment) — kept as a function, not an inline reference, only so the
+// existing test suite and the handler below don't need to change shape.
 export function loadCityCoords() {
-  if (_cityCoords) return _cityCoords;
-  const g = globalThis;
-  const hadWindow = Object.prototype.hasOwnProperty.call(g, "window");
-  const prevWindow = g.window;
-  g.window = {};
-  try {
-    require("../../app.js");
-    _cityCoords = (g.window.TravelIntel && g.window.TravelIntel.CITY_COORDS) || {};
-  } finally {
-    if (hadWindow) g.window = prevWindow; else delete g.window;
-  }
-  return _cityCoords;
+  return CITY_COORDS;
 }
 
 // Pure: given the raw trips list (watch.mjs's normalizeTrip() shape) and

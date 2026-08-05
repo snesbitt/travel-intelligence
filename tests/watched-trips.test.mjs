@@ -1,16 +1,51 @@
 // tests/watched-trips.test.mjs
 // Tests for watched-trips.mjs's pure logic (buildWatchedTripsView) and its
-// app.js-loading helper (loadCityCoords) — added 2026-08-05, Phase 10
-// (Concert Radar hooks). Same "export the pure logic for testability"
-// pattern watch.mjs/fares.mjs already use. No @netlify/blobs mocking
-// needed — buildWatchedTripsView takes a plain trips array, and
-// loadCityCoords loads the real app.js the same way tests/app.test.js
-// does, so this also incidentally re-proves app.js's CITY_COORDS export
-// didn't break anything. Run via `node tests/watched-trips.test.mjs`
-// (wired into `npm test`). No live network calls.
+// coordinate table (loadCityCoords) — added 2026-08-05, Phase 10 (Concert
+// Radar hooks). Same "export the pure logic for testability" pattern
+// watch.mjs/fares.mjs already use. No @netlify/blobs mocking needed —
+// buildWatchedTripsView takes a plain trips array.
+//
+// 2026-08-05, same-day fix: loadCityCoords originally loaded app.js's
+// CITY_COORDS at runtime via createRequire("../../app.js") — passed every
+// local test and node --check, then 502'd in production because Netlify's
+// function bundler can't see a dynamic require to a file outside this
+// function's own directory tree, so app.js never made it into the
+// deployed bundle. Fixed by moving the table into
+// netlify/functions/lib/city-coords.mjs, a real static import (the
+// pattern the bundler actually supports). The sync-check test below is
+// what stands in for "single source of truth" now that there are
+// deliberately two copies of this table: it loads app.js's copy the SAME
+// way the old runtime code did (createRequire — safe in a Node test
+// process, just not in the deployed function) and diffs every key/value
+// against lib/city-coords.mjs, so the two can never silently drift apart
+// without failing the suite.
+//
+// Run via `node tests/watched-trips.test.mjs` (wired into `npm test`).
+// No live network calls.
 
 import assert from "node:assert/strict";
+import { createRequire } from "node:module";
 import { buildWatchedTripsView, loadCityCoords } from "../netlify/functions/watched-trips.mjs";
+import { CITY_COORDS as LIB_CITY_COORDS } from "../netlify/functions/lib/city-coords.mjs";
+
+const require = createRequire(import.meta.url);
+
+// Loads app.js's CITY_COORDS the same way tests/app.test.js does: stub a
+// `window` for app.js to attach to, require it, read the table back out.
+// ONLY used here, for the sync-check test — production code no longer
+// does this (see the file header above).
+function loadAppJsCityCoords() {
+  const g = globalThis;
+  const hadWindow = Object.prototype.hasOwnProperty.call(g, "window");
+  const prevWindow = g.window;
+  g.window = {};
+  try {
+    require("../app.js");
+    return (g.window.TravelIntel && g.window.TravelIntel.CITY_COORDS) || {};
+  } finally {
+    if (hadWindow) g.window = prevWindow; else delete g.window;
+  }
+}
 
 let passed = 0;
 function test(name, fn) {
@@ -86,17 +121,31 @@ test("buildWatchedTripsView: multiple trips are each handled independently", () 
 
 /* ---------- loadCityCoords ---------- */
 
-test("loadCityCoords: loads the real app.js CITY_COORDS table (single source of truth, not duplicated)", () => {
+test("loadCityCoords: returns the lib/city-coords.mjs table used in production", () => {
   const coords = loadCityCoords();
-  assert.ok(coords.sfo, "sfo should resolve from the real app.js table");
+  assert.ok(coords.sfo, "sfo should resolve");
   assert.ok(Array.isArray(coords.sfo) && coords.sfo.length === 2, "coords are a [lat, lon] pair");
   assert.ok(coords.nrt, "nrt (Tokyo Narita) should also resolve");
 });
 
-test("loadCityCoords: repeated calls return the same cached object rather than re-requiring app.js every time", () => {
+test("loadCityCoords: repeated calls return the identical object (it's a static import, not a fresh load each time)", () => {
   const first = loadCityCoords();
   const second = loadCityCoords();
-  assert.equal(first, second, "module-scope cache returns the identical object on a second call");
+  assert.equal(first, second, "same reference on a second call");
+});
+
+/* ---------- sync check: lib/city-coords.mjs vs. app.js's own table ----------
+   The two tables are a deliberate duplicate (see file header) — this is
+   what catches them drifting apart instead of a silent runtime mismatch. */
+
+test("lib/city-coords.mjs stays in sync with app.js's CITY_COORDS — same keys, same coordinates", () => {
+  const appCoords = loadAppJsCityCoords();
+  const appKeys = Object.keys(appCoords).sort();
+  const libKeys = Object.keys(LIB_CITY_COORDS).sort();
+  assert.deepEqual(libKeys, appKeys, "lib/city-coords.mjs is missing or has extra keys vs. app.js's CITY_COORDS — copy the current app.js table over");
+  for (const key of appKeys) {
+    assert.deepEqual(LIB_CITY_COORDS[key], appCoords[key], `coordinates for "${key}" differ between app.js and lib/city-coords.mjs`);
+  }
 });
 
 console.log(`\n${passed} passed`);

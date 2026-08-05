@@ -770,13 +770,18 @@ Scout's venue scrape, not just the curated Watching list) and said
 `destination` + `lat`/`lon` + `dateStart`/`dateEnd` — never `originIata`,
 `cabin`, `travelers`, `baseline`, or `checks`. This isn't a new privacy
 exposure: it's a strict SUBSET of what `watch.mjs`'s own `GET /api/watch`
-already returns unauthenticated today. Coordinates come from `app.js`'s
-own `CITY_COORDS` table (now additionally exported on `window.TravelIntel`
-for this purpose) via `createRequire`, the same technique
-`tests/app.test.js` already uses to run `app.js` under Node — deliberately
-NOT a second, hand-duplicated IATA→lat/lon table, so the two can't
-silently drift apart. A `destIata` with no `CITY_COORDS` entry is reported
-honestly in `meta.unmapped` rather than guessed at or dropped. A one-way
+already returns unauthenticated today. Coordinates come from
+`netlify/functions/lib/city-coords.mjs` — see that file's own header
+comment and the "same-day production fix" note below for why this is a
+real static import and NOT the original design (loading `app.js`'s own
+`CITY_COORDS` at runtime via `createRequire`, the technique
+`tests/app.test.js` uses to run `app.js` under Node): that version worked
+in every local check but 502'd for every real caller once deployed.
+`tests/watched-trips.test.mjs` has a dedicated test that loads `app.js`'s
+table the old way (safe in a Node test process) and diffs it against
+`lib/city-coords.mjs`, so the two copies can't silently drift apart. A
+`destIata` with no coordinate entry is reported honestly in
+`meta.unmapped` rather than guessed at or dropped. A one-way
 trip (no `returnDate`) uses `departDate` for both ends of the window —
 this site has no signal for how long a one-way traveler stays, so the
 match window is scoped to just the depart day rather than inventing a trip
@@ -816,9 +821,10 @@ anyone would actually run before a commit. Fixed: `npm test` now runs
 (app) + 49 (fares) + 5 (scan) + 19 (watch) + 8 (watched-trips) = **129
 green**, all run before this was committed, per standing instruction.
 
-**Not verified live** — no outbound network access from this session
-(WebFetch is blocked for both this site and vinylscout.org, no curl). All
-of the above is confirmed via `node --check`, the extracted-`<script>`
-syntax check, and the full test suite against fixture/mocked data — not
-against the two actual deployed sites talking to each other. Worth a real
-check from a live browser once both sides are pushed and deployed.
+**Same-day production fix: the first deploy of `/api/watched-trips` 502'd on every call.** Checking the live endpoint after Susan reported not seeing the feature found `travelintelligence.org/api/watched-trips` returning a 502 on every request (`travelintelligence.org/` itself loaded fine — this was scoped to the one function). Root cause: the original `loadCityCoords()` pulled `app.js`'s `CITY_COORDS` table in via `createRequire(import.meta.url)("../../app.js")` — this passed `node --check`, the full local test suite, and manual Node runs, because all of those execute from inside the actual repo, where `../../app.js` really is on disk relative to the function file. Netlify's function bundler (esbuild) packages a function by statically tracing its `import`/`require` graph; a *dynamic* `require()` call to a relative path is invisible to that trace, so `app.js` — which lives outside `netlify/functions/` entirely — never made it into the deployed bundle. Every real invocation threw `Cannot find module '../../app.js'`, caught by Netlify's runtime as an unhandled function error → 502.
+
+Confirmed empirically, not just by reasoning: bundled the original `watched-trips.mjs` with esbuild exactly as Netlify's builder would (`--bundle --platform=node --format=esm --external:@netlify/blobs`), ran the resulting bundle in an isolated directory with no `app.js` present (simulating exactly what ships to production), and reproduced the identical `Cannot find module '../../app.js'` throw. Bundling the fixed version the same way and running it the same way in isolation returns the real coordinate data successfully.
+
+**Fix:** moved the table into `netlify/functions/lib/city-coords.mjs` as a genuine static `export const CITY_COORDS = {...}` (see that file's header) and changed `watched-trips.mjs` to a plain static `import` — the pattern esbuild's tracer does follow. Costs a second copy of the same ~170-entry table (the exact duplication the original design intentionally avoided), guarded against drift by `tests/watched-trips.test.mjs`'s sync-check test (loads `app.js`'s copy the old, test-safe way and diffs every key against the new file). All 9 `watched-trips.test.mjs` assertions and the full 155-test suite (73 app + 49 fares + 5 scan + 19 watch + 9 watched-trips) pass against the fixed code.
+
+**Still not verified:** the two actual deployed sites (`travelintelligence.org` and `vinylscout.org`) talking to each other cross-origin in a real browser. `vinylscout.org` is blocked from this session's WebFetch by its own robots.txt, so Vinyl Scout's `/api/artists-playing` specifically has NOT been checked from here — Susan checked or was asked to check it directly. Worth a real end-to-end pass (open a watched trip near a real upcoming show) once this fix is live.
