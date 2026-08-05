@@ -48,6 +48,7 @@
       <a href="#phase-05c" class="ro-chip ro-planned"><span class="ro-dot" aria-hidden="true">○</span>05c date-range sweep</a>
       <a href="#phase-07a" class="ro-chip ro-planned"><span class="ro-dot" aria-hidden="true">○</span>07a loyalty balances</a>
       <a href="#phase-08" class="ro-chip ro-planned"><span class="ro-dot" aria-hidden="true">○</span>08 protect watched trips</a>
+      <a href="#phase-10" class="ro-chip ro-live"><span class="ro-dot" aria-hidden="true">●</span>10 Concert Radar hooks</a>
     </nav>
 
     <div class="phase" id="phase-01">
@@ -130,7 +131,7 @@
           <span class="phase__status phase__status--live">Live</span>
         </div>
         <p class="phase__focus">Gets better at optimizing for you specifically, trip over trip</p>
-        <p class="phase__covers">Avoided airlines, disliked airports, stops tolerance, and travel style now auto-save and reload across sessions, alongside the wallet (cards and 13 loyalty balances) &mdash; and actually reshape which offer ranks highest, not just what gets remembered. A saved travel style only steers the optimization lens when the trip itself hasn't already picked one. Preferred airlines, alliances, seat, and hotel brand save and reload too, but today they're reference only: nothing yet reads them back into the scoring. The fare watcher (up to 3 trips) re-searches daily and shows day-over-day price changes, budgeted against SerpApi's real 100-search monthly quota.</p>
+        <p class="phase__covers">Avoided airlines, disliked airports, stops tolerance, and travel style now auto-save and reload across sessions, alongside the wallet (cards and 13 loyalty balances) &mdash; and actually reshape which offer ranks highest, not just what gets remembered. A saved travel style only steers the optimization lens when the trip itself hasn't already picked one. Preferred airlines, alliances, and departure/arrival time windows now feed real Comfort scoring too (2026-08-05), each visibly announced in the results insights whenever it's active. Preferred seat, preferred hotel brand, checked bags, and carry-on-only remain reference only: this site doesn't score seats, hotels, or baggage &mdash; live fare data simply doesn't carry that information. The fare watcher (up to 3 trips) re-searches daily and shows day-over-day price changes, budgeted against SerpApi's real 100-search monthly quota.</p>
       </div>
     </div>
 
@@ -191,6 +192,18 @@
         </div>
         <p class="phase__focus">A shared link can't quietly spend your watch slots</p>
         <p class="phase__covers">Watching a trip spends a metered daily search against a shared store that's currently open to anyone with the link. Worth gating behind a shared edit key, remembered per device, the same pattern used across the portfolio. Running the optimizer and browsing results stay open.</p>
+      </div>
+    </div>
+
+    <div class="phase" id="phase-10">
+      <div class="phase__rail">10</div>
+      <div class="phase__body">
+        <div class="phase__head">
+          <h2 class="phase__name">Concert Radar hooks</h2>
+          <span class="phase__status phase__status--live">Live</span>
+        </div>
+        <p class="phase__focus">Know who's playing where you're headed, before you go</p>
+        <p class="phase__covers">A bidirectional link with Vinyl Scout's Concert Radar (vinylscout.org): watch a trip here and see whether an artist you're interested in &mdash; catalog, wishlist, and Concert Radar's own venue-scraped listings, not just the curated Watching list &mdash; is playing near your destination during your dates, and the same match shows up on Concert Radar's own page too ("playing where you're headed"). This site's half is a new <code>GET /api/watched-trips</code> read endpoint returning destination city, coordinates, and date range only &mdash; deliberately no fares or points data. Vinyl Scout's half checks its catalog/wishlist/watching artists against a location+date-window SeatGeek query plus its own venue scrape, within a fixed ~25-mile radius. Built 2026-08-05, the day after the technical plan &mdash; each Watched Trips row now shows a real match inline when one exists, best-effort so a slow or unreachable Vinyl Scout never blocks this page's own data. Full build detail in this repo's own <code>CLAUDE.md</code> (2026-08-05 entry) and Vinyl Scout's <code>PROJECT.md</code> (Phase 10).</p>
       </div>
     </div>
 
