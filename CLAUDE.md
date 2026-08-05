@@ -682,3 +682,71 @@ pattern used for the fares quota cap above), and the watch id silently
 dropped `returnDate`/`travelers`, so two watches differing only in those
 fields collided as "already watching." 19 new tests in
 `tests/watch.test.mjs`.
+
+## 2026-08-05 — wired the six dead preference fields into real scoring (audit backlog item)
+
+`preferredAirlines`, `preferredAlliances`, `preferredDepartTime`,
+`preferredArrivalTime`, `carryOnOnly`, and `checkedBags` were all collected
+in `collectInputs()` (and the first four saved via `savePreferences()`) but
+`buildLiveCandidates` never read any of them — the exact "control that
+silently does nothing" bug class this file's whole history has already
+caught and fixed (SFO→Greenville, the Stops filter). Split into two
+honest treatments rather than forcing all six into fake scoring:
+
+**Four got real Comfort scoring**, same additive-clamp pattern
+`ASIA_COMFORT_BONUS` already uses, and the same "announce it in insights,
+never a hidden thumb on the scale" rule:
+
+- `PREFERRED_AIRLINE_BONUS` (+8) — a saved preferred airline
+  (case-insensitive substring match, same style `avoidAirlines`'s
+  exclusion filter already uses) gets a Comfort bump. Soft preference, not
+  a filter — Susan said "preferred," not "only," so non-preferred
+  airlines still show up, just score slightly lower on this one
+  dimension.
+- `PREFERRED_ALLIANCE_BONUS` (+5) — matches a saved alliance checkbox
+  against `fuzzyAlliance(carrier)`, the same alliance-lookup the
+  candidate object already carries.
+- `PREFERRED_TIME_BONUS` (+4, applied independently for depart and
+  arrival, so up to +8 combined) — required extending `fares.mjs`'s
+  `mapOffers()` to pass through each offer's `departTimeRaw`/
+  `arriveTimeRaw` (the outbound leg's first-segment departure and
+  last-segment arrival, straight from SerpApi's
+  `flights[].departure_airport.time` / `.arrival_airport.time`, a
+  "YYYY-MM-DD HH:MM" string). `app.js`'s `parseHourFromApiTime()` +
+  `departTimeBucket()`/`arriveTimeBucket()` read just the hour and bucket
+  it into the same five bands the two `<select>` dropdowns use (bucket
+  boundaries: Early morning 5-7, Morning 8-11, Afternoon 12-16, Evening
+  17-20, tail 21-4 — labeled "Red-eye" for departure and "Late night" for
+  arrival, matching each dropdown's own option text). **Not yet verified
+  against a live SerpApi response** — no `SERPAPI_KEY` in this build
+  environment, and a real search costs real quota, so the exact
+  `departure_airport.time`/`arrival_airport.time` field path is a
+  reasonable-confidence read of SerpApi's documented Google Flights
+  response shape, not a live-checked one (contrast with `liveSearchUrls()`
+  2026-07-24, which WAS verified live before shipping — same standard,
+  just not yet met here). Designed to fail safe either way: a wrong or
+  missing field just returns `null` and the preference has zero effect,
+  same as before this feature existed — it can't invent a wrong bucket or
+  show a wrong time. **Next time a real search runs, spot-check one
+  offer's `departTimeRaw`/`arriveTimeRaw` in the network response against
+  what the results card shows for that flight, and update this note.**
+
+**Two stayed honestly unscored.** `carryOnOnly`/`checkedBags` are still
+collected (they're per-trip fields, not saved preferences — see "Saved
+preferences & trip memory" below, unchanged) but never touch scoring,
+because live offers carry zero baggage-fee or fare-class data to check
+them against (`cabins` in `mapOffers()` is always `[]`). Inventing a
+bag-fee estimate to score against would be exactly the "invented
+specifics" this file's SFO→Greenville incident exists to warn against.
+Same treatment as `preferredSeat`/`preferredHotel` already got: the
+"Flight preferences" card's intro copy in `index.html` now says plainly
+that these two are collected for context, not scored.
+
+Tests: 12 new assertions in `tests/app.test.js` (hour parsing, bucket
+boundaries against the exact dropdown option text, isolated single-bonus
+checks, a stacking check, a missing-data-degrades-safely check, and an
+insight-announcement check) and 4 new assertions in `tests/fares.test.mjs`
+for `mapOffers()`'s new `departTimeRaw`/`arriveTimeRaw` fields (multi-segment
+uses first/last, single-segment, missing data, missing `flights` array
+entirely — none throw). Full suite: 146/146 green (73 app + 49 fares + 5
+scan + 19 watch).

@@ -7,7 +7,7 @@
 // package.json). No live network calls, no SerpApi key needed.
 
 import assert from "node:assert/strict";
-import { buildFareCacheKey, isCacheFresh, CACHE_TTL_MS, parseLegs, buildLegsCacheKey, isAllowedOrigin, isOverDailyCap, DAILY_SEARCH_CAP, todayQuotaKey } from "../netlify/functions/fares.mjs";
+import { buildFareCacheKey, isCacheFresh, CACHE_TTL_MS, parseLegs, buildLegsCacheKey, isAllowedOrigin, isOverDailyCap, DAILY_SEARCH_CAP, todayQuotaKey, mapOffers } from "../netlify/functions/fares.mjs";
 
 let passed = 0;
 function test(name, fn) {
@@ -279,6 +279,48 @@ test("todayQuotaKey: crossing a UTC day boundary produces a different key (the c
   const a = todayQuotaKey(new Date("2026-08-05T23:59:59Z"));
   const b = todayQuotaKey(new Date("2026-08-06T00:00:01Z"));
   assert.notEqual(a, b);
+});
+
+/* ---------- mapOffers: departTimeRaw/arriveTimeRaw passthrough (2026-08-05,
+   audit backlog: wire preferredDepartTime/preferredArrivalTime into real
+   scoring — app.js's timeOfDayBucket reads these) ---------- */
+
+test("mapOffers: captures the first segment's departure time and the last segment's arrival time", () => {
+  const j = {
+    best_flights: [{
+      price: 500,
+      total_duration: 300,
+      flights: [
+        { airline: "United", departure_airport: { id: "SFO", time: "2026-10-15 08:20" }, arrival_airport: { id: "ORD", time: "2026-10-15 14:10" } },
+        { airline: "United", departure_airport: { id: "ORD", time: "2026-10-15 15:30" }, arrival_airport: { id: "JFK", time: "2026-10-15 18:45" } },
+      ],
+    }],
+    other_flights: [],
+  };
+  const { offers } = mapOffers(j);
+  assert.equal(offers[0].departTimeRaw, "2026-10-15 08:20", "should use the FIRST segment's departure, not a later connection");
+  assert.equal(offers[0].arriveTimeRaw, "2026-10-15 18:45", "should use the LAST segment's arrival, not an intermediate one");
+});
+
+test("mapOffers: a single-segment (nonstop) offer uses that segment for both times", () => {
+  const j = { best_flights: [{ price: 400, flights: [{ airline: "Delta", departure_airport: { time: "2026-10-15 06:00" }, arrival_airport: { time: "2026-10-15 09:00" } }] }], other_flights: [] };
+  const { offers } = mapOffers(j);
+  assert.equal(offers[0].departTimeRaw, "2026-10-15 06:00");
+  assert.equal(offers[0].arriveTimeRaw, "2026-10-15 09:00");
+});
+
+test("mapOffers: missing departure_airport/arrival_airport data degrades to null, not a crash", () => {
+  const j = { best_flights: [{ price: 400, flights: [{ airline: "Delta" }] }], other_flights: [] };
+  const { offers } = mapOffers(j);
+  assert.equal(offers[0].departTimeRaw, null);
+  assert.equal(offers[0].arriveTimeRaw, null);
+});
+
+test("mapOffers: no flights array at all still returns an offer with null times, not a throw", () => {
+  const j = { best_flights: [{ price: 400 }], other_flights: [] };
+  const { offers } = mapOffers(j);
+  assert.equal(offers[0].departTimeRaw, null);
+  assert.equal(offers[0].arriveTimeRaw, null);
 });
 
 console.log(`\n${passed} passed, 0 failed`);

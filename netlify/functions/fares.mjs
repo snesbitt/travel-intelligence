@@ -236,10 +236,12 @@ function parsePrice(v) {
 // identical either way — for a multi-city search, `flights` already
 // covers all legs concatenated and `price` is the whole itinerary's
 // total. Factored out so the two paths can't map offers differently.
-function mapOffers(j) {
+export function mapOffers(j) {
   const raw = [...(j.best_flights || []), ...(j.other_flights || [])];
   const mapped = raw.slice(0, 20).map((o, idx) => {
     const segs = o.flights || [];
+    const firstSeg = segs[0];
+    const lastSeg = segs[segs.length - 1];
     return {
       id: idx,
       carrier: titleCaseCarrier(segs.map((s) => s.airline)),
@@ -251,6 +253,19 @@ function mapOffers(j) {
       bookableSeats: null,
       aircraft: segs[0] && segs[0].airplane ? segs[0].airplane : null,
       isBest: idx < (j.best_flights || []).length,
+      // 2026-08-05 (audit backlog: wire preferredDepartTime/preferredArrivalTime
+      // into real scoring): SerpApi's Google Flights response carries each
+      // segment's departure_airport.time / arrival_airport.time as a
+      // "YYYY-MM-DD HH:MM" string — the outbound leg's first departure and
+      // last arrival are what "preferred departure/arrival time" naturally
+      // means. Passed through raw and unparsed; app.js's timeOfDayBucket()
+      // reads just the hour and degrades to null (no scoring effect, same
+      // as durationMinutes==null today) if this shape is ever wrong or a
+      // field is missing — it can't invent a wrong bucket, only go silent.
+      // NOTE: this exact field path is not yet verified against a live
+      // response (no SERPAPI_KEY in this dev environment) — see CLAUDE.md.
+      departTimeRaw: (firstSeg && firstSeg.departure_airport && firstSeg.departure_airport.time) || null,
+      arriveTimeRaw: (lastSeg && lastSeg.arrival_airport && lastSeg.arrival_airport.time) || null,
     };
   });
   const offers = mapped.filter((o) => o.priceTotal);

@@ -88,6 +88,154 @@ test("buildLiveCandidates: the Asia comfort bonus does NOT apply on a non-Asia r
   assert.equal(withAsianCarrier.scores.Comfort, withoutAsianCarrier.scores.Comfort);
 });
 
+/* ---------- preferred airline/alliance/time-of-day Comfort bonuses
+   (2026-08-05, audit backlog: "wire the six dead preference fields into
+   real scoring") ---------- */
+
+test("parseHourFromApiTime: reads the hour from a 'YYYY-MM-DD HH:MM' string", () => {
+  assert.equal(T.parseHourFromApiTime("2026-10-15 08:20"), 8);
+  assert.equal(T.parseHourFromApiTime("2026-10-15 23:59"), 23);
+  assert.equal(T.parseHourFromApiTime("2026-10-15 00:05"), 0);
+});
+
+test("parseHourFromApiTime: null/undefined/malformed input returns null, never guesses", () => {
+  assert.equal(T.parseHourFromApiTime(null), null);
+  assert.equal(T.parseHourFromApiTime(undefined), null);
+  assert.equal(T.parseHourFromApiTime(""), null);
+  assert.equal(T.parseHourFromApiTime("not a time"), null);
+  assert.equal(T.parseHourFromApiTime(1234), null);
+});
+
+test("departTimeBucket/arriveTimeBucket: bucket boundaries match the index.html <select> options exactly", () => {
+  // Early morning 5-7, Morning 8-11, Afternoon 12-16, Evening 17-20, tail 21-4
+  assert.equal(T.departTimeBucket("2026-10-15 05:00"), "Early morning");
+  assert.equal(T.departTimeBucket("2026-10-15 07:59"), "Early morning");
+  assert.equal(T.departTimeBucket("2026-10-15 08:00"), "Morning");
+  assert.equal(T.departTimeBucket("2026-10-15 11:59"), "Morning");
+  assert.equal(T.departTimeBucket("2026-10-15 12:00"), "Afternoon");
+  assert.equal(T.departTimeBucket("2026-10-15 16:59"), "Afternoon");
+  assert.equal(T.departTimeBucket("2026-10-15 17:00"), "Evening");
+  assert.equal(T.departTimeBucket("2026-10-15 20:59"), "Evening");
+  assert.equal(T.departTimeBucket("2026-10-15 21:00"), "Red-eye");
+  assert.equal(T.departTimeBucket("2026-10-15 04:59"), "Red-eye");
+  // same boundaries, but the overnight tail bucket is labeled differently for arrival
+  assert.equal(T.arriveTimeBucket("2026-10-15 21:00"), "Late night");
+  assert.equal(T.arriveTimeBucket("2026-10-15 04:59"), "Late night");
+  assert.equal(T.arriveTimeBucket("2026-10-15 09:00"), "Morning");
+});
+
+test("buildLiveCandidates: a preferred airline gets exactly +PREFERRED_AIRLINE_BONUS Comfort", () => {
+  const inputs = {
+    origin: "New York", destination: "London", cabin: "Economy", departDate: "2027-03-01",
+    maxBudget: 2000, travelers: 1, avoidAirlines: [], preferredAirlines: ["United"], preferredAlliances: [],
+  };
+  const offers = [
+    { priceTotal: 1000, stops: 0, carrier: "United" },
+    { priceTotal: 1000, stops: 0, carrier: "Delta" },
+  ];
+  const [preferred, notPreferred] = T.buildLiveCandidates(inputs, offers);
+  assert.equal(preferred.scores.Comfort - notPreferred.scores.Comfort, T.PREFERRED_AIRLINE_BONUS);
+});
+
+test("buildLiveCandidates: an empty preferredAirlines list applies no bonus to anyone", () => {
+  const inputs = {
+    origin: "New York", destination: "London", cabin: "Economy", departDate: "2027-03-01",
+    maxBudget: 2000, travelers: 1, avoidAirlines: [], preferredAirlines: [], preferredAlliances: [],
+  };
+  const offers = [{ priceTotal: 1000, stops: 0, carrier: "United" }, { priceTotal: 1000, stops: 0, carrier: "Delta" }];
+  const [a, b] = T.buildLiveCandidates(inputs, offers);
+  assert.equal(a.scores.Comfort, b.scores.Comfort);
+});
+
+test("buildLiveCandidates: a preferred alliance gets exactly +PREFERRED_ALLIANCE_BONUS Comfort", () => {
+  const inputs = {
+    origin: "New York", destination: "London", cabin: "Economy", departDate: "2027-03-01",
+    maxBudget: 2000, travelers: 1, avoidAirlines: [], preferredAirlines: [], preferredAlliances: ["Star Alliance"],
+  };
+  // United -> Star Alliance (fuzzyAlliance), Delta -> SkyTeam
+  const offers = [{ priceTotal: 1000, stops: 0, carrier: "United" }, { priceTotal: 1000, stops: 0, carrier: "Delta" }];
+  const [starAlliance, skyTeam] = T.buildLiveCandidates(inputs, offers);
+  assert.equal(starAlliance.scores.Comfort - skyTeam.scores.Comfort, T.PREFERRED_ALLIANCE_BONUS);
+});
+
+test("buildLiveCandidates: preferred airline and preferred alliance bonuses stack additively", () => {
+  const inputs = {
+    origin: "New York", destination: "London", cabin: "Economy", departDate: "2027-03-01",
+    maxBudget: 2000, travelers: 1, avoidAirlines: [], preferredAirlines: ["United"], preferredAlliances: ["Star Alliance"],
+  };
+  const offers = [{ priceTotal: 1000, stops: 0, carrier: "United" }, { priceTotal: 1000, stops: 0, carrier: "Spirit" }];
+  const [both, neither] = T.buildLiveCandidates(inputs, offers);
+  assert.equal(both.scores.Comfort - neither.scores.Comfort, T.PREFERRED_AIRLINE_BONUS + T.PREFERRED_ALLIANCE_BONUS);
+});
+
+test("buildLiveCandidates: a matching preferred departure time gets exactly +PREFERRED_TIME_BONUS Comfort", () => {
+  const inputs = {
+    origin: "New York", destination: "London", cabin: "Economy", departDate: "2027-03-01",
+    maxBudget: 2000, travelers: 1, avoidAirlines: [], preferredAirlines: [], preferredAlliances: [],
+    preferredDepartTime: "Morning",
+  };
+  const offers = [
+    { priceTotal: 1000, stops: 0, carrier: "United", departTimeRaw: "2027-03-01 09:00" }, // Morning
+    { priceTotal: 1000, stops: 0, carrier: "United", departTimeRaw: "2027-03-01 22:00" }, // Red-eye
+  ];
+  const [morning, redEye] = T.buildLiveCandidates(inputs, offers);
+  assert.equal(morning.scores.Comfort - redEye.scores.Comfort, T.PREFERRED_TIME_BONUS);
+});
+
+test("buildLiveCandidates: a matching preferred arrival time gets exactly +PREFERRED_TIME_BONUS Comfort", () => {
+  const inputs = {
+    origin: "New York", destination: "London", cabin: "Economy", departDate: "2027-03-01",
+    maxBudget: 2000, travelers: 1, avoidAirlines: [], preferredAirlines: [], preferredAlliances: [],
+    preferredArrivalTime: "Evening",
+  };
+  const offers = [
+    { priceTotal: 1000, stops: 0, carrier: "United", arriveTimeRaw: "2027-03-01 18:00" }, // Evening
+    { priceTotal: 1000, stops: 0, carrier: "United", arriveTimeRaw: "2027-03-01 09:00" }, // Morning
+  ];
+  const [evening, morning] = T.buildLiveCandidates(inputs, offers);
+  assert.equal(evening.scores.Comfort - morning.scores.Comfort, T.PREFERRED_TIME_BONUS);
+});
+
+test("buildLiveCandidates: depart and arrival time bonuses both apply when both match, stacking to 2x PREFERRED_TIME_BONUS", () => {
+  const inputs = {
+    origin: "New York", destination: "London", cabin: "Economy", departDate: "2027-03-01",
+    maxBudget: 2000, travelers: 1, avoidAirlines: [], preferredAirlines: [], preferredAlliances: [],
+    preferredDepartTime: "Morning", preferredArrivalTime: "Evening",
+  };
+  const offers = [
+    { priceTotal: 1000, stops: 0, carrier: "United", departTimeRaw: "2027-03-01 09:00", arriveTimeRaw: "2027-03-01 18:00" },
+    { priceTotal: 1000, stops: 0, carrier: "United", departTimeRaw: "2027-03-01 22:00", arriveTimeRaw: "2027-03-01 03:00" },
+  ];
+  const [bothMatch, neitherMatch] = T.buildLiveCandidates(inputs, offers);
+  assert.equal(bothMatch.scores.Comfort - neitherMatch.scores.Comfort, T.PREFERRED_TIME_BONUS * 2);
+});
+
+test("buildLiveCandidates: missing departTimeRaw/arriveTimeRaw on an offer applies no time bonus (never guesses)", () => {
+  const inputs = {
+    origin: "New York", destination: "London", cabin: "Economy", departDate: "2027-03-01",
+    maxBudget: 2000, travelers: 1, avoidAirlines: [], preferredAirlines: [], preferredAlliances: [],
+    preferredDepartTime: "Morning", preferredArrivalTime: "Evening",
+  };
+  const offers = [{ priceTotal: 1000, stops: 0, carrier: "United" }];
+  const [c] = T.buildLiveCandidates(inputs, offers);
+  // base Comfort for Economy/0 stops, no bonuses at all
+  assert.equal(c.scores.Comfort, T.buildLiveCandidates({ ...inputs, preferredDepartTime: "No preference", preferredArrivalTime: "No preference" }, offers)[0].scores.Comfort);
+});
+
+test("runOptimization: announces an active preferred-airline Comfort bonus in insights", () => {
+  const inputs = {
+    origin: "New York", destination: "London", cabin: "Economy", departDate: "2027-03-01",
+    maxBudget: 2000, travelers: 1, avoidAirlines: [], preferredAirlines: ["United"], preferredAlliances: [],
+    priorityRanks: { Cheapest: 1 }, programBalances: [], dateFlexibility: "Exact", upgradeWins: [],
+  };
+  const offers = [{ priceTotal: 1000, stops: 0, carrier: "United" }];
+  const result = T.runOptimization(inputs, offers);
+  assert.ok(
+    result.insights.some((i) => i.includes("preferred airline") && i.includes(String(T.PREFERRED_AIRLINE_BONUS))),
+    "expected an insight announcing the preferred-airline Comfort bonus"
+  );
+});
+
 /* ---------- computeWeights normalization ---------- */
 
 test("computeWeights: a single priority normalizes to weights summing to 1", () => {

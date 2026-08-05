@@ -622,6 +622,88 @@ function destinationInAsia(inputs) {
   return Boolean(c && c[1] >= 60 && c[1] <= 150 && c[0] >= -10 && c[0] <= 60);
 }
 
+// 2026-08-05 (audit backlog: "wire the six dead preference fields into real
+// scoring"): preferredAirlines/preferredAlliances/preferredDepartTime/
+// preferredArrivalTime were collected in collectInputs() and saved via
+// savePreferences(), but buildLiveCandidates never read them — a control
+// that doesn't do what it implies, same bug class ASIA_COMFORT_BONUS's own
+// comment and this file's whole history (SFO->Greenville, the Stops filter)
+// have already caught and fixed. Treated the same way: small, visible
+// Comfort bonuses, same clamp-and-announce-in-insights pattern as
+// ASIA_COMFORT_BONUS just above, not a hard filter (a soft preference
+// shouldn't eliminate real options the way avoidAirlines' hard exclusion
+// does — Susan said "preferred," not "only").
+//
+// carryOnOnly/checkedBags are NOT included here. Live offers (fares.mjs)
+// carry no baggage-fee or fare-class data at all — inventing a bag-fee
+// estimate to score against would be exactly the kind of "invented
+// specifics" this codebase's history (see the SFO->Greenville incident
+// above) exists to avoid. Both fields stay collected for context only; see
+// the "Flight preferences" card copy in index.html, which says so plainly
+// (same treatment as preferredSeat/preferredHotel).
+const PREFERRED_AIRLINE_BONUS = 8;
+const PREFERRED_ALLIANCE_BONUS = 5;
+const PREFERRED_TIME_BONUS = 4; // applied independently for depart and arrival, so up to +8 combined
+
+function matchesPreferredAirline(inputs, carrierName) {
+  const prefs = (inputs.preferredAirlines || []).map((a) => (a || "").toLowerCase()).filter(Boolean);
+  if (!prefs.length || !carrierName) return false;
+  const c = carrierName.toLowerCase();
+  return prefs.some((p) => c.includes(p) || p.includes(c));
+}
+
+function matchesPreferredAlliance(inputs, alliance) {
+  const prefs = inputs.preferredAlliances || [];
+  return Boolean(alliance) && prefs.includes(alliance);
+}
+
+// SerpApi's Google Flights response gives each segment's departure/arrival
+// as a "YYYY-MM-DD HH:MM" string (see fares.mjs's mapOffers, 2026-08-05).
+// This reads just the hour — never guesses on anything else — and returns
+// null on anything unparseable, matching the "unknown data scores neutral,
+// never invented" pattern the Time dimension already uses for a missing
+// durationMinutes. NOTE: the exact upstream field path
+// (flights[].departure_airport.time / .arrival_airport.time) has not yet
+// been verified against a live SerpApi response — if that shape turns out
+// to differ, this just returns null for every offer and the preference has
+// no effect, same as before this feature existed; it cannot produce a
+// wrong bucket.
+function parseHourFromApiTime(rawTime) {
+  if (typeof rawTime !== "string") return null;
+  const m = rawTime.trim().match(/(\d{1,2}):(\d{2})\s*$/);
+  if (!m) return null;
+  const hour = parseInt(m[1], 10);
+  return hour >= 0 && hour <= 23 ? hour : null;
+}
+
+function hourToTimeBucket(hour, tailLabel) {
+  if (hour == null) return null;
+  if (hour >= 5 && hour < 8) return "Early morning";
+  if (hour >= 8 && hour < 12) return "Morning";
+  if (hour >= 12 && hour < 17) return "Afternoon";
+  if (hour >= 17 && hour < 21) return "Evening";
+  return tailLabel; // 21:00-4:59, wraps past midnight
+}
+
+// Two thin wrappers, not one shared function with a param, because the two
+// preference dropdowns use different labels for the same overnight tail
+// bucket ("Red-eye" for departure, "Late night" for arrival) — see the
+// <select> options in index.html.
+function departTimeBucket(rawTime) { return hourToTimeBucket(parseHourFromApiTime(rawTime), "Red-eye"); }
+function arriveTimeBucket(rawTime) { return hourToTimeBucket(parseHourFromApiTime(rawTime), "Late night"); }
+
+function matchesPreferredDepartTime(inputs, rawTime) {
+  const pref = inputs.preferredDepartTime;
+  if (!pref || pref === "No preference") return false;
+  return departTimeBucket(rawTime) === pref;
+}
+
+function matchesPreferredArrivalTime(inputs, rawTime) {
+  const pref = inputs.preferredArrivalTime;
+  if (!pref || pref === "No preference") return false;
+  return arriveTimeBucket(rawTime) === pref;
+}
+
 // 2026-07-24: deep links that land ON THE ROUTE'S RESULTS, not a carrier
 // homepage. American's slices format was verified live against aa.com
 // (SFO<->GSP round trip) before shipping; every other carrier gets a
@@ -806,7 +888,12 @@ function buildLiveCandidates(inputs, offers) {
       // could win "Best Overall" over one $500 cheaper (caught in the
       // multi-feed e2e review). Under-budget scoring is unchanged.
       scores.Cost = clamp(100 - (price / Math.max(1, inputs.maxBudget)) * 65, -80, 100);
-      scores.Comfort = clamp((CABIN_COMFORT_BASE[cabin] || 50) - stops * 11 + (stops === 0 ? 6 : 0) + (destinationInAsia(inputs) && isAsianCarrier(o.carrier) ? ASIA_COMFORT_BONUS : 0), 5, 100);
+      scores.Comfort = clamp((CABIN_COMFORT_BASE[cabin] || 50) - stops * 11 + (stops === 0 ? 6 : 0)
+        + (destinationInAsia(inputs) && isAsianCarrier(o.carrier) ? ASIA_COMFORT_BONUS : 0)
+        + (matchesPreferredAirline(inputs, o.carrier) ? PREFERRED_AIRLINE_BONUS : 0)
+        + (matchesPreferredAlliance(inputs, fuzzyAlliance(o.carrier)) ? PREFERRED_ALLIANCE_BONUS : 0)
+        + (matchesPreferredDepartTime(inputs, o.departTimeRaw) ? PREFERRED_TIME_BONUS : 0)
+        + (matchesPreferredArrivalTime(inputs, o.arriveTimeRaw) ? PREFERRED_TIME_BONUS : 0), 5, 100);
       scores.Upgrade = clamp(fuzzyCarrierScore(o.carrier) - (cabin === "First" ? 35 : cabin === "Business" ? 12 : 0) + (cabin === "Economy" || cabin === "Best Value" ? 6 : 0), 3, 100);
       scores.Award = clamp(candCpp * 42, 2, 100);
       scores.Flexibility = clamp(55 + (cabin === "Business" || cabin === "First" ? 8 : 0), 5, 100);
@@ -827,6 +914,7 @@ function buildLiveCandidates(inputs, offers) {
         availLabel: o.aircraft ? "Aircraft" : "Availability",
         live: true, priceTotal: Math.round(o.priceTotal), lastTicketingDate: o.lastTicketingDate || null,
         src: o.src || null, // "Kayak (scanned 3h ago)" etc — null for the primary live feed
+        departTimeRaw: o.departTimeRaw || null, arriveTimeRaw: o.arriveTimeRaw || null, // carried through for buildInsights' preferred-time announcement
       };
     });
 }
@@ -1195,6 +1283,19 @@ function buildInsights(inputs, candidates, best, weights, timing, usingLive) {
     insights.push(`Asia route: Asia-based carriers (ANA, JAL, Singapore, Cathay, EVA…) receive a +${ASIA_COMFORT_BONUS} Comfort bonus here: your standing preference for their home-market product quality, set 2026-07-19. It's visible in the Comfort scores, not a hidden adjustment.`);
   }
 
+  // 2026-08-05: saved airline/alliance/time preferences now feed real
+  // Comfort scoring (see PREFERRED_*_BONUS in app.js) — announced here,
+  // same as the Asia bonus above, so a preference never quietly moves the
+  // ranking without saying so.
+  const prefBumps = [];
+  if (matchesPreferredAirline(inputs, best.carrier)) prefBumps.push(`your saved preferred airline (+${PREFERRED_AIRLINE_BONUS} Comfort)`);
+  if (matchesPreferredAlliance(inputs, best.alliance)) prefBumps.push(`your saved preferred alliance, ${best.alliance} (+${PREFERRED_ALLIANCE_BONUS} Comfort)`);
+  if (matchesPreferredDepartTime(inputs, best.departTimeRaw)) prefBumps.push(`your saved preferred departure time, ${inputs.preferredDepartTime} (+${PREFERRED_TIME_BONUS} Comfort)`);
+  if (matchesPreferredArrivalTime(inputs, best.arriveTimeRaw)) prefBumps.push(`your saved preferred arrival time, ${inputs.preferredArrivalTime} (+${PREFERRED_TIME_BONUS} Comfort)`);
+  if (prefBumps.length) {
+    insights.push(`This pick got a Comfort boost from ${prefBumps.join(" and ")} — visible in the Comfort score, not a hidden thumb on the scale.`);
+  }
+
   const dislikedMatch = flagsDislikedAirport(inputs);
   if (dislikedMatch) {
     insights.push(`You've saved "${dislikedMatch}" as an airport to avoid, and it shows up in this trip's origin/destination/via/nearby-airport fields; double-check the itinerary. (Stop count is modeled here, not specific connection airports, so this can't check a mid-trip connection, only the fields above.)`);
@@ -1286,5 +1387,11 @@ if (typeof window !== "undefined") {
     // exposed 2026-07-31 for tests/app.test.js — typo/misspelling fallback
     // for city and country input (see fuzzyMatchKey above CITY_COORDS).
     levenshtein, fuzzyMatchKey, lookupCoords,
+    // exposed 2026-08-05 for tests/app.test.js — preferred airline/alliance/
+    // time-of-day now feed real Comfort scoring (audit backlog item).
+    PREFERRED_AIRLINE_BONUS, PREFERRED_ALLIANCE_BONUS, PREFERRED_TIME_BONUS,
+    matchesPreferredAirline, matchesPreferredAlliance,
+    matchesPreferredDepartTime, matchesPreferredArrivalTime,
+    parseHourFromApiTime, departTimeBucket, arriveTimeBucket,
   };
 }
