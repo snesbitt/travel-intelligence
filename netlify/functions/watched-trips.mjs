@@ -42,14 +42,40 @@
 // already returns unauthenticated today (origin/destination/cabin/
 // travelers/baseline price), so this isn't a new exposure, it's a strict
 // subset of one that already exists.
+//
+// 2026-08-06, same-week fix: this endpoint is called cross-origin two
+// separate ways — Travel Intelligence's OWN checkConcertMatches() (same
+// origin, no CORS needed) and, it turns out, Vinyl Scout's
+// concert-radar.html fetching this URL directly from vinylscout.org (a
+// second real cross-origin caller nobody had traced through until Susan
+// reported "no change" on BOTH sites and a browser console check on
+// vinylscout.org/concert-radar.html showed the exact same class of bug
+// this repo already fixed once, on the OTHER endpoint, in the OTHER repo:
+// "No 'Access-Control-Allow-Origin' header is present on the requested
+// resource." json() below only ever set Content-Type/Cache-Control, never
+// that header — so every direct/same-origin/tool check of this endpoint
+// kept returning a correct 200 (exactly the same false-negative pattern
+// that hid vinyl-scout-repo's artists-playing.mjs bug), while the one real
+// cross-site caller silently got nothing. Fixed the same way: an explicit
+// Access-Control-Allow-Origin header, allow-listed to the real caller.
 
 import { getStore } from "@netlify/blobs";
 import { CITY_COORDS } from "./lib/city-coords.mjs";
 
+// The real cross-origin caller (Vinyl Scout's concert-radar.html fetching
+// this endpoint directly). Exported so the test script can assert the
+// header without re-hardcoding this string a second place.
+export var ALLOWED_ORIGIN = "https://vinylscout.org";
+
 function json(body, status) {
   return new Response(JSON.stringify(body), {
     status: status || 200,
-    headers: { "Content-Type": "application/json", "Cache-Control": "no-store" },
+    headers: {
+      "Content-Type": "application/json",
+      "Cache-Control": "no-store",
+      "Access-Control-Allow-Origin": ALLOWED_ORIGIN,
+      "Vary": "Origin",
+    },
   });
 }
 

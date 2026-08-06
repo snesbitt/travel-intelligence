@@ -23,9 +23,19 @@
 // Run via `node tests/watched-trips.test.mjs` (wired into `npm test`).
 // No live network calls.
 
+// 2026-08-06 same-week fix: watched-trips.mjs never set
+// Access-Control-Allow-Origin, so Vinyl Scout's concert-radar.html
+// (a real cross-origin caller fetching this URL directly from
+// vinylscout.org) got silently blocked by the browser even though every
+// same-origin/tool check kept seeing a correct 200. Two new asserts at the
+// bottom check the header directly on the exported handler's Response
+// object, mirroring the same fix/test pattern already applied to
+// vinyl-scout-repo's artists-playing.mjs.
+//
 import assert from "node:assert/strict";
 import { createRequire } from "node:module";
-import { buildWatchedTripsView, loadCityCoords } from "../netlify/functions/watched-trips.mjs";
+import { buildWatchedTripsView, loadCityCoords, ALLOWED_ORIGIN } from "../netlify/functions/watched-trips.mjs";
+import handler from "../netlify/functions/watched-trips.mjs";
 import { CITY_COORDS as LIB_CITY_COORDS } from "../netlify/functions/lib/city-coords.mjs";
 
 const require = createRequire(import.meta.url);
@@ -146,6 +156,25 @@ test("lib/city-coords.mjs stays in sync with app.js's CITY_COORDS — same keys,
   for (const key of appKeys) {
     assert.deepEqual(LIB_CITY_COORDS[key], appCoords[key], `coordinates for "${key}" differ between app.js and lib/city-coords.mjs`);
   }
+});
+
+
+/* ---------- CORS header (2026-08-06 fix regression test) ----------
+   Only exercises the 405 (wrong-method) path — the only response this
+   handler can produce without a live Netlify Blobs store (a real GET
+   always calls getStore(), which throws outside an actual Netlify
+   runtime; this suite deliberately never mocks Blobs, same as the rest
+   of this file). handler() is async, so the call is resolved here at
+   top level, BEFORE handing a plain synchronous closure to test() —
+   this file's test() helper calls fn() without awaiting it, so an
+   async fn here would report "ok" immediately and only surface a
+   failure later as an unhandled rejection after the summary line had
+   already printed. Resolving first avoids that entirely. */
+
+const corsRes = await handler(new Request("https://travelintelligence.org/api/watched-trips", { method: "POST" }));
+test("handler: a 405 (wrong method) response carries Access-Control-Allow-Origin for Vinyl Scout's cross-origin fetch", () => {
+  assert.equal(corsRes.status, 405, "non-GET still rejected");
+  assert.equal(corsRes.headers.get("Access-Control-Allow-Origin"), ALLOWED_ORIGIN, "this header is exactly what was missing before the fix — concert-radar.html's cross-origin GET to this endpoint was silently failing with no visible error on either site");
 });
 
 console.log(`\n${passed} passed`);
