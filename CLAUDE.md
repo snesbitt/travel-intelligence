@@ -654,3 +654,58 @@ trigger a Netlify scheduled function or inspect Blobs from this session —
 same standing limitation as `watch-check.mjs`'s own daily job). Will only
 be confirmed once Monday 12:00 UTC actually runs and Susan sees a "new
 this week" badge on a genuinely new match, or reports she doesn't.
+
+## 2026-08-06, later same day — concert-match banner: instant-paint cache + loading state (Susan: "improve it" + "keep it cached until the next check?")
+
+Susan flagged that the match banner looked absent for several seconds on
+page load (a screenshot showed the Chicago trip with no banner and "first
+check runs tonight" — the banner does exist, `checkConcertMatches()` just
+hadn't resolved its two chained cross-site fetches yet when she captured
+it) and asked whether the result should be cached so it "loads properly"
+on arrival instead of appearing to be broken.
+
+**Two changes to `checkConcertMatches()` in `index.html`, both scoped to
+this device's own `localStorage` (key `ti-concert-match-cache-v1`) — no
+server-side storage involved, this is a single-user site with no
+cross-device sync need:**
+
+1. **Stale-while-revalidate instant paint.** On every call, before the
+   live fetch chain even starts, any previously-cached match for that
+   trip id is painted immediately (`paintMatchNote`). The live check
+   still always runs afterward and is still the sole source of truth —
+   this is NOT "trust the cache until the weekly scheduled check runs
+   instead of checking live" (Susan's literal phrasing left that
+   ambiguous) — the weekly `concert-match-check.mjs` only ever fed the
+   "🆕 new this week" badge, not the base match list itself, and that
+   didn't change here. The cache exists purely to cover the paint gap
+   before the always-still-running live check resolves.
+2. **Loading placeholder when there's nothing to paint yet** (first-ever
+   visit, or a trip with no prior match) — `.concert-match-loading`, "🎵
+   Checking for concert matches…", literal `#6b7080` per the existing
+   2026-08-05 contrast-sweep finding that `var(--ink-faint)` only clears
+   4.5:1 AA on this row's `--card` background specifically (reusing that
+   proven-safe literal, not introducing a new one).
+
+**Failure handling, the part actually worth calling out:** a live check
+that fails (offline, a CORS hiccup, Vinyl Scout down) leaves whatever's
+currently shown untouched — a cached match stays up, a loading
+placeholder quietly clears back to nothing (never left spinning forever).
+Only a live check that genuinely *completes* is allowed to write, update,
+or clear the cache; a failed check is not treated as evidence a show got
+cancelled. `paintMatchNote`/`paintLoadingNote` both route through a
+shared `clearMatchNote()` so there's never a duplicate note regardless of
+call order — this also let the old "skip if a `.concert-match` already
+exists" duplicate-guard be removed, since it would have incorrectly
+blocked the live result from ever replacing the cache-paint.
+
+No explicit cache expiry — deliberately kept simple. The live check
+already runs on every page load and, when it succeeds, always overwrites
+or clears the entry; the only way stale data lingers is a genuinely
+offline/broken live check, which is exactly the case the cache exists to
+paper over gracefully rather than show nothing.
+
+Verified: `node --check` on the extracted inline `<script>` block passes.
+Not yet browser-verified against the live site as of this write-up (no
+unit tests cover this — it's DOM/localStorage-dependent browser code,
+consistent with how the rest of `checkConcertMatches` has always been
+treated in this file).

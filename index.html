@@ -1381,6 +1381,62 @@
     if (cityName) u.searchParams.set("city", cityName);
     return `<a href="${u.toString()}" target="_blank" rel="noopener">${escapeHtml(artistName)}</a>`;
   }
+
+  // 2026-08-06, same day (Susan: "improve it" — the several-second gap
+  // before the banner appears looked broken — plus "keep it cached until
+  // the next automatic check so it all loads properly when the page
+  // loads?"). Two changes, both scoped to THIS device's localStorage only
+  // (single-user site, no cross-device sync needed):
+  //   1. A last-known-good match result is painted immediately, before the
+  //      live cross-site check even starts, so a return visit shows the
+  //      banner right away instead of a blank gap. This is a stale-while-
+  //      revalidate cache, not a "trust the weekly check and skip the live
+  //      one" cache — the live per-page-load check in checkConcertMatches
+  //      still always runs and is still the source of truth; the cache
+  //      only covers the paint that happens before it resolves.
+  //   2. If there's nothing cached yet (first-ever visit, or a trip with
+  //      no prior match), a small "checking…" placeholder shows instead of
+  //      nothing, so the gap reads as loading rather than absent/broken.
+  // On a failed live check (offline, CORS hiccup, Vinyl Scout down), the
+  // cached note is deliberately left showing rather than cleared — a
+  // check that couldn't run isn't evidence the show got cancelled. Only a
+  // live check that actually completes updates or clears the cache.
+  const CONCERT_CACHE_KEY = "ti-concert-match-cache-v1";
+  function loadConcertCache() {
+    try { return JSON.parse(localStorage.getItem(CONCERT_CACHE_KEY)) || {}; }
+    catch (e) { return {}; }
+  }
+  function saveConcertCache(cache) {
+    try { localStorage.setItem(CONCERT_CACHE_KEY, JSON.stringify(cache)); } catch (e) {}
+  }
+  function buildMatchNoteHTML(matches, cityForLink, newKeys) {
+    const badge = (artist) => newKeys.has(String(artist).trim().toLowerCase()) ? ` <span class="concert-match-new" title="First matched in the weekly check">🆕 new this week</span>` : "";
+    if (matches.length === 1) {
+      const mm = matches[0];
+      return `🎵 ${concertRadarLink(mm.artist, cityForLink)} plays ${escapeHtml(mm.venue || "a venue nearby")} ${escapeHtml(mm.dateLabel || mm.date || "")} — while you're there${badge(mm.artist)}`;
+    }
+    const names = matches.slice(0, 4).map((mm) => concertRadarLink(mm.artist, cityForLink) + badge(mm.artist)).join(", ");
+    return `🎵 ${matches.length} artists you follow are playing nearby while you're there: ${names}${matches.length > 4 ? "…" : ""}`;
+  }
+  function clearMatchNote(row) {
+    const existing = row.querySelector(".concert-match, .concert-match-loading");
+    if (existing) existing.remove();
+  }
+  function paintMatchNote(row, matches, cityForLink, newKeys) {
+    clearMatchNote(row);
+    if (!matches || !matches.length) return;
+    const note = document.createElement("div");
+    note.className = "concert-match";
+    note.innerHTML = buildMatchNoteHTML(matches, cityForLink, newKeys);
+    row.appendChild(note);
+  }
+  function paintLoadingNote(row) {
+    clearMatchNote(row);
+    const note = document.createElement("div");
+    note.className = "concert-match-loading";
+    note.textContent = "🎵 Checking for concert matches…";
+    row.appendChild(note);
+  }
   async function checkConcertMatches(trips) {
     if (!trips || !trips.length) return;
     let mapped;
@@ -1390,10 +1446,16 @@
       const j = await r.json();
       mapped = j.trips || [];
     } catch (e) { return; }
+    const cache = loadConcertCache();
     mapped.forEach(async (m) => {
       if (m.lat == null || m.lon == null || !m.dateStart || !m.dateEnd) return; // unmapped destination — nothing to check
       const row = document.querySelector(`.watched-item[data-id="${CSS.escape(m.id)}"]`);
       if (!row) return;
+      const cityForLink = m.destination || "";
+      const newKeys = new Set((Array.isArray(m.newMatches) ? m.newMatches : []).map((n) => String(n).trim().toLowerCase()));
+      const cached = cache[m.id];
+      if (cached && cached.matches && cached.matches.length) paintMatchNote(row, cached.matches, cityForLink, newKeys);
+      else paintLoadingNote(row);
       try {
         const u = new URL("https://vinylscout.org/api/artists-playing");
         u.searchParams.set("lat", m.lat);
@@ -1401,25 +1463,17 @@
         u.searchParams.set("date_start", m.dateStart);
         u.searchParams.set("date_end", m.dateEnd);
         const r2 = await fetch(u.toString(), { signal: AbortSignal.timeout(6000) });
-        if (!r2.ok) return;
+        if (!r2.ok) throw new Error("bad status");
         const j2 = await r2.json();
         const matches = Array.isArray(j2.matches) ? j2.matches : [];
-        if (!matches.length) return;
-        if (row.querySelector(".concert-match")) return; // avoid a duplicate on a re-render race
-        const newKeys = new Set((Array.isArray(m.newMatches) ? m.newMatches : []).map((n) => String(n).trim().toLowerCase()));
-        const cityForLink = m.destination || "";
-        const badge = (artist) => newKeys.has(String(artist).trim().toLowerCase()) ? ` <span class="concert-match-new" title="First matched in the weekly check">🆕 new this week</span>` : "";
-        const note = document.createElement("div");
-        note.className = "concert-match";
-        if (matches.length === 1) {
-          const mm = matches[0];
-          note.innerHTML = `🎵 ${concertRadarLink(mm.artist, cityForLink)} plays ${escapeHtml(mm.venue || "a venue nearby")} ${escapeHtml(mm.dateLabel || mm.date || "")} — while you're there${badge(mm.artist)}`;
-        } else {
-          const names = matches.slice(0, 4).map((mm) => concertRadarLink(mm.artist, cityForLink) + badge(mm.artist)).join(", ");
-          note.innerHTML = `🎵 ${matches.length} artists you follow are playing nearby while you're there: ${names}${matches.length > 4 ? "…" : ""}`;
-        }
-        row.appendChild(note);
-      } catch (e) { /* best-effort — see function comment */ }
+        paintMatchNote(row, matches, cityForLink, newKeys);
+        if (matches.length) cache[m.id] = { matches, at: Date.now() }; else delete cache[m.id];
+        saveConcertCache(cache);
+      } catch (e) {
+        // Live check failed — drop an unfulfilled loading placeholder back
+        // to nothing; leave a cached match exactly as it already painted.
+        if (!cached || !cached.matches || !cached.matches.length) clearMatchNote(row);
+      }
     });
   }
 

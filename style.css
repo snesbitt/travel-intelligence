@@ -487,6 +487,18 @@ table.alt-table td.rank-cell { font-family: var(--serif); font-style: italic; co
    color, so it reads as a footnote on the match rather than competing
    with the green "this is good news" framing above. */
 .concert-match-new { font-size: 10px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.03em; color: var(--good, #3f6b4f); opacity: 0.85; }
+/* 2026-08-06 (Susan: "improve it" + cache question) — the concert-match
+   check runs two chained cross-site fetches after the initial render, so
+   on a first-ever visit (nothing cached yet) the row can sit with no
+   sign anything's happening for several seconds, reading as broken/absent
+   rather than loading. This is that placeholder. Literal #6b7080, not
+   var(--ink-faint) directly, matching the 2026-08-05 contrast-sweep finding
+   above that ink-faint only clears 4.5:1 AA on the --card background this
+   row sits on (see the big comment block ~line 410) — not a new color,
+   reusing the one already proven safe here. Swapped for the real
+   .concert-match note (or removed) once the live check resolves; never
+   left showing indefinitely. */
+.concert-match-loading { grid-column: 1 / -1; font-size: 12px; color: #6b7080; font-style: italic; margin-top: 2px; }
 /* 2026-07-24 mobile pass: watched rows stack cleanly at phone widths —
    route on its own line, price row beneath, 44px unwatch target, no
    squeezed three-way column fight. */
