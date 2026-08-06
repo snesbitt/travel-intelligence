@@ -16,49 +16,11 @@
 </style>
 <link rel="stylesheet" href="style.css">
 <style>
-  /* Guide-page-only additions: Build-Your-Own section, folded in from the
-     retired start.html. Scoped to this page only; nothing here touches style.css. */
-  .prompt-box {
-    background: #24262b; border: 1px solid #454852; border-radius: 9px;
-    padding: 1.1rem 1.2rem; margin: 1.1rem 0 1.6rem; position: relative;
-  }
-  .prompt-box pre {
-    margin: 0; white-space: pre-wrap; word-wrap: break-word;
-    font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
-    font-size: 12.5px; line-height: 1.6; color: #efe8db;
-  }
-  .prompt-copy {
-    position: absolute; top: 10px; right: 10px;
-    background: #efe8db; color: #24262b; border: none; border-radius: 6px;
-    font-family: -apple-system, Helvetica, sans-serif; font-size: 11px; font-weight: 700; letter-spacing: 0.03em;
-    padding: 6px 11px; cursor: pointer;
-  }
-  .prompt-copy:hover { background: #fff; }
-
-  .next-grid { display: grid; grid-template-columns: 1fr; gap: 10px; margin: 0.9rem 0 1.7rem; }
-  @media (min-width: 640px) { .next-grid { grid-template-columns: 1fr 1fr; } }
-  .next-card {
-    background: var(--card); border: 1px solid var(--border); border-left: 3px solid var(--accent);
-    border-radius: 6px; padding: 0.8rem 0.95rem;
-  }
-  .next-card .next-num { font-family: var(--serif); font-style: italic; font-weight: 400; color: var(--accent); font-size: 13px; }
-  .next-card h4 { margin: 2px 0 4px; font-size: 13px; }
-  .next-card p { margin: 0; font-size: 12px; color: #565b6e; }
-
-  .need-list { list-style: none; padding: 0; margin: 0 0 1.7rem; }
-  .need-list li { display: flex; gap: 8px; font-size: 13px; padding: 6px 0; border-bottom: 1px solid var(--border); }
-  .need-list li:last-child { border-bottom: none; }
-  .need-list li::before { content: "\2022"; color: var(--good); flex-shrink: 0; }
-  .step-divider { margin: 2.4rem 0 1.6rem; border-top: 1px solid var(--border); }
-
-  /* Guide-page-only: bigger, more readable mode cards + diagram captions. */
-  .mode-card .mode-name { font-size: 19px; }
-  .mode-card .mode-role { font-size: 11px; }
-  .mode-card ul { font-size: 13.5px; }
-  .mode-caption {
-    font-family: -apple-system, Helvetica, sans-serif; font-size: 13px; font-style: italic;
-    color: #565b6e; text-align: center; margin: 10px 0 4px;
-  }
+  /* Guide-page-only: bigger diagram captions than the shared 10px default.
+     2026-08-06: everything else that used to live here (prompt-box, next-grid,
+     need-list, step-divider dup, mode-card size tweaks, mode-caption) was
+     promoted into style.css as part of the canonical-library reconciliation
+     -- see that file's 2026-08-06 entry. */
   figure.diagram figcaption { font-size: 12px; }
 </style>
 </head><body>
@@ -100,24 +62,24 @@
       <p class="step-body">Built in Cowork, by design. The Input Card, scoring engine, and every output section run as plain JavaScript in your browser. Two things leave it, both stated plainly: a fare search sends the route, dates, cabin, and traveler count to the site's own <code>/api/fares</code> function, and watching a trip stores that route server-side so the daily check can run. Your wallet, cards and balances, never leaves the browser.</p>
 
       <div class="mode-grid">
-        <div class="mode-card tint-a">
-          <div class="mode-name">Chat</div>
-          <div class="mode-role">decide</div>
+        <div class="mode-card mode-card--a">
+          <div class="mode-card__name">Chat</div>
+          <div class="mode-card__role">decide</div>
           <ul><li>weighting model for the 7 priorities</li><li>reference-range values (fares, miles)</li><li>what "genuinely strong" means for a redemption</li></ul>
         </div>
-        <div class="mode-card tint-b">
-          <div class="mode-name">Cowork</div>
-          <div class="mode-role">build &amp; maintain</div>
+        <div class="mode-card mode-card--b">
+          <div class="mode-card__name">Cowork</div>
+          <div class="mode-card__role">build &amp; maintain</div>
           <ul><li>the scoring engine (app.js)</li><li>every static page, end to end</li><li>Netlify deploy</li></ul>
         </div>
-        <div class="mode-card tint-c">
-          <div class="mode-name">Your browser</div>
-          <div class="mode-role">run the engine</div>
+        <div class="mode-card mode-card--c">
+          <div class="mode-card__name">Your browser</div>
+          <div class="mode-card__role">run the engine</div>
           <ul><li>reads your Input Card</li><li>computes scores locally</li><li>wallet stays local</li></ul>
         </div>
-        <div class="mode-card tint-d">
-          <div class="mode-name">Backend (live)</div>
-          <div class="mode-role">fetch &amp; watch</div>
+        <div class="mode-card mode-card--d">
+          <div class="mode-card__name">Backend (live)</div>
+          <div class="mode-card__role">fetch &amp; watch</div>
           <ul><li>real Google Flights fares</li><li>daily watched-trip checks</li><li>award space: still the gap</li></ul>
         </div>
       </div>
@@ -135,13 +97,13 @@
       <div><span class="step-num">03</span><span class="step-title">Seven dimensions, weighted by your ranking, never a single variable</span></div>
       <p class="step-body">Every candidate itinerary is scored 0 to 100 on Cost, Comfort, Upgrade Potential, Award Value, Flexibility, Risk, and Time. Your ranked priority list, from Cheapest to Best Overall Experience, maps onto those seven dimensions through a fixed weighting table: a rank-1 priority carries more weight than a rank-7 one. The final score is a weighted sum, shown on the results page as an explicit percentage per dimension, so the reasoning behind the recommendation is never reduced to a single number. Time was added 2026-07-25, after Fastest and Cheapest returned the same pick on a route where every offer had one stop: Risk only scored stop count, so there was nothing left for "fastest" to actually rank by.</p>
 
-      <div class="callout-row">
-        <div class="callout good">
-          <p class="callout-kicker">Always shown</p>
+      <div class="compare-row">
+        <div class="compare-card compare-card--good">
+          <p class="compare-card__kicker">Always shown</p>
           <p>The exact weight (as a %) each of the seven dimensions received, computed live from your priority ranking, not a fixed default.</p>
         </div>
-        <div class="callout bad">
-          <p class="callout-kicker">Never done</p>
+        <div class="compare-card compare-card--bad">
+          <p class="compare-card__kicker">Never done</p>
           <p>Optimizing for price alone. A cheaper itinerary that scores meaningfully worse on your higher-ranked priorities will not out-score the better-rounded one.</p>
         </div>
       </div>
@@ -226,22 +188,22 @@ Please help me scope this into a first small version we can finish today, tell m
 
     <div class="next-grid">
       <div class="next-card">
-        <div class="next-num">01</div>
+        <div class="next-card__n">01</div>
         <h4>Claude asks before it assumes</h4>
         <p>Expect questions about what your real priorities are before any scoring gets built.</p>
       </div>
       <div class="next-card">
-        <div class="next-num">02</div>
+        <div class="next-card__n">02</div>
         <h4>A first version, same session</h4>
         <p>A working, if small, scoring tool is realistic to see before the conversation ends.</p>
       </div>
       <div class="next-card">
-        <div class="next-num">03</div>
+        <div class="next-card__n">03</div>
         <h4>You approve anything with a consequence</h4>
         <p>Spending money, connecting an account, or publishing something public always waits for your yes.</p>
       </div>
       <div class="next-card">
-        <div class="next-num">04</div>
+        <div class="next-card__n">04</div>
         <h4>It grows in later sessions</h4>
         <p>The live fares feed, the domain, the daily watcher: all arrived after the first version, not in it. See the <a href="/roadmap">Roadmap</a> for the real order it happened in.</p>
       </div>

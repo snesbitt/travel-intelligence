@@ -145,10 +145,11 @@ h2.card-title { font-size: 11.5px; text-transform: uppercase; letter-spacing: 0.
 .step-body { font-size: 13px; color: var(--ink); margin-top: 6px; }
 .mode-grid { display: grid; grid-template-columns: 1fr; gap: 10px; margin: 1rem 0; }
 .mode-card { background: var(--card); border: 1px solid var(--border); border-radius: 8px; padding: 0.8rem 0.9rem; }
-.mode-card .mode-name { font-weight: 700; font-size: 13px; }
-.mode-card .mode-role { font-size: 10px; text-transform: uppercase; letter-spacing: 0.05em; color: var(--accent); margin: 2px 0 6px; }
-.mode-card ul { margin: 0; padding-left: 15px; font-size: 11.5px; color: #565b6e; }
+.mode-card__name { font-weight: 700; font-size: 19px; }
+.mode-card__role { font-size: 11px; text-transform: uppercase; letter-spacing: 0.05em; color: var(--accent); margin: 2px 0 6px; }
+.mode-card ul { margin: 0; padding-left: 15px; font-size: 13.5px; color: #565b6e; }
 .mode-card ul li { margin-bottom: 2px; }
+.mode-caption { font-family: var(--sans); font-size: 13px; font-style: italic; color: var(--ink-dim); text-align: center; margin: 10px 0 4px; }
 @media (min-width: 640px) {
 .step { padding: 1.65rem 0; }
 .step-body { font-size: 14.5px; max-width: 68ch; }
@@ -163,7 +164,7 @@ h2.card-title { font-size: 11.5px; text-transform: uppercase; letter-spacing: 0.
 .wont-list { list-style: none; padding: 0; margin: 0; }
 .wont-list li { display: flex; gap: 8px; font-size: 13px; color: var(--ink); padding: 8px 0; border-bottom: 1px solid var(--border); }
 .wont-list li:last-child { border-bottom: none; }
-.wont-list li::before { content: "\2022"; color: var(--bad); flex-shrink: 0; }
+.wont-list li::before { content: "\2715"; color: var(--accent); flex-shrink: 0; font-size: 12px; }
 @media (min-width: 640px) {
 .about-section { margin-bottom: 1.9rem; }
 .about-section h3 { font-size: 16px; }
@@ -190,10 +191,10 @@ padding: 5px 12px 5px 8px;
 .pill-nav a b { color: var(--accent); font-weight: 700; margin-right: 4px; }
 .pill-nav a:hover { color: var(--ink); border-color: var(--ink-faint); }
 
-.mode-card.tint-a { border-left: 3px solid var(--good); }
-.mode-card.tint-b { border-left: 3px solid var(--mid); }
-.mode-card.tint-c { border-left: 3px solid var(--accent); }
-.mode-card.tint-d { border-left: 3px solid var(--gold); }
+.mode-card--a { border-left: 3px solid var(--good); }
+.mode-card--b { border-left: 3px solid var(--mid); }
+.mode-card--c { border-left: 3px solid var(--accent); }
+.mode-card--d { border-left: 3px solid var(--gold); }
 
 .about-num-badge { font-family: var(--serif); font-style: italic; color: var(--accent); font-size: 17px; margin-right: 6px; }
 .about-section-head { display: flex; align-items: baseline; margin-bottom: 6px; }
@@ -204,14 +205,14 @@ padding: 5px 12px 5px 8px;
 .stat-strip { display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px; margin: 1.1rem 0 1.7rem; }
 @media (min-width: 640px) { .stat-strip { grid-template-columns: repeat(4, 1fr); } }
 .stat-tile { background: var(--card); border: 1px solid var(--border); border-radius: 8px; padding: 0.75rem 0.85rem; text-align: center; }
-.stat-tile .stat-num { font-family: var(--serif); font-style: italic; font-weight: 400; font-size: 22px; color: var(--accent); }
-.stat-tile .stat-label { font-size: 10px; letter-spacing: 0.06em; text-transform: uppercase; color: #565b6e; margin-top: 2px; }
+.stat-tile__num { font-family: var(--serif); font-style: italic; font-weight: 400; font-size: 22px; color: var(--accent); }
+.stat-tile__label { font-size: 10px; letter-spacing: 0.06em; text-transform: uppercase; color: #565b6e; margin-top: 2px; }
 
 .page-card-grid { display: grid; grid-template-columns: 1fr; gap: 10px; margin: 0.9rem 0 0.4rem; }
 @media (min-width: 640px) { .page-card-grid { grid-template-columns: 1fr 1fr; } }
 .page-card { background: var(--card); border: 1px solid var(--border); border-left: 3px solid var(--accent); border-radius: 6px; padding: 0.8rem 0.95rem; }
-.page-card h4 { margin: 0 0 4px; font-size: 13px; }
-.page-card p { margin: 0; font-size: 12px; color: #565b6e; }
+.page-card__title { margin: 0 0 4px; font-size: 13px; }
+.page-card__desc { margin: 0; font-size: 12px; color: #565b6e; }
 
 .stack-col { border-radius: 8px; padding: 0.9rem 1rem; margin: 1rem 0 0.4rem; max-width: 420px; }
 .stack-col.this-site { background: var(--accent-dim); border: 1px solid #7f93ab; }
@@ -225,16 +226,43 @@ figure.diagram { margin: 1.4rem 0 1.8rem; text-align: center; }
 figure.diagram svg { max-width: 100%; height: auto; }
 figure.diagram figcaption { font-family: var(--sans); font-size: 10px; letter-spacing: 0.08em; text-transform: uppercase; color: #565b6e; margin-top: 8px; }
 
-.callout-row { display: grid; grid-template-columns: 1fr; gap: 10px; margin: 1rem 0 1.6rem; }
-@media (min-width: 640px) { .callout-row { grid-template-columns: 1fr 1fr; } }
 .callout { background: var(--card); border: 1px solid var(--border); border-radius: 8px; padding: 0.85rem 1rem; }
-.callout .callout-kicker { font-size: 10px; letter-spacing: 0.08em; text-transform: uppercase; font-weight: 700; margin-bottom: 4px; }
-.callout.good .callout-kicker { color: var(--good); }
-.callout.bad .callout-kicker { color: var(--bad); }
-.callout.gold .callout-kicker { color: var(--gold); }
-.callout p { margin: 0; font-size: 12.5px; color: var(--ink); }
+
+/* Renamed from .callout-row/.callout.good|bad (2026-08-06 canonical-library
+   reconciliation): this is a two-up comparison-card pattern, a different
+   component from the single reference-note .callout above -- they used to
+   share the ".callout" name and collide with Vinyl Scout's canonical
+   single-block .callout meaning. Same visuals, new name only. */
+.compare-row { display: grid; grid-template-columns: 1fr; gap: 10px; margin: 1rem 0 1.6rem; }
+@media (min-width: 640px) { .compare-row { grid-template-columns: 1fr 1fr; } }
+.compare-card { background: var(--card); border: 1px solid var(--border); border-radius: 8px; padding: 0.85rem 1rem; }
+.compare-card__kicker { font-size: 10px; letter-spacing: 0.08em; text-transform: uppercase; font-weight: 700; margin-bottom: 4px; }
+.compare-card--good .compare-card__kicker { color: var(--good); }
+.compare-card--bad .compare-card__kicker { color: var(--bad); }
+.compare-card--gold .compare-card__kicker { color: var(--gold); }
+.compare-card p { margin: 0; font-size: 12.5px; color: var(--ink); }
 
 .step-divider { margin: 2.4rem 0 1.6rem; border-top: 1px solid var(--border); }
+
+/* Promoted from guide.html's page-scoped <style> (2026-08-06 canonical-library
+   reconciliation) -- Build Your Own section components, folded in from the
+   retired start.html. Only guide.html uses these today. */
+.prompt-box { background: #24262b; border: 1px solid #454852; border-radius: 9px; padding: 1.1rem 1.2rem; margin: 1.1rem 0 1.6rem; position: relative; }
+.prompt-box pre { margin: 0; white-space: pre-wrap; word-wrap: break-word; font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; font-size: 12.5px; line-height: 1.6; color: #efe8db; }
+.prompt-copy { position: absolute; top: 10px; right: 10px; background: #efe8db; color: #24262b; border: none; border-radius: 6px; font-family: var(--sans); font-size: 11px; font-weight: 700; letter-spacing: 0.03em; padding: 6px 11px; cursor: pointer; }
+.prompt-copy:hover { background: #fff; }
+
+.next-grid { display: grid; grid-template-columns: 1fr; gap: 10px; margin: 0.9rem 0 1.7rem; }
+@media (min-width: 640px) { .next-grid { grid-template-columns: 1fr 1fr; } }
+.next-card { background: var(--card); border: 1px solid var(--border); border-left: 3px solid var(--accent); border-radius: 6px; padding: 0.8rem 0.95rem; }
+.next-card__n { font-family: var(--serif); font-style: italic; font-weight: 400; color: var(--accent); font-size: 13px; }
+.next-card h4 { margin: 2px 0 4px; font-size: 13px; }
+.next-card p { margin: 0; font-size: 12px; color: var(--ink-dim); }
+
+.need-list { list-style: none; padding: 0; margin: 0 0 1.7rem; }
+.need-list li { display: flex; gap: 8px; font-size: 13px; padding: 6px 0; border-bottom: 1px solid var(--border); }
+.need-list li:last-child { border-bottom: none; }
+.need-list li::before { content: "\2022"; color: var(--good); flex-shrink: 0; }
 
 /* =========================================================
    Travel-Intelligence-specific: input card, scoring, output
