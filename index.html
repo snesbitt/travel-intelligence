@@ -1375,10 +1375,22 @@
   // concert-match-check.mjs scheduled function's output, merged in by
   // watched-trips.mjs — as "new this week", so a match that's been
   // sitting there for a month doesn't read as something just discovered.
-  function concertRadarLink(artistName, cityName) {
+  // 2026-08-06, later same day (Susan: a Santigold+Chicago search on the
+  // Concert Radar deep link came back empty — "fix this search issue").
+  // Root cause was entirely on Vinyl Scout's side (its Search panel never
+  // sent a real location to SeatGeek at all, see concert-radar.html's own
+  // note) — but this link is the one place a real destination lat/lon is
+  // already known and can be handed over, so it now is: lat/lon (both
+  // optional) geo-scope the deep-linked search to the actual trip
+  // destination instead of Vinyl Scout's Berkeley default.
+  function concertRadarLink(artistName, cityName, lat, lon) {
     const u = new URL("https://vinylscout.org/concert-radar.html");
     u.searchParams.set("artist", artistName);
     if (cityName) u.searchParams.set("city", cityName);
+    if (lat != null && lon != null) {
+      u.searchParams.set("lat", lat);
+      u.searchParams.set("lon", lon);
+    }
     return `<a href="${u.toString()}" target="_blank" rel="noopener">${escapeHtml(artistName)}</a>`;
   }
 
@@ -1409,25 +1421,25 @@
   function saveConcertCache(cache) {
     try { localStorage.setItem(CONCERT_CACHE_KEY, JSON.stringify(cache)); } catch (e) {}
   }
-  function buildMatchNoteHTML(matches, cityForLink, newKeys) {
+  function buildMatchNoteHTML(matches, cityForLink, newKeys, lat, lon) {
     const badge = (artist) => newKeys.has(String(artist).trim().toLowerCase()) ? ` <span class="concert-match-new" title="First matched in the weekly check">🆕 new this week</span>` : "";
     if (matches.length === 1) {
       const mm = matches[0];
-      return `🎵 ${concertRadarLink(mm.artist, cityForLink)} plays ${escapeHtml(mm.venue || "a venue nearby")} ${escapeHtml(mm.dateLabel || mm.date || "")} — while you're there${badge(mm.artist)}`;
+      return `🎵 ${concertRadarLink(mm.artist, cityForLink, lat, lon)} plays ${escapeHtml(mm.venue || "a venue nearby")} ${escapeHtml(mm.dateLabel || mm.date || "")} — while you're there${badge(mm.artist)}`;
     }
-    const names = matches.slice(0, 4).map((mm) => concertRadarLink(mm.artist, cityForLink) + badge(mm.artist)).join(", ");
+    const names = matches.slice(0, 4).map((mm) => concertRadarLink(mm.artist, cityForLink, lat, lon) + badge(mm.artist)).join(", ");
     return `🎵 ${matches.length} artists you follow are playing nearby while you're there: ${names}${matches.length > 4 ? "…" : ""}`;
   }
   function clearMatchNote(row) {
     const existing = row.querySelector(".concert-match, .concert-match-loading");
     if (existing) existing.remove();
   }
-  function paintMatchNote(row, matches, cityForLink, newKeys) {
+  function paintMatchNote(row, matches, cityForLink, newKeys, lat, lon) {
     clearMatchNote(row);
     if (!matches || !matches.length) return;
     const note = document.createElement("div");
     note.className = "concert-match";
-    note.innerHTML = buildMatchNoteHTML(matches, cityForLink, newKeys);
+    note.innerHTML = buildMatchNoteHTML(matches, cityForLink, newKeys, lat, lon);
     row.appendChild(note);
   }
   function paintLoadingNote(row) {
@@ -1454,7 +1466,7 @@
       const cityForLink = m.destination || "";
       const newKeys = new Set((Array.isArray(m.newMatches) ? m.newMatches : []).map((n) => String(n).trim().toLowerCase()));
       const cached = cache[m.id];
-      if (cached && cached.matches && cached.matches.length) paintMatchNote(row, cached.matches, cityForLink, newKeys);
+      if (cached && cached.matches && cached.matches.length) paintMatchNote(row, cached.matches, cityForLink, newKeys, m.lat, m.lon);
       else paintLoadingNote(row);
       try {
         const u = new URL("https://vinylscout.org/api/artists-playing");
@@ -1466,7 +1478,7 @@
         if (!r2.ok) throw new Error("bad status");
         const j2 = await r2.json();
         const matches = Array.isArray(j2.matches) ? j2.matches : [];
-        paintMatchNote(row, matches, cityForLink, newKeys);
+        paintMatchNote(row, matches, cityForLink, newKeys, m.lat, m.lon);
         if (matches.length) cache[m.id] = { matches, at: Date.now() }; else delete cache[m.id];
         saveConcertCache(cache);
       } catch (e) {
