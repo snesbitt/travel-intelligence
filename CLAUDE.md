@@ -596,3 +596,61 @@ intended to be called cross-origin needs its CORS header set (and
 regression-tested against the actual `Response` object, not just a live
 manual check) from the day it ships, on every code path including
 errors — not bolted on after a silent failure report.
+
+## 2026-08-06 — Concert Radar match links + weekly server-side check (Susan, direct request)
+
+Live-verified via a real browser round trip (Claude-in-Chrome, both sites)
+before this pass: Ziggy Marley's real Hunter Pavilion show (manually
+entered into Concert Radar's Watching card, since SeatGeek doesn't index
+that venue) already surfaced correctly on this site's Watched Trips card —
+"🎵 2 artists you follow are playing nearby while you're there: Ziggy
+Marley, Santigold." That confirmed Incident #4's CORS fix and the whole
+feature are genuinely live. Susan then asked for two follow-ups:
+
+**1. Artist names now link to Concert Radar.** `index.html`'s
+`checkConcertMatches()` gained `concertRadarLink(artistName, cityName)` —
+wraps each name in an `<a href="https://vinylscout.org/concert-radar.html
+?artist=...&city=...">`. Artist names come from an external API (SeatGeek,
+via `artists-playing.mjs`), so the href value goes through
+`encodeURIComponent` (URL-safe) and the visible text still goes through
+`escapeHtml` (HTML-safe) — same stored-XSS discipline already applied to
+every other server-sourced string in this file. `style.css` already had a
+`.concert-match a` rule from the original Phase 10 pass (color: inherit,
+underlined) — it just had nothing to style until now.
+
+**2. Weekly server-side check for new matches — did not already exist,
+built today.** `checkConcertMatches()` is real but 100% client-side,
+fire-and-forget, on-page-visit-only: if Susan never reopens either site, a
+newly announced show is never surfaced. New scheduled function
+`netlify/functions/concert-match-check.mjs` (Monday 12:00 UTC, same
+`watched-trips` store read-only, separate `concert-match-log` store for
+its own state) sweeps every non-departed watched trip against Vinyl
+Scout's `/api/artists-playing` — the exact endpoint the live client-side
+check already calls — and records a `firstSeenAt` timestamp per artist,
+per trip. `watched-trips.mjs`'s GET now merges in a `newMatches` array per
+trip (artists first seen in the most recent sweep), best-effort — a
+missing/failed read there degrades to an empty array, never breaks the
+endpoint's core job. `checkConcertMatches()` badges any artist in that
+list "🆕 new this week" so a month-old match doesn't read as freshly
+discovered every visit.
+
+No email/push, on purpose — `watch.mjs`'s own header comment already
+states the standing decision for this whole project ("email/push would
+need a new credential and is deliberately not wired"). The delta surfaces
+the next time Susan opens either site, exactly the same pattern
+`watch-check.mjs` already established for fare-price deltas.
+
+Pure logic (`computeMatchUpdate`, `matchKey`, `resolveTripCoords` in the
+new function; the `newMatchesById`-aware `buildWatchedTripsView` in
+`watched-trips.mjs`) is fully unit-tested — 14 new assertions in
+`tests/concert-match-check.test.mjs`, 4 new + 2 updated in
+`tests/watched-trips.test.mjs` (the old exact-key-set privacy assertion
+now expects `newMatches` too). Both suites run clean in isolation
+(28/28) and wired into `npm test`. `node --check` passes on both touched
+`.mjs` files and on the extracted inline `<script>` block from `index.html`.
+
+**Not yet live-verified:** the scheduled function itself (no way to
+trigger a Netlify scheduled function or inspect Blobs from this session —
+same standing limitation as `watch-check.mjs`'s own daily job). Will only
+be confirmed once Monday 12:00 UTC actually runs and Susan sees a "new
+this week" badge on a genuinely new match, or reports she doesn't.

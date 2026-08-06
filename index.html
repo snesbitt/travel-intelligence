@@ -1360,6 +1360,27 @@
   // /api/artists-playing with those coordinates. A failure anywhere in
   // this chain (either site down, CORS, offline) silently leaves the row
   // exactly as it already rendered — this is a bonus, never a blocker.
+  //
+  // 2026-08-06 (Susan, direct request): each artist name now links to
+  // Concert Radar, with an ?artist= (and, when known, &city=) query param
+  // concert-radar.html reads on load to pre-fill and immediately run its
+  // own live search — see that file's 2026-08-06 initDeepLink(). Artist
+  // names come from an external API (SeatGeek, via artists-playing.mjs),
+  // so the href value goes through encodeURIComponent (URL-safe) and the
+  // visible text still goes through escapeHtml (HTML-safe) — same
+  // stored-XSS discipline the rest of this file already applies to
+  // server-sourced strings (see the 2026-07-31 note on watched-item rows).
+  //
+  // Also badges any artist name in m.newMatches — the weekly
+  // concert-match-check.mjs scheduled function's output, merged in by
+  // watched-trips.mjs — as "new this week", so a match that's been
+  // sitting there for a month doesn't read as something just discovered.
+  function concertRadarLink(artistName, cityName) {
+    const u = new URL("https://vinylscout.org/concert-radar.html");
+    u.searchParams.set("artist", artistName);
+    if (cityName) u.searchParams.set("city", cityName);
+    return `<a href="${u.toString()}" target="_blank" rel="noopener">${escapeHtml(artistName)}</a>`;
+  }
   async function checkConcertMatches(trips) {
     if (!trips || !trips.length) return;
     let mapped;
@@ -1385,13 +1406,16 @@
         const matches = Array.isArray(j2.matches) ? j2.matches : [];
         if (!matches.length) return;
         if (row.querySelector(".concert-match")) return; // avoid a duplicate on a re-render race
+        const newKeys = new Set((Array.isArray(m.newMatches) ? m.newMatches : []).map((n) => String(n).trim().toLowerCase()));
+        const cityForLink = m.destination || "";
+        const badge = (artist) => newKeys.has(String(artist).trim().toLowerCase()) ? ` <span class="concert-match-new" title="First matched in the weekly check">🆕 new this week</span>` : "";
         const note = document.createElement("div");
         note.className = "concert-match";
         if (matches.length === 1) {
           const mm = matches[0];
-          note.innerHTML = `🎵 ${escapeHtml(mm.artist)} plays ${escapeHtml(mm.venue || "a venue nearby")} ${escapeHtml(mm.dateLabel || mm.date || "")} — while you're there`;
+          note.innerHTML = `🎵 ${concertRadarLink(mm.artist, cityForLink)} plays ${escapeHtml(mm.venue || "a venue nearby")} ${escapeHtml(mm.dateLabel || mm.date || "")} — while you're there${badge(mm.artist)}`;
         } else {
-          const names = matches.slice(0, 4).map((mm) => escapeHtml(mm.artist)).join(", ");
+          const names = matches.slice(0, 4).map((mm) => concertRadarLink(mm.artist, cityForLink) + badge(mm.artist)).join(", ");
           note.innerHTML = `🎵 ${matches.length} artists you follow are playing nearby while you're there: ${names}${matches.length > 4 ? "…" : ""}`;
         }
         row.appendChild(note);

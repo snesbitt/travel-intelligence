@@ -482,6 +482,11 @@ table.alt-table td.rank-cell { font-family: var(--serif); font-style: italic; co
    (--good) to read as a bonus/upside note, not a warning. */
 .concert-match { grid-column: 1 / -1; font-size: 12px; color: var(--good, #3f6b4f); background: var(--good-dim, #e2e8de); border-radius: 8px; padding: 6px 10px; margin-top: 2px; line-height: 1.4; }
 .concert-match a { color: inherit; text-decoration: underline; text-underline-offset: 2px; }
+/* 2026-08-06 — weekly concert-match-check.mjs's "new this week" flag
+   (Susan's direct request). Small caps-style badge, not a full second
+   color, so it reads as a footnote on the match rather than competing
+   with the green "this is good news" framing above. */
+.concert-match-new { font-size: 10px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.03em; color: var(--good, #3f6b4f); opacity: 0.85; }
 /* 2026-07-24 mobile pass: watched rows stack cleanly at phone widths —
    route on its own line, price row beneath, 44px unwatch target, no
    squeezed three-way column fight. */

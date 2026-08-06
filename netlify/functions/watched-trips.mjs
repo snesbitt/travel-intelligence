@@ -43,6 +43,17 @@
 // travelers/baseline price), so this isn't a new exposure, it's a strict
 // subset of one that already exists.
 //
+// 2026-08-06, later: also merges in `newMatches` per trip — artists
+// concert-match-check.mjs's weekly scheduled sweep saw for the FIRST time
+// as of its last run (state lives in a separate 'concert-match-log' store,
+// read-only here, same store-isolation discipline as everything else in
+// this integration). Best-effort: a read failure or a trip concert-match-
+// check.mjs hasn't gotten to yet just yields an empty array, never a
+// broken response — this endpoint's core job (trip coordinates/dates) must
+// never depend on a second store being healthy. checkConcertMatches() in
+// index.html uses this to badge a match "new this week" instead of
+// presenting every live match as freshly discovered on every single visit.
+//
 // 2026-08-06, same-week fix: this endpoint is called cross-origin two
 // separate ways — Travel Intelligence's OWN checkConcertMatches() (same
 // origin, no CORS needed) and, it turns out, Vinyl Scout's
@@ -88,19 +99,23 @@ export function loadCityCoords() {
   return CITY_COORDS;
 }
 
-// Pure: given the raw trips list (watch.mjs's normalizeTrip() shape) and
-// the CITY_COORDS table, build the privacy-scoped output. Exported for the
-// unit test — no Blobs or app.js load needed to exercise this directly.
-export function buildWatchedTripsView(trips, cityCoords) {
+// Pure: given the raw trips list (watch.mjs's normalizeTrip() shape), the
+// CITY_COORDS table, and an optional id->newMatches map (concert-match-
+// check.mjs's weekly output — omit or pass {} and every trip just gets an
+// empty array), build the privacy-scoped output. Exported for the unit
+// test — no Blobs or app.js load needed to exercise this directly.
+export function buildWatchedTripsView(trips, cityCoords, newMatchesById) {
   const out = [];
   const unmapped = [];
+  const newById = newMatchesById || {};
   for (const t of trips || []) {
     const coords = t && t.destIata ? cityCoords[String(t.destIata).toLowerCase()] : null;
     const dateStart = t.departDate || null;
     const dateEnd = t.returnDate || t.departDate || null;
+    const newMatches = (t && t.id && Array.isArray(newById[t.id])) ? newById[t.id] : [];
     if (!coords) {
       if (t && t.id) unmapped.push(t.id);
-      out.push({ id: t.id, destination: t.destination || t.destIata || null, lat: null, lon: null, dateStart, dateEnd });
+      out.push({ id: t.id, destination: t.destination || t.destIata || null, lat: null, lon: null, dateStart, dateEnd, newMatches });
       continue;
     }
     out.push({
@@ -110,6 +125,7 @@ export function buildWatchedTripsView(trips, cityCoords) {
       lon: coords[1],
       dateStart,
       dateEnd,
+      newMatches,
     });
   }
   return { trips: out, unmapped };
@@ -122,6 +138,23 @@ export default async (req) => {
   const store = getStore({ name: "watched-trips", consistency: "strong" });
   const rawTrips = (await store.get("list", { type: "json" })) || [];
   const cityCoords = loadCityCoords();
-  const { trips, unmapped } = buildWatchedTripsView(rawTrips, cityCoords);
+
+  // Best-effort merge of concert-match-check.mjs's weekly output — a
+  // separate store, read-only here. Any failure (store empty, a trip never
+  // swept yet, a transient error) just yields {} / empty arrays; this
+  // endpoint's core job must never depend on the weekly job having run.
+  let newMatchesById = {};
+  try {
+    const matchStore = getStore({ name: "concert-match-log", consistency: "strong" });
+    const entries = await Promise.all(
+      (rawTrips || []).filter((t) => t && t.id).map(async (t) => {
+        const rec = await matchStore.get(t.id, { type: "json" });
+        return [t.id, rec && Array.isArray(rec.newThisWeek) ? rec.newThisWeek : []];
+      })
+    );
+    newMatchesById = Object.fromEntries(entries);
+  } catch (e) { /* weekly-check data is a bonus, never a blocker — see header comment */ }
+
+  const { trips, unmapped } = buildWatchedTripsView(rawTrips, cityCoords, newMatchesById);
   return json({ trips, meta: { count: trips.length, unmapped } });
 };

@@ -79,7 +79,7 @@ function trip(overrides) {
 
 /* ---------- buildWatchedTripsView ---------- */
 
-test("buildWatchedTripsView: a mapped trip returns destination + lat/lon + date range only", () => {
+test("buildWatchedTripsView: a mapped trip returns destination + lat/lon + date range + newMatches only", () => {
   const { trips } = buildWatchedTripsView([trip()], CITY_COORDS);
   assert.equal(trips.length, 1);
   assert.deepEqual(trips[0], {
@@ -89,13 +89,42 @@ test("buildWatchedTripsView: a mapped trip returns destination + lat/lon + date 
     lon: 140.39,
     dateStart: "2026-09-01",
     dateEnd: "2026-09-10",
+    newMatches: [],
   });
 });
 
 test("buildWatchedTripsView: never leaks originIata, cabin, travelers, baseline, or checks", () => {
   const { trips } = buildWatchedTripsView([trip()], CITY_COORDS);
   const keys = Object.keys(trips[0]);
-  assert.deepEqual(keys.sort(), ["dateEnd", "dateStart", "destination", "id", "lat", "lon"]);
+  assert.deepEqual(keys.sort(), ["dateEnd", "dateStart", "destination", "id", "lat", "lon", "newMatches"].sort());
+});
+
+/* ---------- newMatches merge (2026-08-06, weekly concert-match-check.mjs) ---------- */
+
+test("buildWatchedTripsView: newMatchesById is merged onto the matching trip by id", () => {
+  const { trips } = buildWatchedTripsView([trip()], CITY_COORDS, {
+    "SFO|NRT|2026-09-01|Economy|2026-09-10|1": ["Ziggy Marley", "Santigold"],
+  });
+  assert.deepEqual(trips[0].newMatches, ["Ziggy Marley", "Santigold"]);
+});
+
+test("buildWatchedTripsView: a trip with no entry in newMatchesById gets an empty array, not undefined or a crash", () => {
+  const { trips } = buildWatchedTripsView([trip()], CITY_COORDS, { "some-other-trip-id": ["Beck"] });
+  assert.deepEqual(trips[0].newMatches, []);
+});
+
+test("buildWatchedTripsView: newMatches also applies to unmapped-destination trips, not just mapped ones", () => {
+  const { trips } = buildWatchedTripsView(
+    [trip({ destIata: "GBE", destination: "Gaborone" })],
+    CITY_COORDS,
+    { "SFO|NRT|2026-09-01|Economy|2026-09-10|1": ["Black Uhuru"] }
+  );
+  assert.deepEqual(trips[0].newMatches, ["Black Uhuru"]);
+});
+
+test("buildWatchedTripsView: omitting newMatchesById entirely (undefined) is safe and yields empty arrays", () => {
+  const { trips } = buildWatchedTripsView([trip()], CITY_COORDS);
+  assert.deepEqual(trips[0].newMatches, []);
 });
 
 test("buildWatchedTripsView: a one-way trip (no returnDate) uses departDate for both ends", () => {
