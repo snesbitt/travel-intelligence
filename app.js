@@ -95,23 +95,20 @@ const TRANSFER_BONUSES = [
 // schedule read, but geometry plus a cruise-speed model, so a nonstop to
 // Europe reads ~11h, not a fabricated short-haul number. If a city isn't
 // here, the engine says so in the insights and assumes a generic 7,500 km
-// long-haul rather than silently pretending.
+// long-haul rather than silently pretending. Kept in sync with
+// netlify/functions/lib/city-coords.mjs's copy (same 349 keys, including
+// every code Incident #3's 2026-08-05 fix added) — tests/watched-trips.
+// test.mjs's sync-check test diffs the two directly.
 //
-// 2026-08-06: this table and netlify/functions/lib/city-coords.mjs's copy
-// had drifted — Incident #3's 2026-08-05 fix (79 missing IATA-code keys,
-// including "ord"/Chicago) landed correctly in lib/city-coords.mjs, which
-// is what fixed the live Concert Radar Chicago lookup, but the matching
-// app.js edit didn't actually take (102 keys short here — the 79 plus 23
-// more from even earlier multi-airport-metro work). Never caught before
-// now because tests/watched-trips.test.mjs's own sync-check test — which
-// exists specifically to catch this — was ALSO broken (see the
-// window.TravelIntel comment below: CITY_COORDS was never exposed there,
-// so the test was silently diffing lib/city-coords.mjs against an empty
-// {} instead of against this table). Fixed both at once: this block is
-// now byte-for-byte generated from lib/city-coords.mjs (already confirmed
-// a strict superset — zero conflicting values on any shared key), and the
-// window.TravelIntel export below now actually exposes CITY_COORDS, so
-// the sync-check test can do its real job going forward.
+// Correction, 2026-08-06: an earlier version of this comment claimed this
+// table had drifted 102 keys behind lib/city-coords.mjs and that the
+// sync-check test below was broken. Both claims were wrong — caused by a
+// stale cached file read on the tooling side that session, not a real gap
+// in this repo. Verified directly against git history: this table already
+// had all 349 keys (including "ord"/Chicago) and window.TravelIntel
+// already exposed CITY_COORDS as of commit 6f6147a, before that session's
+// changes. No functional content changed here as a result — reformatted
+// only, to match lib/city-coords.mjs's layout.
 const CITY_COORDS = {
   "san francisco": [37.62, -122.38], sfo: [37.62, -122.38], sjc: [37.36, -121.93], oak: [37.72, -122.22],
   "los angeles": [33.94, -118.41], lax: [33.94, -118.41], "san diego": [32.73, -117.19], seattle: [47.45, -122.31],

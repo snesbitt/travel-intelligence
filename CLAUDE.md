@@ -505,7 +505,7 @@ it against `app.js`'s own copy (loaded via the same `createRequire` trick,
 safe in a Node test process, just not in the deployed function) so the
 two could never silently drift apart — or so the plan was; see below.
 
-**Incident #4 (2026-08-06) — the second CORS bug, and everything it was hiding:**
+**Incident #4 (2026-08-06) — the second CORS bug (real), plus two "bugs" that turned out not to be (see the correction below):**
 
 Susan reported "no change to either page" after the Vinyl Scout side's
 CORS bug (`artists-playing.mjs` missing `Access-Control-Allow-Origin`,
@@ -530,54 +530,61 @@ way as the other repo: `export var ALLOWED_ORIGIN =
 `Vary: Origin`) on every `Response` `json()` returns, including the 405
 path.
 
-**Two more bugs surfaced while verifying that fix locally, both real,
-neither previously reported:**
+**Correction, same night, after a comprehensive re-verification pass:**
+the session that fixed the CORS bug above also reported two more "bugs" —
+that `tests/watched-trips.test.mjs`'s sync-check test was broken (silently
+diffing against an empty `{}` because `window.TravelIntel` never exposed
+`CITY_COORDS`), that `app.js`'s `CITY_COORDS` table was 102 keys behind
+`lib/city-coords.mjs`'s, and that `package.json`'s `test` script was
+missing `watch.test.mjs`/`watched-trips.test.mjs`. **All three claims were
+false.** The tool used to read files from Susan's disk that session
+returned stale, cached content for `app.js` and `package.json` — genuinely
+old versions from before Incident #3 ever shipped — without any error or
+warning that the read was stale. Diffed directly against git history to
+confirm: as of commit `6f6147a` (Incident #3's fix, 2026-08-05, already
+live before that night's session even started), `app.js`'s
+`CITY_COORDS` already had all 349 keys including `ord`/Chicago,
+`window.TravelIntel` already exposed `CITY_COORDS`, the sync-check test
+was already doing its real job, and `package.json`'s `test` script already
+ran all five test files. None of it needed fixing. The one small residue:
+a comment wrongly describing this false "102-key gap" got added to
+`app.js` before the mistake was caught — removed the same night, no data
+or logic in `app.js` actually changed (the `CITY_COORDS` block was
+reformatted to match `lib/city-coords.mjs`'s layout, byte-for-byte
+functionally identical to what was already there — confirmed via a direct
+key-by-key diff against git history, not just a test-suite pass).
 
-1. `tests/watched-trips.test.mjs`'s sync-check test (added with Incident
-   #2, meant to catch `app.js`'s `CITY_COORDS` drifting from
-   `lib/city-coords.mjs`'s copy) had never actually been able to catch
-   anything: `app.js`'s `window.TravelIntel` export never included
-   `CITY_COORDS` as a property, so the test's loader always read back an
-   empty `{}` and compared it against `lib/city-coords.mjs`'s keys —
-   which will always report "extra keys," not silently pass, so in
-   practice this had been failing or being worked around rather than
-   giving a false green; either way it wasn't doing its job. Fixed by
-   adding `CITY_COORDS,` to the `window.TravelIntel` object literal in
-   `app.js` — purely additive, nothing else reads that object and expects
-   the key to be absent.
-2. With that test actually able to run, it immediately caught a real,
-   previously-undetected data bug: `app.js`'s own `CITY_COORDS` table
-   (247 keys) was missing **102 keys** that `lib/city-coords.mjs` (349
-   keys) has — including `ord` (Chicago). This means the 2026-07-24/
-   2026-08-05 city-table expansions had only ever landed in
-   `lib/city-coords.mjs`, never in `app.js` itself, despite being treated
-   as complete — so `app.js`'s own `lookupCoords()`/`toIATA()` path (used
-   by the browser's own flight-search UI, not just Concert Radar) was
-   still missing Chicago and 101 other airports as direct lookups.
-   Confirmed `lib/city-coords.mjs` is a strict superset of `app.js`'s
-   table with zero value conflicts on the 247 shared keys, then replaced
-   `app.js`'s `CITY_COORDS` block wholesale with `lib/city-coords.mjs`'s
-   content. Full existing suite re-run against the modified `app.js`:
-   zero regressions (48/48 `app.test.js`, all others unaffected).
-3. Separately, `package.json`'s `"test"` script still only ran
-   `app.test.js` + `fares.test.mjs` + `scan.test.mjs` — `watch.test.mjs`
-   and `watched-trips.test.mjs` were never wired in, despite having
-   existed since Phase 10. Added both to the `test` script; this is also
-   why (1) went unnoticed — its own suite wasn't part of `npm test`.
+**What was real, confirmed independently of the tool that produced the
+false claims above:** the CORS bug itself. Susan's own Chrome DevTools
+Console, screen-shared live, showed the actual production error before
+any fix; the `Access-Control-Allow-Origin` header was verifiably absent
+from `watched-trips.mjs`'s `json()` helper in git history all the way
+back through every prior commit; and after the fix, the same live
+DevTools check showed the error gone. That diagnosis and fix stand as
+described above — only the two "bonus" findings from the same session
+were spurious.
 
-All three of these are instances of the same failure class: a fix or a
-wiring step gets made, described as done, and doesn't fully land — worth
-watching for specifically (recheck the actual committed/deployed file,
-not just the intent) on any future "fixed" claim in this repo or its
-siblings.
+**Lesson, added to this doc's own list of failure classes:** a tool
+reporting success (a stage/read operation returning a plausible mtime and
+byte count) is not the same as that tool returning current data. When a
+"bug" is discovered by reading a file rather than by an external,
+independently-verifiable signal (a real error message, a live screenshot,
+a deploy record), diff the claim against git history before writing it
+down as fact — especially before adding a comment to source claiming a
+bug that isn't real. Ironically, this is the same "claimed fixed but
+didn't land" failure class this doc already warns about, just running in
+the opposite direction: fixing a bug that was never there in the first
+place, because the read reporting it was itself untrustworthy.
 
-**Verified before shipping:** `node --check` on all four changed files;
-full local suite green at 131/131 (`app.test.js` 48, `fares.test.mjs` 49,
-`scan.test.mjs` 5, `watch.test.mjs` 19, `watched-trips.test.mjs` 10 —
-including two new regression tests: the now-functional sync-check and a
-CORS-header assertion on `watched-trips.mjs`'s 405 response, mirroring
-the pattern already used in vinyl-scout-repo's
-`scripts/test-artists-playing.mjs`).
+**Verified before shipping the CORS fix and confirming the above:**
+`node --check` on all changed files; full local suite green at 131/131
+(`app.test.js` 48, `fares.test.mjs` 49, `scan.test.mjs` 5, `watch.test.mjs`
+19, `watched-trips.test.mjs` 10 — the one genuinely new test being the
+CORS-header assertion on `watched-trips.mjs`'s 405 response, mirroring the
+pattern already used in vinyl-scout-repo's
+`scripts/test-artists-playing.mjs`), run against files whose byte counts
+were cross-checked directly against `git show HEAD:<path>` output before
+trusting the test run.
 
 **Lesson (same one as the Vinyl Scout side, worth repeating because it
 bit twice in one integration):** a cross-origin endpoint can return a
