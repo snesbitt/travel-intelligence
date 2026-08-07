@@ -352,13 +352,117 @@ function wholeWordIncludes(haystack, needle) {
   return new RegExp(`(^|[^a-z])${esc}([^a-z]|$)`).test(haystack);
 }
 
+// Damerau-Levenshtein restricted to ADJACENT transpositions only (swapping
+// two neighboring characters costs 1, same as a single insert/delete/
+// substitute) — covers the common "pairs"/"paris" typo class without the
+// full unrestricted-transposition algorithm's extra bookkeeping, which
+// nothing here needs.
+function levenshtein(a, b) {
+  a = a == null ? "" : String(a);
+  b = b == null ? "" : String(b);
+  const al = a.length, bl = b.length;
+  if (al === 0) return bl;
+  if (bl === 0) return al;
+  const d = [];
+  for (let i = 0; i <= al; i++) d.push([i]);
+  for (let j = 0; j <= bl; j++) d[0][j] = j;
+  for (let i = 1; i <= al; i++) {
+    for (let j = 1; j <= bl; j++) {
+      const cost = a[i - 1] === b[j - 1] ? 0 : 1;
+      let best = Math.min(d[i - 1][j] + 1, d[i][j - 1] + 1, d[i - 1][j - 1] + cost);
+      if (i > 1 && j > 1 && a[i - 1] === b[j - 2] && a[i - 2] === b[j - 1]) {
+        best = Math.min(best, d[i - 2][j - 2] + 1);
+      }
+      d[i][j] = best;
+    }
+  }
+  return d[al][bl];
+}
+
+// 2026-07-31 (Susan: "improve city fields to handle misspellings"): the
+// typo-tolerance layer toIATA and suggestCities both use. Finds the SINGLE
+// closest key to `input` within edit distance 1, refusing to guess when
+// two keys are equally close (an ambiguous typo, never resolved arbitrarily)
+// or when the input is too short to disambiguate safely (under 4 chars —
+// a 3-letter input is already treated as a literal IATA code by toIATA
+// before this layer is ever reached).
+function fuzzyMatchKey(input, table) {
+  if (!input || input.length < 4) return null;
+  let bestKey = null, bestDist = Infinity, tie = false;
+  for (const key of Object.keys(table)) {
+    const dist = levenshtein(input, key);
+    if (dist > 1) continue;
+    if (dist < bestDist) { bestKey = key; bestDist = dist; tie = false; }
+    else if (dist === bestDist) { tie = true; }
+  }
+  if (!bestKey || tie) return null;
+  return table[bestKey];
+}
+
+// 2026-07-31 (Susan: "with the Paris example only CDG came up but paris has
+// several airports" / "fix and do better"): CITY_IATA's one-code-per-city
+// shape was silently hiding every other real, bookable airport in the same
+// metro. Each secondary airport gets its own exact-match alias (so typing
+// it directly still resolves) and its own suggestCities row. `primary:
+// true` marks the entry that's already CITY_IATA's own code for that key —
+// listed here too so suggestCities can build one ordered list per metro.
+const METRO_AIRPORTS = {
+  "new york": [
+    { code: "JFK", primary: true },
+    { code: "EWR", value: "Newark" },
+    { code: "LGA", value: "LaGuardia" },
+  ],
+  washington: [
+    { code: "IAD", primary: true },
+    { code: "DCA", value: "Reagan National" },
+    { code: "BWI", value: "Baltimore" },
+  ],
+  chicago: [
+    { code: "ORD", primary: true },
+    { code: "MDW", value: "Chicago–Midway" },
+  ],
+  london: [
+    { code: "LHR", primary: true },
+    { code: "LGW", value: "London–Gatwick" },
+    { code: "STN", value: "London–Stansted" },
+    { code: "LTN", value: "London–Luton" },
+    { code: "LCY", value: "London City" },
+  ],
+  paris: [
+    { code: "CDG", primary: true },
+    { code: "ORY", value: "Paris–Orly" },
+    { code: "BVA", value: "Paris–Beauvais" },
+  ],
+  tokyo: [
+    { code: "HND", primary: true },
+    { code: "NRT", value: "Tokyo–Narita" },
+  ],
+  bangkok: [
+    { code: "BKK", primary: true },
+    { code: "DMK", value: "Bangkok–Don Mueang" },
+  ],
+};
+
+// Exact-match aliases for every non-primary metro airport whose alt name
+// isn't already a CITY_IATA/COUNTRY_TO_IATA key in its own right (e.g.
+// "Baltimore" already resolves via CITY_IATA, so it isn't duplicated here).
+const ALT_AIRPORT_IATA = {};
+for (const [key, airports] of Object.entries(METRO_AIRPORTS)) {
+  for (const a of airports) {
+    if (a.primary || !a.value) continue;
+    const aliasKey = a.value.toLowerCase();
+    if (!CITY_IATA[aliasKey] && !COUNTRY_TO_IATA[aliasKey]) ALT_AIRPORT_IATA[aliasKey] = a.code;
+  }
+}
+
 function toIATA(name) {
   if (!name) return null;
   const n = name.trim().toLowerCase();
   if (/^[a-z]{3}$/.test(n)) return n.toUpperCase();
   if (COUNTRY_TO_IATA[n]) return COUNTRY_TO_IATA[n];
   if (CITY_IATA[n]) return CITY_IATA[n];
-  // Fuzzy fallback: scan every key for a whole-word match in either
+  if (ALT_AIRPORT_IATA[n]) return ALT_AIRPORT_IATA[n];
+  // Whole-word fallback: scan every key for a whole-word match in either
   // direction, and prefer the longest matching key so a specific entry
   // ("north korea") wins over a shorter, more general one ("korea").
   const bestMatch = (table) => {
@@ -370,7 +474,13 @@ function toIATA(name) {
     }
     return bestKey ? table[bestKey] : null;
   };
-  return bestMatch(CITY_IATA) || bestMatch(COUNTRY_TO_IATA);
+  const whole = bestMatch(CITY_IATA) || bestMatch(COUNTRY_TO_IATA);
+  if (whole) return whole;
+  // Typo-tolerance layer: reached only when nothing above resolves. Single-
+  // edit-distance only, refuses on ties, and never overrides an exact match
+  // (COUNTRY_TO_IATA's Iran/Iraq sit 1 edit apart but both resolve outright
+  // via the exact lookups above, since neither ever reaches this layer).
+  return fuzzyMatchKey(n, CITY_IATA) || fuzzyMatchKey(n, COUNTRY_TO_IATA);
 }
 
 // 2026-07-24: code -> canonical display city, derived from CITY_IATA
@@ -390,6 +500,89 @@ Object.assign(IATA_DISPLAY, {
   CAE: "Columbia, SC",
   SAV: "Savannah, GA",
 });
+
+function titleCaseKey(key) {
+  return key.replace(/(^|[\s-])[a-z]/g, (m) => m.toUpperCase());
+}
+
+// One row per real, individually-bookable airport, built once from
+// CITY_IATA (expanded through METRO_AIRPORTS for multi-airport metros) so
+// suggestCities and toIATA's alt-airport aliases can't drift apart.
+const CITY_AIRPORT_ROWS = (() => {
+  const rows = [];
+  for (const [key, code] of Object.entries(CITY_IATA)) {
+    const metro = METRO_AIRPORTS[key];
+    if (metro) {
+      for (const a of metro) {
+        const value = a.primary ? titleCaseKey(key) : a.value;
+        const label = (a.primary ? (IATA_DISPLAY[a.code] || titleCaseKey(key)) : value) + " (" + a.code + ")";
+        rows.push({ key, code: a.code, value, label, primary: Boolean(a.primary) });
+      }
+    } else {
+      const value = titleCaseKey(key);
+      const label = (IATA_DISPLAY[code] || value) + " (" + code + ")";
+      rows.push({ key, code, value, label, primary: true });
+    }
+  }
+  return rows;
+})();
+
+const COUNTRY_AIRPORT_ROWS = Object.entries(COUNTRY_TO_IATA).map(([key, code]) => {
+  const value = titleCaseKey(key);
+  const label = (IATA_DISPLAY[code] || value) + " (" + code + ")";
+  return { key, code, value, label, primary: true };
+});
+
+// 2026-07-31 (Susan: live typeahead as you type): ranked, deduped-by-code
+// city/country suggestions for the origin/destination fields. Three tiers,
+// checked in order and never mixed within a query — exact key match, then
+// prefix match, then (only if nothing above fired, and only for queries
+// long enough to disambiguate — same 4-char floor as toIATA's typo layer)
+// a single-edit-distance typo match, so a query like "bankok" surfaces the
+// same Bangkok metro toIATA("bankok") would resolve to. Within a tier,
+// city matches sort before country matches and a metro's primary airport
+// always leads its own group, so `suggestCities("par")[0]` is Paris/CDG,
+// not Paraguay/ASU.
+function suggestCities(query, limit) {
+  limit = limit || 8;
+  if (!query) return [];
+  const q = String(query).trim().toLowerCase();
+  if (q.length < 2) return [];
+
+  const allRows = CITY_AIRPORT_ROWS.concat(COUNTRY_AIRPORT_ROWS);
+  const seenCodes = new Set();
+  const out = [];
+
+  function addRow(row, tier) {
+    if (seenCodes.has(row.code)) return;
+    seenCodes.add(row.code);
+    out.push({ code: row.code, value: row.value, label: row.label, tier, isCountry: !CITY_IATA[row.key] && !METRO_AIRPORTS[row.key], primary: row.primary });
+  }
+
+  for (const row of allRows) if (row.key === q) addRow(row, 0);
+  for (const row of allRows) if (row.key !== q && row.key.startsWith(q)) addRow(row, 1);
+  if (out.length === 0 && q.length >= 4) {
+    let bestKeys = [], bestDist = Infinity;
+    for (const row of allRows) {
+      const dist = levenshtein(q, row.key);
+      if (dist > 1) continue;
+      if (dist < bestDist) { bestDist = dist; bestKeys = [row.key]; }
+      else if (dist === bestDist && !bestKeys.includes(row.key)) bestKeys.push(row.key);
+    }
+    if (bestKeys.length === 1) {
+      for (const row of allRows) if (row.key === bestKeys[0]) addRow(row, 2);
+    }
+  }
+
+  out.sort((a, b) => {
+    if (a.tier !== b.tier) return a.tier - b.tier;
+    if (a.isCountry !== b.isCountry) return a.isCountry ? 1 : -1;
+    if (a.primary !== b.primary) return a.primary ? -1 : 1;
+    return a.code < b.code ? -1 : a.code > b.code ? 1 : 0;
+  });
+  return out.slice(0, limit).map(({ code, value, label }) => ({ code, value, label }));
+}
+
 function displayCityName(nameOrCode) {
   if (!nameOrCode) return nameOrCode;
   const code = toIATA(nameOrCode);
@@ -423,6 +616,19 @@ const CARRIER_SITES = {
 // preference is visible, never a hidden thumb on the scale.
 const ASIAN_CARRIERS = ["ANA", "All Nippon", "Japan Airlines", "JAL", "Singapore", "Cathay", "Korean Air", "Asiana", "EVA", "China Airlines", "Air China", "China Eastern", "China Southern", "Thai", "Vietnam Airlines", "Philippine Airlines", "Malaysia Airlines", "Garuda", "Air India", "Vistara", "Starlux", "Zipair"];
 const ASIA_COMFORT_BONUS = 12;
+
+// 2026-08-07 (audit backlog, 2026-08-05: "wire the six dead preference
+// fields into real scoring"): preferredAirlines, preferredAlliances,
+// preferredDepartTime, and preferredArrivalTime were saved to the
+// wallet/prefs object but never read by buildLiveCandidates — set once,
+// then silently ignored. These three bonuses close that gap the same way
+// ASIA_COMFORT_BONUS already works: a flat Comfort addition, surfaced in
+// insights whenever active, never a hidden adjustment. (preferredSeat and
+// preferredHotel are the other two of the "six" — out of scope here, since
+// this model has no per-seat or lodging dimension to attach them to.)
+const PREFERRED_AIRLINE_BONUS = 10;
+const PREFERRED_ALLIANCE_BONUS = 6;
+const PREFERRED_TIME_BONUS = 8;
 
 function isAsianCarrier(name) {
   const n = (name || "").toLowerCase();
@@ -559,6 +765,47 @@ function fuzzyAlliance(name) {
   return "Unaligned";
 }
 
+// Reads the hour out of a live-feed timestamp string, "YYYY-MM-DD HH:MM"
+// (the format offers carry on departTimeRaw/arriveTimeRaw). Returns null
+// on anything malformed or missing rather than guessing — a wrong hour
+// would silently mis-bucket a flight and either grant or withhold a
+// Comfort bonus for the wrong reason.
+function parseHourFromApiTime(raw) {
+  if (typeof raw !== "string") return null;
+  const m = raw.match(/^\d{4}-\d{2}-\d{2} (\d{2}):\d{2}$/);
+  if (!m) return null;
+  const hour = parseInt(m[1], 10);
+  if (hour < 0 || hour > 23) return null;
+  return hour;
+}
+
+// Buckets match index.html's <select id="preferredDepartTime"> /
+// <select id="preferredArrivalTime"> options exactly, so a saved
+// preference string compares directly against a bucket's return value —
+// no separate mapping table to drift out of sync. Same hour boundaries
+// for both; only the overnight-tail bucket's label differs (a 2am
+// departure is a "Red-eye" you booked on purpose, a 2am arrival is
+// "Late night" you're stuck with).
+function departTimeBucket(raw) {
+  const hour = parseHourFromApiTime(raw);
+  if (hour == null) return null;
+  if (hour >= 5 && hour <= 7) return "Early morning";
+  if (hour >= 8 && hour <= 11) return "Morning";
+  if (hour >= 12 && hour <= 16) return "Afternoon";
+  if (hour >= 17 && hour <= 20) return "Evening";
+  return "Red-eye"; // 21:00-23:59 and 00:00-04:59
+}
+
+function arriveTimeBucket(raw) {
+  const hour = parseHourFromApiTime(raw);
+  if (hour == null) return null;
+  if (hour >= 5 && hour <= 7) return "Early morning";
+  if (hour >= 8 && hour <= 11) return "Morning";
+  if (hour >= 12 && hour <= 16) return "Afternoon";
+  if (hour >= 17 && hour <= 20) return "Evening";
+  return "Late night"; // 21:00-23:59 and 00:00-04:59
+}
+
 function seasonalRisk(dateStr) {
   const d = new Date(dateStr + "T12:00:00");
   if (isNaN(d)) return 8;
@@ -585,8 +832,17 @@ function buildLiveCandidates(inputs, offers) {
   const range = AWARD_RANGES[inputs.cabin] || AWARD_RANGES.Economy;
   const mLow = range.milesLow * milesFactor, mHigh = range.milesHigh * milesFactor;
 
+  // 2026-07-31 (Susan: "I always want to fly nonstop if available"): the
+  // Stops pill row in index.html has always collected maxStops (0-3, 3 =
+  // "Any stops") and saved it to prefs, but this function never read it —
+  // the choice was recorded and then silently ignored. 3/unset both mean
+  // no limit, matching the UI's "Any stops" option and every caller that
+  // predates this filter.
+  const hasStopsLimit = inputs.maxStops != null && inputs.maxStops < 3;
+
   return offers
     .filter((o) => !avoid.some((a) => (o.carrier || "").toLowerCase().includes(a)))
+    .filter((o) => !hasStopsLimit || Math.max(0, o.stops || 0) <= inputs.maxStops)
     .slice(0, 12)
     .map((o, i) => {
       const price = Math.round(o.priceTotal / travelers); // per person, matching the model's display convention
@@ -605,7 +861,21 @@ function buildLiveCandidates(inputs, offers) {
       // could win "Best Overall" over one $500 cheaper (caught in the
       // multi-feed e2e review). Under-budget scoring is unchanged.
       scores.Cost = clamp(100 - (price / Math.max(1, inputs.maxBudget)) * 65, -80, 100);
-      scores.Comfort = clamp((CABIN_COMFORT_BASE[cabin] || 50) - stops * 11 + (stops === 0 ? 6 : 0) + (destinationInAsia(inputs) && isAsianCarrier(o.carrier) ? ASIA_COMFORT_BONUS : 0), 5, 100);
+      // Preferred airline/alliance/time-of-day: same pattern as the Asia
+      // comfort bonus above — flat additions, each independently gated so
+      // they stack additively rather than overriding one another. A saved
+      // preference with no matching signal on this offer (no departTimeRaw,
+      // no alliance match, etc.) contributes 0, never a guess.
+      const preferredAirlineMatch = (inputs.preferredAirlines || []).some((a) => a && (o.carrier || "").toLowerCase().includes(String(a).toLowerCase()));
+      const preferredAllianceMatch = (inputs.preferredAlliances || []).includes(fuzzyAlliance(o.carrier));
+      const preferredDepartMatch = Boolean(inputs.preferredDepartTime && o.departTimeRaw && departTimeBucket(o.departTimeRaw) === inputs.preferredDepartTime);
+      const preferredArriveMatch = Boolean(inputs.preferredArrivalTime && o.arriveTimeRaw && arriveTimeBucket(o.arriveTimeRaw) === inputs.preferredArrivalTime);
+      scores.Comfort = clamp((CABIN_COMFORT_BASE[cabin] || 50) - stops * 11 + (stops === 0 ? 6 : 0)
+        + (destinationInAsia(inputs) && isAsianCarrier(o.carrier) ? ASIA_COMFORT_BONUS : 0)
+        + (preferredAirlineMatch ? PREFERRED_AIRLINE_BONUS : 0)
+        + (preferredAllianceMatch ? PREFERRED_ALLIANCE_BONUS : 0)
+        + (preferredDepartMatch ? PREFERRED_TIME_BONUS : 0)
+        + (preferredArriveMatch ? PREFERRED_TIME_BONUS : 0), 5, 100);
       scores.Upgrade = clamp(fuzzyCarrierScore(o.carrier) - (cabin === "First" ? 35 : cabin === "Business" ? 12 : 0) + (cabin === "Economy" || cabin === "Best Value" ? 6 : 0), 3, 100);
       scores.Award = clamp(candCpp * 42, 2, 100);
       scores.Flexibility = clamp(55 + (cabin === "Business" || cabin === "First" ? 8 : 0), 5, 100);
@@ -626,6 +896,7 @@ function buildLiveCandidates(inputs, offers) {
         availLabel: o.aircraft ? "Aircraft" : "Availability",
         live: true, priceTotal: Math.round(o.priceTotal), lastTicketingDate: o.lastTicketingDate || null,
         src: o.src || null, // "Kayak (scanned 3h ago)" etc — null for the primary live feed
+        departTimeRaw: o.departTimeRaw || null, arriveTimeRaw: o.arriveTimeRaw || null,
       };
     });
 }
@@ -994,6 +1265,22 @@ function buildInsights(inputs, candidates, best, weights, timing, usingLive) {
     insights.push(`Asia route: Asia-based carriers (ANA, JAL, Singapore, Cathay, EVA…) receive a +${ASIA_COMFORT_BONUS} Comfort bonus here: your standing preference for their home-market product quality, set 2026-07-19. It's visible in the Comfort scores, not a hidden adjustment.`);
   }
 
+  // 2026-08-07: preferred airline/alliance/time-of-day, same visible-not-hidden
+  // treatment as the Asia bonus above — only announced when it actually fired
+  // on the winning candidate, so the insight always matches what's in the score.
+  if ((inputs.preferredAirlines || []).some((a) => a && (best.carrier || "").toLowerCase().includes(String(a).toLowerCase()))) {
+    insights.push(`${best.carrier} is one of your saved preferred airlines: it receives a +${PREFERRED_AIRLINE_BONUS} Comfort bonus here, visible in the score, not a hidden adjustment.`);
+  }
+  if ((inputs.preferredAlliances || []).includes(best.alliance)) {
+    insights.push(`${best.carrier} flies in ${best.alliance}, one of your saved preferred alliances: it receives a +${PREFERRED_ALLIANCE_BONUS} Comfort bonus here, visible in the score, not a hidden adjustment.`);
+  }
+  if (inputs.preferredDepartTime && best.departTimeRaw && departTimeBucket(best.departTimeRaw) === inputs.preferredDepartTime) {
+    insights.push(`This departure falls in your saved preferred "${inputs.preferredDepartTime}" window: it receives a +${PREFERRED_TIME_BONUS} Comfort bonus here, visible in the score, not a hidden adjustment.`);
+  }
+  if (inputs.preferredArrivalTime && best.arriveTimeRaw && arriveTimeBucket(best.arriveTimeRaw) === inputs.preferredArrivalTime) {
+    insights.push(`This arrival falls in your saved preferred "${inputs.preferredArrivalTime}" window: it receives a +${PREFERRED_TIME_BONUS} Comfort bonus here, visible in the score, not a hidden adjustment.`);
+  }
+
   const dislikedMatch = flagsDislikedAirport(inputs);
   if (dislikedMatch) {
     insights.push(`You've saved "${dislikedMatch}" as an airport to avoid, and it shows up in this trip's origin/destination/via/nearby-airport fields; double-check the itinerary. (Stop count is modeled here, not specific connection airports, so this can't check a mid-trip connection, only the fields above.)`);
@@ -1074,6 +1361,7 @@ function runOptimization(inputs, liveOffers) {
 if (typeof window !== "undefined") {
   window.TravelIntel = {
     runOptimization, computeWeights, upgradeTactics, bestPointsAnswers, toIATA, carrierSite, liveSearchUrls, scanSourceUrl, displayCity, displayCityName, priceIntelligence, suggestPriorities,
+    levenshtein, fuzzyMatchKey, suggestCities, lookupCoords,
     ALLIANCES, ALL_CARRIERS, TRANSFER_PARTNERS, POINT_VALUATIONS, TRANSFER_BONUSES,
     DIMENSIONS, DIM_LABEL, fmtUSD,
     // exposed 2026-07-20 for tests/app.test.js — these were already pure,
@@ -1082,6 +1370,11 @@ if (typeof window !== "undefined") {
     // exposed 2026-07-21 for tests/app.test.js — saved preferences & trip
     // memory (phase 07's fuller slice, after the wallet).
     travelStyleFallback, flagsDislikedAirport, matchUpgradeWinCarrier,
+    // exposed 2026-08-07 for tests/app.test.js — preferred airline/alliance/
+    // time-of-day Comfort bonuses (audit backlog, 2026-08-05: "wire the six
+    // dead preference fields into real scoring").
+    parseHourFromApiTime, departTimeBucket, arriveTimeBucket,
+    PREFERRED_AIRLINE_BONUS, PREFERRED_ALLIANCE_BONUS, PREFERRED_TIME_BONUS,
     // exposed 2026-08-06: tests/watched-trips.test.mjs's sync-check test
     // (added 2026-08-05, Incident #2's fix) reads window.TravelIntel.
     // CITY_COORDS via a CommonJS require() of this file to diff it against
