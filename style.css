@@ -100,32 +100,22 @@ h2.card-title { font-size: 11.5px; text-transform: uppercase; letter-spacing: 0.
 .divider { border-top: 1px solid var(--border); margin: 11px 0; }
 @media (min-width: 640px) { .divider { margin: 16px 0; } }
 
-/* roadmap: at-a-glance overview strip */
-.roadmap-overview { display: flex; flex-wrap: wrap; gap: 6px; margin: 0.9rem 0 1.4rem; padding: 0; list-style: none; }
-.ro-chip { display: inline-flex; align-items: center; gap: 5px; font-size: 11px; font-weight: 600; padding: 4px 9px 4px 8px; border-radius: 20px; border: 1px solid var(--border); text-decoration: none; color: var(--ink); background: var(--card); transition: border-color 0.15s ease; }
-.ro-chip:hover { border-color: var(--ink-faint); }
-.ro-dot { font-size: 9px; line-height: 1; }
-.ro-chip.ro-live { background: var(--good-dim); color: var(--good); border-color: transparent; }
-.ro-chip.ro-progress { background: var(--mid-dim); color: var(--mid); border-color: transparent; }
-.ro-chip.ro-planned { background: var(--bg-alt); color: #565b6e; border-color: transparent; }
-@media (min-width: 640px) {
-.roadmap-overview { gap: 8px; margin: 1.1rem 0 1.8rem; }
-.ro-chip { font-size: 12px; padding: 5px 11px 5px 9px; }
-}
-
-/* roadmap: phase cards (rail-card style, shared with Vinyl Scout) */
+/* roadmap: phase cards (rail-card style; markup format aligned with Vinyl Scout
+   2026-08-07 — chip-overview nav removed, status now lives on the outer
+   .phase element (.phase--live/.phase--future) instead of on .phase__rail
+   and .phase__status separately, matching the canonical reference) */
 .phase { display: grid; grid-template-columns: 48px 1fr; border: 1px solid var(--border); background: var(--card); border-radius: 8px; overflow: hidden; margin: 0 0 14px; }
 .phase:last-of-type { margin-bottom: 0; }
 .phase__rail { background: var(--bg-alt); border-right: 1px solid var(--border); display: flex; align-items: center; justify-content: center; font-family: var(--serif); font-style: italic; font-weight: 400; font-size: 22px; color: #565b6e; }
-.phase__rail--live { color: var(--good); }
-.phase__rail--progress { color: var(--mid); }
+.phase--live .phase__rail { color: var(--good); }
+.phase--progress .phase__rail { color: var(--mid); }
 .phase__body { padding: 16px 18px; }
 .phase__head { display: flex; align-items: baseline; gap: 10px; flex-wrap: wrap; margin: 0 0 6px; }
 .phase__name { font-size: 15px; font-weight: 700; color: var(--ink); margin: 0; }
 .phase__status { font-size: 9.5px; letter-spacing: 0.05em; text-transform: uppercase; padding: 2px 8px; border-radius: 5px; font-weight: 700; white-space: nowrap; }
 .phase__status--live { background: var(--good-dim); color: var(--good); }
 .phase__status--progress { background: var(--mid-dim); color: var(--mid); }
-.phase__status--planned { background: var(--bg-alt); color: #565b6e; }
+.phase__status--future { background: var(--bg-alt); color: #565b6e; }
 .phase__focus { font-family: var(--serif); font-style: italic; font-size: 13px; color: var(--accent); margin: 0 0 7px; }
 .phase__covers { font-size: 13.5px; line-height: 1.6; color: #565b6e; margin: 0; }
 @media (min-width: 640px) {
