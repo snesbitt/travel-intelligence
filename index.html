@@ -915,12 +915,9 @@
     // route/inputs pair exists to sweep around -- reveal it after ANY
     // completed search (live or fallback-to-honest-empty), same trigger
     // point the watch button already uses via __tiLastInputs.
-    // 2026-08-07: reveal deliberately DISABLED for this delivery -- the
-    // panel markup and its Sweep-dates button exist, but window.tiRunDateSweep
-    // itself (the function the button's onclick calls) isn't built yet.
-    // Shipping the reveal now would show a working-looking button that
-    // throws on click. Re-enable this line once tiRunDateSweep ships.
-    // document.getElementById("date-sweep").classList.remove("ti-hidden");
+    // 2026-08-07, later: window.tiRunDateSweep now exists (built and
+    // tested below) -- reveal re-enabled.
+    document.getElementById("date-sweep").classList.remove("ti-hidden");
     document.getElementById("sweep-body").innerHTML = "";
     document.getElementById("results").scrollIntoView({ behavior: "smooth", block: "start" });
   });
@@ -972,6 +969,109 @@
     const inputs = Object.assign({}, window.__tiLastInputs, { avoidAirlines: [] });
     window.__tiLastInputs = inputs;
     renderResults(inputs, T.runOptimization(inputs, window.__tiLastLive.offers));
+  };
+
+  // 2026-08-07 (roadmap Phase 5c, "Date-range score sweep"): unlike
+  // tiReoptimize/tiRelaxStopsAndRescore above, a date sweep genuinely needs
+  // a fresh live search per sampled date -- the offers themselves change
+  // with date, not just the scoring against offers already in hand -- so
+  // this is real metered SerpApi spend (fares.mjs's DAILY_SEARCH_CAP, 20
+  // real calls/day, shared across the whole site). Hard-capped at
+  // SWEEP_MAX_SAMPLES per click so one click can never come close to
+  // burning the day's quota; buildSweepDates() (app.js) widens the
+  // interval rather than silently sampling fewer days than asked, and
+  // reports that widening back so this can say so honestly.
+  const SWEEP_MAX_SAMPLES = 6;
+
+  function sweepRowWhy(r) {
+    if (r.stopsFilteredAllOut) return "real fares came back, but all had more stops than your Stops filter allows";
+    if (r.airlineFilteredAllOut) return "real fares came back, but all were on an airline in your Avoid list";
+    if (r.reason === "ok" || r.reason === "no-offers") return "no real fares for this date";
+    return FALLBACK_REASONS[r.reason] ? FALLBACK_REASONS[r.reason](r.inputs || {}) : "no real fares for this date";
+  }
+
+  function sweepRowHtml(r, minPrice, span, T) {
+    const dateLabel = escapeHtml(r.departDate) + (r.returnDate ? " – " + escapeHtml(r.returnDate) : "");
+    if (!r.best) {
+      const why = sweepRowWhy(r);
+      return `<div class="sweep-row sweep-row--empty">
+        <span class="sweep-date">${dateLabel}</span>
+        <span class="form-hint">${escapeHtml(why)}</span>
+      </div>`;
+    }
+    const isCheapest = r.best.price === minPrice;
+    const pct = 8 + Math.round(((r.best.price - minPrice) / span) * 92);
+    return `<div class="sweep-row${isCheapest ? " sweep-row--best" : ""}">
+      <span class="sweep-date">${dateLabel}${isCheapest ? " ★" : ""}</span>
+      <div class="sweep-bar-track"><div class="sweep-bar-fill" style="width:${pct}%"></div></div>
+      <span class="sweep-price">${T.fmtUSD(r.best.price)}</span>
+      <span class="sweep-score form-hint">score ${Math.round(r.best.weighted)}</span>
+    </div>`;
+  }
+
+  function renderSweepResults(bodyEl, results, sweep, stoppedAt) {
+    const T = window.TravelIntel;
+    const sampled = results.filter((r) => r.best);
+    if (!sampled.length) {
+      bodyEl.innerHTML = `<p class="form-hint">No real fares came back for any sampled date${stoppedAt != null ? " before today's live-search quota ran out" : ""}. Try again${stoppedAt != null ? " tomorrow" : ""}.</p>`;
+      return;
+    }
+    const minPrice = Math.min(...sampled.map((r) => r.best.price));
+    const maxPrice = Math.max(...sampled.map((r) => r.best.price));
+    const span = Math.max(1, maxPrice - minPrice);
+    const rows = results.map((r) => sweepRowHtml(r, minPrice, span, T)).join("");
+    const widenNote = sweep.widened
+      ? `<p class="form-hint" style="margin-top:8px;">Interval widened to every ${sweep.effectiveIntervalDays} days to stay within a safe per-click search budget (max ${SWEEP_MAX_SAMPLES} live searches).</p>`
+      : "";
+    const capNote = stoppedAt != null
+      ? `<p class="form-hint" style="margin-top:8px;">Stopped after ${stoppedAt} sample${stoppedAt === 1 ? "" : "s"} — today's live-search quota ran out.</p>`
+      : "";
+    bodyEl.innerHTML = `<div class="sweep-chart">${rows}</div>${widenNote}${capNote}`;
+  }
+
+  window.tiRunDateSweep = async function (btn) {
+    if (!window.__tiLastInputs) return;
+    const T = window.TravelIntel;
+    const baseInputs = window.__tiLastInputs;
+    const bodyEl = document.getElementById("sweep-body");
+    if (!baseInputs.departDate) {
+      bodyEl.innerHTML = `<p class="form-hint">No departure date on the last search to sweep around.</p>`;
+      return;
+    }
+    const windowDays = parseInt(document.getElementById("sweep-window").value, 10) || 30;
+    const intervalDays = parseInt(document.getElementById("sweep-interval").value, 10) || 5;
+    const sweep = T.buildSweepDates(baseInputs.departDate, baseInputs.returnDate, windowDays, intervalDays, SWEEP_MAX_SAMPLES);
+    if (!sweep.samples.length) {
+      bodyEl.innerHTML = `<p class="form-hint">Nothing to sweep.</p>`;
+      return;
+    }
+
+    const origLabel = btn.textContent;
+    btn.disabled = true;
+    const results = [];
+    let stoppedAt = null;
+
+    for (let i = 0; i < sweep.samples.length; i++) {
+      const s = sweep.samples[i];
+      btn.textContent = `Sweeping ${i + 1}/${sweep.samples.length}…`;
+      bodyEl.innerHTML = `<p class="form-hint">Sampling ${escapeHtml(s.departDate)}${s.returnDate ? " – " + escapeHtml(s.returnDate) : ""} (${i + 1} of ${sweep.samples.length})…</p>`;
+      const sampleInputs = Object.assign({}, baseInputs, { departDate: s.departDate, returnDate: s.returnDate });
+      const live = await fetchLiveOffers(sampleInputs);
+      if (!live.data && live.reason === "daily-cap") {
+        stoppedAt = i;
+        break;
+      }
+      const result = T.runOptimization(sampleInputs, live.data && live.data.offers);
+      results.push({
+        offset: s.offset, departDate: s.departDate, returnDate: s.returnDate,
+        best: result.best, reason: live.reason, inputs: sampleInputs,
+        stopsFilteredAllOut: !!result.stopsFilteredAllOut, airlineFilteredAllOut: !!result.airlineFilteredAllOut,
+      });
+    }
+
+    btn.disabled = false;
+    btn.textContent = origLabel;
+    renderSweepResults(bodyEl, results, sweep, stoppedAt);
   };
 
   function scoreBar(dim, score, weight) {

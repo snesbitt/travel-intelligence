@@ -363,6 +363,19 @@ figure.diagram figcaption { font-family: var(--sans); font-size: 10px; letter-sp
 .score-val { font-size: 12px; font-weight: 700; text-align: right; }
 @media (min-width: 640px) { .score-row { grid-template-columns: 130px 1fr 38px; } }
 
+/* ---- date-range sweep chart (roadmap Phase 5c, 2026-08-07) ---- */
+.sweep-chart { display: flex; flex-direction: column; gap: 8px; }
+.sweep-row { display: grid; grid-template-columns: 92px 1fr 64px 72px; align-items: center; gap: 8px; }
+.sweep-row--empty { grid-template-columns: 92px 1fr; color: var(--ink); opacity: 0.6; }
+.sweep-date { font-size: 12px; font-weight: 600; color: var(--ink); }
+.sweep-bar-track { background: var(--bg-alt); border-radius: 5px; height: 9px; overflow: hidden; }
+.sweep-bar-fill { height: 100%; border-radius: 5px; background: var(--accent); }
+.sweep-row--best .sweep-bar-fill { background: var(--good); }
+.sweep-row--best .sweep-date { color: var(--good); }
+.sweep-price { font-size: 12.5px; font-weight: 700; text-align: right; color: var(--ink); }
+.sweep-score { text-align: right; white-space: nowrap; }
+@media (min-width: 640px) { .sweep-row { grid-template-columns: 120px 1fr 76px 90px; } }
+
 /* ---- alternatives comparison table ---- */
 .alt-table-wrap { overflow-x: auto; -webkit-overflow-scrolling: touch; }
 table.alt-table { width: 100%; border-collapse: collapse; font-size: 12px; min-width: 560px; }
