@@ -709,3 +709,184 @@ Not yet browser-verified against the live site as of this write-up (no
 unit tests cover this — it's DOM/localStorage-dependent browser code,
 consistent with how the rest of `checkConcertMatches` has always been
 treated in this file).
+
+## 2026-08-07 — CI goes real (GitHub Actions catches a genuinely missing feature), the preference-scoring build, and a live-only alliance bug
+
+This site's GitHub Actions workflow ran for real for the first time this
+session (part of a portfolio-wide push to make all four sibling repos more
+agentic/GitHub-based — see the `github-agentic-architecture-review`
+project doc) and immediately went red, for the right reason: `npm ci`
+requires a committed `package-lock.json`, which this repo never had (it
+had been running purely on `device_bash`/manual `npm install`, no real
+lockfile discipline). Regenerating one via a real `npm install` on Node
+20 (no `EBADENGINE` warnings) fixed the install step, but the test step
+then failed for a second, unrelated reason: `tests/app.test.js` asserts
+against `parseHourFromApiTime`, `departTimeBucket`, `arriveTimeBucket`,
+`levenshtein`, `fuzzyMatchKey`, and `suggestCities` — none of which
+existed in `app.js`. The tests had been written ahead of the
+implementation (an "audit backlog," per the test file's own
+2026-08-05-dated comment) and nothing had ever actually run them end to
+end against a real Node process until CI did. Confirmed this wasn't a
+stale-copy artifact by running the identical test file against the
+original, unmodified `app.js` in isolation — it failed at the same
+missing-function boundary, proving the gap was already real and had been
+sitting unbuilt in the deployed site for at least two days.
+
+**Built to close the gap, all against the existing test spec rather than
+inventing a new one:**
+
+- `parseHourFromApiTime`, `departTimeBucket`, `arriveTimeBucket` — regex-
+  parse SerpApi's `"YYYY-MM-DD HH:MM"` time strings into an hour, then
+  bucket into Early morning (5–7) / Morning (8–11) / Afternoon (12–16) /
+  Evening (17–20) / Red-eye (departures, 21:00–04:59) or Late night
+  (arrivals, same window) — malformed or missing input returns `null`
+  rather than throwing, so a single bad offer can't take down scoring for
+  the whole result set.
+- Four new Comfort bonuses in `buildLiveCandidates` — preferred airline
+  (`PREFERRED_AIRLINE_BONUS = 10`, substring match against
+  `inputs.preferredAirlines`), preferred alliance (`PREFERRED_ALLIANCE_
+  BONUS = 6`, via the existing `fuzzyAlliance()`), preferred departure
+  and arrival time window (`PREFERRED_TIME_BONUS = 8` each, bucket-string
+  equality) — all additive, all gated on the offer actually carrying the
+  relevant field, and each one only fires an insight line in
+  `buildInsights` when it actually applied to the winning offer, so the
+  results panel never claims a preference mattered when it didn't move
+  the pick.
+- `maxStops` filter — collected on the input form for a while but never
+  actually applied to the offer pipeline; `buildLiveCandidates` now drops
+  any offer whose stop count exceeds it before scoring, confirmed as a
+  real pre-existing bug (not something today's changes introduced) by
+  running the untouched original `app.js` against the same test and
+  watching it fail even earlier, at the missing-function boundary above.
+- Typo-tolerant city/country search — `levenshtein()` (Damerau-Levenshtein
+  restricted to adjacent transpositions, so `"pairs"` → `"paris"` costs 1)
+  and `fuzzyMatchKey()`, used as a last-resort layer in `toIATA()` after
+  the exact and whole-word matches, only triggered on a 4+ character
+  query with a single unique closest key. `suggestCities()` (new,
+  exported) tiers results exact → prefix → fuzzy, city before country,
+  primary airport before secondary.
+- Multi-airport metro support — `METRO_AIRPORTS` (New York, Washington,
+  Chicago, London, Paris, Tokyo, Bangkok) with a derived `ALT_AIRPORT_
+  IATA` alias table, checked in `toIATA()` before the whole-word
+  fallback, so e.g. a Tokyo search can resolve to either NRT or HND
+  depending on which one the free-typed text actually named.
+
+Verified: full local suite green, 73/73 in `app.test.js` alone, 174/174
+across all six test files in `npm test` (installing the missing
+`@netlify/blobs` dependency first — `watch.test.mjs` needs it and it
+wasn't in `node_modules` in the sandbox). Delivered to disk, committed by
+Susan as `c689f05`, confirmed green on GitHub Actions (run #3, 25s).
+
+**Same-day CI fixes on the two sibling repos, for the record since they
+share this repo's Actions setup pattern:** Streaming Scout was missing a
+lockfile in the same way (`7a0df79`, straightforward `npm install`
+regeneration, no code changes needed). Vinyl Scout's `npm ci` failed for
+a different reason entirely — `jsdom@30.0.1` requires Node `^22.14.0 ||
+>=24.0.0` and its workflow was still pinned to Node 20, which doesn't
+even install, let alone run, that dependency. Rather than downgrade
+jsdom for no functional reason, bumped the workflow's `node-version` to
+`'22'` (`b299b47`) — matching what both Susan's Mac and this cloud
+sandbox already run, confirmed via `netlify.toml` that nothing else in
+either stack is pinned to Node 20. All three repos' Actions runs
+confirmed green the same day.
+
+**Per Susan's standing instruction as of this session — after any major
+update, run a comprehensive end-to-end test against the live production
+site, not just the unit suite, and update docs on both sides (this file,
+and any user-facing page like `roadmap.html`) before considering the
+work done.** First application of that practice, immediately useful: a
+live SF→Tokyo optimization run via Claude-in-Chrome against the real
+deployed site turned up a bug no unit test had caught. Susan's own saved
+wallet has "Oneworld" checked as a preferred alliance; the live results
+table showed a real JAL flight tagged `Unaligned` instead of `Oneworld`,
+meaning `PREFERRED_ALLIANCE_BONUS` silently never applied to it. Root
+cause: `fuzzyAlliance()` matches against the literal strings in
+`ALLIANCES`, and Oneworld's entry only listed `"Japan Airlines"` — but
+live SerpApi/Google Flights data returns the carrier as the bare string
+`"JAL"`. The unit tests all passed because none of their fixtures used
+that exact carrier string; only a real live search surfaced it. Fixed by
+adding `"JAL"` as an explicit synonym to Oneworld's carrier list in
+`ALLIANCES`, matching the pattern already used elsewhere in this file
+(`ASIAN_CARRIERS` already lists both "Japan Airlines" and "JAL").
+Verified with a direct `node -e` check against the fixed table and a full
+73/73 rerun of `app.test.js`. Delivered to disk; **not yet committed by
+Susan as of this write-up.**
+
+**Doc side of the same pass:** `roadmap.html`'s Phase 7 copy claimed the
+preferred-airline/alliance/time-window feature had been live since
+"(2026-08-05)" — checked against this file's own history and found no
+corresponding entry for that date, and against `app.js`'s actual state
+before today, which confirmed the feature simply didn't exist in code
+until this entry. The date was a leftover from when the test spec was
+written ahead of the implementation (see above) and never corrected once
+the gap closed. Fixed to read "(2026-08-07)," the date the feature
+actually shipped — this file and that page should never disagree about
+when something became real.
+
+**Lesson for this doc's own running list:** a test file committed ahead
+of its implementation is a legitimate way to spec work, but it's a
+liability the moment CI isn't actually wired up to run it — nothing
+forces the gap to close, and a live site can silently ship for days
+missing functionality its own test suite already fully describes. Now
+that Actions runs on every push, this specific failure class (spec
+without implementation, undetected) should not recur here; worth
+checking whether the same drift exists in Streaming Scout's or Vinyl
+Scout's own backlog-style test comments.
+
+**Correction, later the same day — this wasn't "spec never implemented."
+It was built, shipped, and then silently deleted, twice, and this doc's
+own record of that got deleted along with it.** Git archaeology (`git
+log`/`git show` against specific commits — read-only, no working-tree
+risk) turned up what the entry above missed: `parseHourFromApiTime` and
+the rest of the preference-scoring feature were NOT new. They were
+written and pushed to `main` on 2026-08-05 as commit `84053d4`, briefly
+lost the same afternoon to an unrelated accidental revert, and restored
+within the hour as commit `25ff40d` ("Fix: restore preferred-fields
+scoring + contrast-accessibility work that a prior delivery accidentally
+reverted") — confirmed live in `app.js` at that commit (`git show
+25ff40d:app.js | grep parseHourFromApiTime` returns 4 hits). It then
+survived one more commit (`6f6147a`, the CITY_COORDS fix) still intact.
+
+**The real loss happened at `f227f39`** ("Fix: mirror CORS bug on
+watched-trips.mjs, repair broken sync-check test, merge missing
+CITY_COORDS entries into app.js, wire remaining tests into npm test," Aug
+5, 19:55) — a commit whose own message describes a CORS fix and a
+CITY_COORDS merge, nothing about preference scoring. Its diff tells a
+different story: `app.js` changed by 406 lines, overwhelmingly deletions,
+and **this very file, CLAUDE.md, changed by 465 lines, also overwhelmingly
+deletions** — including, it turns out, whatever entry once documented the
+84053d4/25ff40d build in the first place, which is why grepping this
+doc's history for those hashes today turns up nothing. The shape is
+consistent with that session working from a stale base copy of both files
+(the same device-bridge stale-read failure mode Incident #4's own
+"Correction, same night" entry above independently diagnoses, just
+striking in the opposite direction here — instead of a stale read
+producing a false bug report, a stale base file silently overwrote real,
+already-shipped work when it was "merged" back in) — merging the new
+CITY_COORDS entries onto an old snapshot of `app.js`/`CLAUDE.md` from
+before the preference-scoring feature existed, rather than onto the
+current `main`. Nothing in that commit's message or the session that made
+it flagged a deletion, because from that session's vantage point (reading
+a stale `app.js`) there wasn't one to see.
+
+That regression then sat live in production, completely undetected, for
+about a day and a half — through the rest of 2026-08-05, all of 2026-08-06,
+and into 2026-08-07 — because nothing was exercising `tests/app.test.js`
+against real `main` during that window; the first thing that did was
+GitHub Actions, the same day this doc's entry above describes. What this
+session rebuilt today isn't new functionality; it's a second restoration
+of the same feature `25ff40d` already performed once, this time caught by
+an automated gate instead of a person happening to notice, and (via the
+JAL/Oneworld fix above) ending up slightly better-tested against live data
+than either prior version was.
+
+**Standing lesson, stated plainly because it's now happened twice on this
+exact feature:** a "merge missing X into file Y" fix is only as safe as
+the base copy of Y being merged into. Before any future commit whose
+message includes "merge missing," "restore," or "re-add," diff the
+proposed final file against `origin/main`'s actual current version first
+(`git show origin/main:<path> | diff - <local copy>`, read-only, no lock
+risk) — not just against whatever local snapshot happens to be on disk at
+the time — so a stale base can never again silently roll back real,
+already-shipped, already-tested work while appearing to only add
+something small.

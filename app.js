@@ -13,7 +13,13 @@
 
 const ALLIANCES = {
   "Star Alliance": ["United", "Air Canada", "Lufthansa", "Singapore Airlines", "ANA", "Turkish Airlines"],
-  "Oneworld": ["American", "Japan Airlines", "British Airways", "Qatar Airways", "Cathay Pacific", "Qantas"],
+  // "JAL" added 2026-08-07: live SerpApi/Google Flights results return the
+  // carrier as the bare abbreviation "JAL", not "Japan Airlines" — caught
+  // during E2E verification of the same-day preferred-alliance feature,
+  // where a real SFO->Tokyo search returned exactly this carrier string
+  // and silently missed the Oneworld match. Same fix pattern ASIAN_CARRIERS
+  // already uses below (listing both the full name and the short form).
+  "Oneworld": ["American", "Japan Airlines", "JAL", "British Airways", "Qatar Airways", "Cathay Pacific", "Qantas"],
   "SkyTeam": ["Delta", "Air France", "KLM", "Korean Air"],
   "Unaligned": ["Alaska Airlines", "Emirates", "JetBlue"],
 };
