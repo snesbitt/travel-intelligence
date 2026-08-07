@@ -915,7 +915,12 @@
     // route/inputs pair exists to sweep around -- reveal it after ANY
     // completed search (live or fallback-to-honest-empty), same trigger
     // point the watch button already uses via __tiLastInputs.
-    document.getElementById("date-sweep").classList.remove("ti-hidden");
+    // 2026-08-07: reveal deliberately DISABLED for this delivery -- the
+    // panel markup and its Sweep-dates button exist, but window.tiRunDateSweep
+    // itself (the function the button's onclick calls) isn't built yet.
+    // Shipping the reveal now would show a working-looking button that
+    // throws on click. Re-enable this line once tiRunDateSweep ships.
+    // document.getElementById("date-sweep").classList.remove("ti-hidden");
     document.getElementById("sweep-body").innerHTML = "";
     document.getElementById("results").scrollIntoView({ behavior: "smooth", block: "start" });
   });
