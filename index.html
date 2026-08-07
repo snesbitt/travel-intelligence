@@ -242,6 +242,21 @@
       </div>
     </section>
 
+    <section class="block card ti-hidden" id="date-sweep" style="margin-top:0.9rem;" aria-live="polite">
+      <h2 class="card-title">Date-range score sweep</h2>
+      <p class="form-hint" style="margin-bottom:10px;">See the cheapest date in one chart instead of re-running the optimizer by hand. Samples this same trip length across a window of dates and charts price + score, using the exact same live pipeline a normal search uses.</p>
+      <div class="form-grid">
+        <div class="form-field"><label for="sweep-window">Window</label>
+          <select id="sweep-window"><option value="30">30 days</option><option value="45">45 days</option><option value="60">60 days</option></select>
+        </div>
+        <div class="form-field"><label for="sweep-interval">Interval</label>
+          <select id="sweep-interval"><option value="3">3 days</option><option value="4">4 days</option><option value="5" selected>5 days</option></select>
+        </div>
+      </div>
+      <button type="button" class="ti-toggle" id="sweep-btn" onclick="tiRunDateSweep(this)">Sweep dates</button>
+      <div id="sweep-body" style="margin-top:14px;"></div>
+    </section>
+
     <section class="block" id="points-intel" style="margin-top:2rem;"></section>
 
   </div>
@@ -896,6 +911,12 @@
     window.__tiLastLive = live.data;
     window.__tiLiveReason = live.reason;
     renderResults(inputs, result);
+    // Date-range sweep (roadmap Phase 5c) only makes sense once a real
+    // route/inputs pair exists to sweep around -- reveal it after ANY
+    // completed search (live or fallback-to-honest-empty), same trigger
+    // point the watch button already uses via __tiLastInputs.
+    document.getElementById("date-sweep").classList.remove("ti-hidden");
+    document.getElementById("sweep-body").innerHTML = "";
     document.getElementById("results").scrollIntoView({ behavior: "smooth", block: "start" });
   });
 
@@ -915,6 +936,37 @@
     if (secondary !== "None" && secondary !== primary) inputs.priorityRanks[secondary] = 2;
     window.__tiLastInputs = inputs;
     renderResults(inputs, T.runOptimization(inputs, window.__tiLastLive && window.__tiLastLive.offers));
+  };
+
+  // 2026-08-07 (Susan: SFO->Tallinn bug) — same zero-extra-API-cost pattern
+  // as tiReoptimize() above: re-score the offers already fetched this run
+  // against a relaxed filter instead of spending another metered daily
+  // search on a retry that would return the identical filtered-to-empty
+  // result. Widens to "Any stops" (pill value "3") rather than guessing a
+  // specific stop count, since the honest fix for "your filter excluded
+  // every real fare" is to show what actually exists, not a narrower guess.
+  window.tiRelaxStopsAndRescore = function () {
+    if (!window.__tiLastInputs || !window.__tiLastLive) return;
+    const T = window.TravelIntel;
+    setPillVal("maxStops", "3");
+    maxStopsConfirmed = true;
+    savePreferences(true);
+    const inputs = Object.assign({}, window.__tiLastInputs, { maxStops: 3 });
+    window.__tiLastInputs = inputs;
+    renderResults(inputs, T.runOptimization(inputs, window.__tiLastLive.offers));
+  };
+
+  // Same pattern for the avoided-airlines case: clears the Avoid list
+  // rather than guessing which specific airline to drop.
+  window.tiRelaxAvoidAndRescore = function () {
+    if (!window.__tiLastInputs || !window.__tiLastLive) return;
+    const T = window.TravelIntel;
+    const avoidEl = document.getElementById("avoidAirlines");
+    if (avoidEl) avoidEl.value = "";
+    savePreferences(true);
+    const inputs = Object.assign({}, window.__tiLastInputs, { avoidAirlines: [] });
+    window.__tiLastInputs = inputs;
+    renderResults(inputs, T.runOptimization(inputs, window.__tiLastLive.offers));
   };
 
   function scoreBar(dim, score, weight) {
@@ -962,18 +1014,40 @@
       const dCode = T.toIATA(inputs.destination);
       const badField = !dCode ? `destination “${inputs.destination}”` : (!oCode ? `origin “${inputs.preferredAirport || inputs.origin}”` : null);
       const beyondHorizon = ["api-fail", "no-offers"].includes(window.__tiLiveReason) && daysOut(inputs.departDate) > BOOKING_HORIZON_DAYS;
-      const why = beyondHorizon ? horizonMessage(inputs)
+      // 2026-08-07 (Susan: SFO->Tallinn "failed or timed out" bug): when
+      // buildLiveCandidates() (app.js) reports that real fares came back
+      // but a saved filter zeroed every one of them out, that is a
+      // different, more honest story than the generic FALLBACK_REASONS
+      // copy below -- the live search did not fail or time out at all.
+      const filteredOut = !badField && (result.stopsFilteredAllOut || result.airlineFilteredAllOut);
+      const rawN = result.rawOfferCount || 0;
+      const why = filteredOut
+        ? (result.stopsFilteredAllOut
+            ? `${rawN} real fare${rawN === 1 ? "" : "s"} came back for this route, but every one had more stops than your saved “Stops” filter allows.`
+            : `${rawN} real fare${rawN === 1 ? "" : "s"} came back for this route, but every one was on an airline in your “Avoid” list.`)
+        : beyondHorizon ? horizonMessage(inputs)
         : (FALLBACK_REASONS[window.__tiLiveReason] || FALLBACK_REASONS["api-fail"])(inputs);
       const u = T.liveSearchUrls(inputs, "");
       const kay = T.scanSourceUrl(inputs, "Kayak");
+      // A filtered-out result can be fixed for free: re-score the fares
+      // already fetched this run (window.__tiLastLive.offers) against a
+      // relaxed filter, same zero-extra-API-cost pattern tiReoptimize()
+      // already uses -- never spend another metered daily search on a
+      // retry that would return the identical (filtered-to-empty) result.
+      const relaxAction = !badField && result.stopsFilteredAllOut
+        ? `<button type="button" class="run-btn es-retry" onclick="tiRelaxStopsAndRescore()">Show fares with stops</button>`
+        : (!badField && result.airlineFilteredAllOut
+            ? `<button type="button" class="run-btn es-retry" onclick="tiRelaxAvoidAndRescore()">Show fares from avoided airlines</button>`
+            : "");
       const actions = badField ? "" : `<div class="es-actions">
+          ${relaxAction}
           <button type="button" class="run-btn es-retry" onclick="tiRetryRun()">Retry the search</button>
           ${u.googleFlights ? `<a class="es-link" href="${u.googleFlights}" target="_blank" rel="noopener">Google Flights ↗</a>` : ""}
           ${kay ? `<a class="es-link" href="${kay}" target="_blank" rel="noopener">Kayak ↗</a>` : ""}
         </div>`;
       resultsEl.innerHTML = `<div class="empty-state es-error"><div class="es-icon">⚠</div>
         <p><strong>${badField ? `The ${badField} didn’t resolve to a known city or airport.` : `No real fares to score for ${oCode} → ${dCode}: ${why}`}</strong></p>
-        <p class="form-hint">${badField ? "Check the spelling or use a 3-letter airport code (e.g. GSP for Greenville, SC), then re-run." : "Nothing synthetic is ever shown. Retry, or check the live route yourself:"}</p>
+        <p class="form-hint">${badField ? "Check the spelling or use a 3-letter airport code (e.g. GSP for Greenville, SC), then re-run." : (filteredOut ? "Nothing synthetic is ever shown -- real fares exist for this route, just outside your saved filter." : "Nothing synthetic is ever shown. Retry, or check the live route yourself:")}</p>
         ${actions}</div>`;
       document.getElementById("results").scrollIntoView({ behavior: "smooth", block: "start" });
       return;
@@ -1134,7 +1208,7 @@
           <h4>Redemption value <span class="tag" style="background:${award.strong ? "var(--good-dim)" : "var(--bad-dim)"};color:${award.strong ? "var(--good)" : "var(--bad)"};">${award.strong ? "Genuinely strong" : "Not recommended"}</span></h4>
           <p>Typical ${award.cabin} redemption on ${award.alliance} carriers runs ${award.milesLow.toLocaleString()}–${award.milesHigh.toLocaleString()} miles round-trip plus taxes/fees. Against this itinerary's ${T.fmtUSD(best.price)} cash price, the outcome depends on which award level is released: roughly ${Math.max(0, award.cppWorstCase).toFixed(1)}–${award.cppBestCase.toFixed(1)}¢ per mile across the range, and <strong>${award.cpp.toFixed(2)}¢/mile</strong> at this itinerary's estimate: the single verdict used everywhere on this page. ${award.strong ? "That clears the 1.6¢ bar for a genuinely good redemption; worth using miles here, if award space exists." : "That's below the roughly 1.6¢/mile bar; cash is the better call, and the miles are worth more saved for a stronger use."}</p>
         </div>
-        ${award.relevantPrograms.length ? `<div class="strategy-block"><h4>Your balances in play</h4><p>${award.relevantPrograms.map((p) => `${p.program}: ${p.balance.toLocaleString()} miles`).join(" · ")}</p></div>` : `<div class="strategy-block"><h4>No balance entered for a ${award.alliance} program</h4><p>Add a balance above if you hold miles in a program that flies this alliance, or check the transfer-partner note below if your points live on a transferable card.</p></div>`}
+        ${award.relevantPrograms.length ? `<div class="strategy-block"><h4>Your balances in play</h4><p>${award.relevantPrograms.map((p) => `${p.program}: ${p.balance.toLocaleString()} miles`).join(" · ")}</p><p>${award.balanceCheck.status === "enough" ? `<strong>Your ${award.balanceCheck.program} balance covers this</strong> — it clears the ~${award.balanceCheck.needed.toLocaleString()}-mile low end of the typical range, with ${award.balanceCheck.surplus.toLocaleString()} miles to spare.` : `<strong>Your ${award.balanceCheck.program} balance is short</strong> — this redemption typically starts around ${award.balanceCheck.needed.toLocaleString()} miles and you have ${award.balanceCheck.biggestBalance.toLocaleString()}; you'd need about ${award.balanceCheck.shortfall.toLocaleString()} more.`}</p></div>` : `<div class="strategy-block"><h4>No balance entered for a ${award.alliance} program</h4><p>Add a balance above if you hold miles in a program that flies this alliance, or check the transfer-partner note below if your points live on a transferable card. This redemption typically starts around ${award.balanceCheck.needed.toLocaleString()} miles.</p></div>`}
         ${inputs.creditCards.length ? `<div class="strategy-block"><h4>Transfer path from your cards</h4><p>${inputs.creditCards.map((cc) => T.TRANSFER_PARTNERS[cc] ? `<strong>${cc}</strong> (${T.TRANSFER_PARTNERS[cc].ratio}): ${T.TRANSFER_PARTNERS[cc].note}.` : "").filter(Boolean).join(" ")}</p></div>` : ""}
         <div class="strategy-block">
           <h4>Do this now</h4>
@@ -1233,6 +1307,24 @@
   document.querySelectorAll(".cc-check").forEach((el) => el.addEventListener("change", () => renderPointsIntel()));
 
   /* ---------- fare watcher UI ---------- */
+  // Edit key (roadmap Phase 8, "Protect watched trips," 2026-08-07). Same
+  // pattern as Vinyl Scout's wishlist.html: a shared key remembered in
+  // localStorage per device (not sessionStorage — this is a page Susan
+  // revisits daily, so a one-time-per-device prompt beats one per tab).
+  // Only the two writes (watch/unwatch) ever need it; GET stays open.
+  var TI_EDIT_KEY = "ti-edit-secret";
+  function getEditSecret() {
+    var s = "";
+    try { s = localStorage.getItem(TI_EDIT_KEY) || ""; } catch (e) {}
+    if (s) return s;
+    s = prompt("Enter edit key (watching/unwatching trips is protected):") || "";
+    if (s) { try { localStorage.setItem(TI_EDIT_KEY, s); } catch (e) {} }
+    return s;
+  }
+  function clearEditSecret() {
+    try { localStorage.removeItem(TI_EDIT_KEY); } catch (e) {}
+  }
+
   window.tiWatchTrip = async function (btn) {
     const inputs = window.__tiLastInputs;
     const T = window.TravelIntel;
@@ -1244,12 +1336,14 @@
       btn.textContent = "Can't watch: return date is before departure";
       return;
     }
+    const editKey = getEditSecret();
+    if (!editKey) { btn.textContent = "⭑ Watch this trip"; return; }
     const best = window.__tiLastBest;
     btn.textContent = "Saving…";
     try {
       const r = await fetch("/api/watch", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: { "Content-Type": "application/json", "X-Edit-Key": editKey },
         body: JSON.stringify({ trip: {
           originIata: o, destIata: d, origin: inputs.origin, destination: inputs.destination,
           departDate: inputs.departDate, returnDate: inputs.returnDate, cabin: inputs.cabin,
@@ -1258,6 +1352,7 @@
         } }),
       });
       const j = await r.json();
+      if (r.status === 401) { clearEditSecret(); btn.textContent = "Wrong edit key — click to retry"; return; }
       if (!r.ok) { btn.textContent = j.error && j.error.includes("cap") ? "Watch cap reached (3)" : "Watch failed; retry"; return; }
       btn.textContent = "Watching ✓";
       renderWatched(j.trips);
@@ -1490,8 +1585,11 @@
   }
 
   window.tiUnwatch = async function (id) {
+    const editKey = getEditSecret();
+    if (!editKey) return;
     try {
-      const r = await fetch("/api/watch?id=" + encodeURIComponent(id), { method: "DELETE" });
+      const r = await fetch("/api/watch?id=" + encodeURIComponent(id), { method: "DELETE", headers: { "X-Edit-Key": editKey } });
+      if (r.status === 401) { clearEditSecret(); alert("Wrong edit key — try again."); return; }
       const j = await r.json();
       renderWatched(j.trips);
       const btn = document.getElementById("watch-btn");

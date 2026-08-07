@@ -410,6 +410,88 @@ test("buildLiveCandidates (Susan 2026-07-31: 'I always want to fly nonstop if av
   assert.equal(T.buildLiveCandidates({ ...inputs, maxStops: 3 }, offers).length, 3, "3 = 'Any stops' in the UI, same as no limit");
 });
 
+/* ---------- 2026-08-07: SFO->Tallinn bug — filtered-to-zero diagnostics ---------- */
+// Real fares existed for this route (5+ real offers from SerpApi), but every
+// one had 1+ stops (no real nonstop US-Tallinn routing exists) and Susan's
+// saved "Nonstop only" filter zeroed them all out. runOptimization() used to
+// collapse this into the exact same generic "noLiveData"/"failed or timed
+// out" shape as a genuine API failure. These tests lock in the fix: the
+// diagnostics distinguish "nothing came back" from "real fares came back and
+// a saved filter removed every one," so the UI can say so honestly.
+
+test("buildLiveCandidates: rawOfferCount reflects offers before any filtering", () => {
+  const inputs = { destination: "Tallinn", origin: "San Francisco", cabin: "Economy", maxBudget: 2000,
+    departDate: "2026-11-16", travelers: 1, avoidAirlines: [], maxStops: 0 };
+  const offers = [
+    { carrier: "Lufthansa", priceTotal: 743, stops: 1, durationMinutes: 900 },
+    { carrier: "American", priceTotal: 748, stops: 2, durationMinutes: 980 },
+    { carrier: "KLM", priceTotal: 859, stops: 1, durationMinutes: 910 },
+  ];
+  const candidates = T.buildLiveCandidates(inputs, offers);
+  assert.equal(candidates.length, 0, "every offer has 1+ stops; Nonstop-only filters all of them out");
+  assert.equal(candidates.rawOfferCount, 3, "the raw count from the live API is preserved even though every offer got filtered");
+});
+
+test("buildLiveCandidates: stopsFilteredAllOut is true only when real offers existed and the stops filter zeroed them all out", () => {
+  const inputs = { destination: "Tallinn", origin: "San Francisco", cabin: "Economy", maxBudget: 2000,
+    departDate: "2026-11-16", travelers: 1, avoidAirlines: [], maxStops: 0 };
+  const offersAllWithStops = [
+    { carrier: "Lufthansa", priceTotal: 743, stops: 1, durationMinutes: 900 },
+    { carrier: "KLM", priceTotal: 859, stops: 1, durationMinutes: 910 },
+  ];
+  const filtered = T.buildLiveCandidates(inputs, offersAllWithStops);
+  assert.equal(filtered.stopsFilteredAllOut, true);
+  assert.equal(filtered.airlineFilteredAllOut, false);
+
+  // A genuine nonstop offer survives the same filter — not filtered out.
+  const offersWithNonstop = offersAllWithStops.concat([{ carrier: "United", priceTotal: 900, stops: 0, durationMinutes: 620 }]);
+  const notFiltered = T.buildLiveCandidates(inputs, offersWithNonstop);
+  assert.equal(notFiltered.stopsFilteredAllOut, false, "at least one candidate survived — this isn't the filtered-to-zero case");
+  assert.equal(notFiltered.length, 1);
+
+  // No live offers at all is a different case from "offers existed and got filtered."
+  const empty = T.buildLiveCandidates(inputs, []);
+  assert.equal(empty.stopsFilteredAllOut, false, "nothing came back at all — not a filtering problem");
+  assert.equal(empty.rawOfferCount, 0);
+});
+
+test("buildLiveCandidates: airlineFilteredAllOut mirrors the same distinction for the avoided-airlines filter", () => {
+  const inputs = { destination: "Tokyo", origin: "San Francisco", cabin: "Economy", maxBudget: 2000,
+    departDate: "2026-08-10", travelers: 1, avoidAirlines: ["Spirit"] };
+  const offers = [{ carrier: "Spirit", priceTotal: 400, stops: 2, durationMinutes: 900 }];
+  const filtered = T.buildLiveCandidates(inputs, offers);
+  assert.equal(filtered.airlineFilteredAllOut, true);
+  assert.equal(filtered.stopsFilteredAllOut, false);
+  assert.equal(filtered.rawOfferCount, 1);
+});
+
+test("runOptimization: threads stopsFilteredAllOut/rawOfferCount into the noLiveData result instead of a generic empty state", () => {
+  const inputs = { origin: "San Francisco", destination: "Tallinn", departDate: "2026-11-16",
+    cabin: "Economy", maxStops: 0, priorityRanks: { Cheapest: 1 },
+    preferredAlliances: [], preferredAirlines: [], avoidAirlines: [], programBalances: [], dateFlexibility: "Exact", travelers: 1 };
+  const offers = [
+    { carrier: "Lufthansa", priceTotal: 743, stops: 1, durationMinutes: 900 },
+    { carrier: "American", priceTotal: 748, stops: 2, durationMinutes: 980 },
+  ];
+  const r = T.runOptimization(inputs, offers);
+  assert.equal(r.noLiveData, true);
+  assert.equal(r.routeKnown, false);
+  assert.equal(r.stopsFilteredAllOut, true, "the live fetch succeeded — this must not look like a generic failure");
+  assert.equal(r.airlineFilteredAllOut, false);
+  assert.equal(r.rawOfferCount, 2);
+});
+
+test("runOptimization: a genuine empty/failed live fetch reports rawOfferCount 0 and both filtered flags false", () => {
+  const inputs = { origin: "San Francisco", destination: "Tokyo", departDate: "2026-08-10",
+    cabin: "Economy", maxStops: 2, priorityRanks: { Cheapest: 1 },
+    preferredAlliances: [], preferredAirlines: [], avoidAirlines: [], programBalances: [], dateFlexibility: "Exact", travelers: 1 };
+  const r = T.runOptimization(inputs, null);
+  assert.equal(r.noLiveData, true);
+  assert.equal(r.rawOfferCount, 0);
+  assert.equal(r.stopsFilteredAllOut, false);
+  assert.equal(r.airlineFilteredAllOut, false);
+});
+
 test("runOptimization: 'Nonstop only' with no nonstop offer available correctly returns the honest empty state, not a stopped itinerary", () => {
   const r = T.runOptimization({ origin: "San Francisco", destination: "Tokyo",
     departDate: "2026-08-10", cabin: "Economy", maxStops: 0, maxBudget: 2000, priorityRanks: { Cheapest: 1 },
@@ -829,6 +911,106 @@ test("suggestCities / toIATA (Susan 2026-07-31: 'paris has several airports — 
   // fallback on "paris" and lands on the metro's primary code (CDG) — a
   // safe, already-tested behavior, not a new guess.
   assert.equal(T.toIATA("paris-orly"), "CDG");
+});
+
+/* ---------- loyaltyBalanceCheck (roadmap Phase 7a, "Loyalty balance integration", 2026-08-07) ---------- */
+
+test("loyaltyBalanceCheck: no relevant programs at all -> status 'none', full amount needed", () => {
+  const range = { milesLow: 60000, milesHigh: 90000 };
+  const check = T.loyaltyBalanceCheck(range, []);
+  assert.equal(check.status, "none");
+  assert.equal(check.biggestBalance, 0);
+  assert.equal(check.needed, 60000);
+  assert.equal(check.shortfall, 60000);
+});
+
+test("loyaltyBalanceCheck: a balance at or above milesLow is 'enough', with the real surplus", () => {
+  const range = { milesLow: 60000, milesHigh: 90000 };
+  const check = T.loyaltyBalanceCheck(range, [{ program: "United MileagePlus", balance: 75000 }]);
+  assert.equal(check.status, "enough");
+  assert.equal(check.program, "United MileagePlus");
+  assert.equal(check.surplus, 15000);
+});
+
+test("loyaltyBalanceCheck: a balance exactly at milesLow clears the bar (>=), not just above it", () => {
+  const range = { milesLow: 60000, milesHigh: 90000 };
+  const check = T.loyaltyBalanceCheck(range, [{ program: "United MileagePlus", balance: 60000 }]);
+  assert.equal(check.status, "enough");
+  assert.equal(check.surplus, 0);
+});
+
+test("loyaltyBalanceCheck: a balance below milesLow is 'short', with the real shortfall", () => {
+  const range = { milesLow: 60000, milesHigh: 90000 };
+  const check = T.loyaltyBalanceCheck(range, [{ program: "United MileagePlus", balance: 45000 }]);
+  assert.equal(check.status, "short");
+  assert.equal(check.program, "United MileagePlus");
+  assert.equal(check.shortfall, 15000);
+});
+
+test("loyaltyBalanceCheck: multiple relevant programs picks the BIGGEST balance, not the first or smallest", () => {
+  const range = { milesLow: 60000, milesHigh: 90000 };
+  const check = T.loyaltyBalanceCheck(range, [
+    { program: "Air Canada Aeroplan", balance: 20000 },
+    { program: "United MileagePlus", balance: 80000 },
+    { program: "Lufthansa Miles & More", balance: 50000 },
+  ]);
+  assert.equal(check.program, "United MileagePlus");
+  assert.equal(check.status, "enough");
+  assert.equal(check.surplus, 20000);
+});
+
+test("awardRecommendation: exposes balanceCheck as part of its normal return shape", () => {
+  const best = { candCpp: 1.8, cabin: "Economy", alliance: "Star Alliance", price: 900 };
+  const award = T.awardRecommendation(best, { cabin: "Economy" }, [{ program: "United MileagePlus", balance: 40000 }]);
+  assert.ok(award.balanceCheck, "awardRecommendation should include a balanceCheck field");
+  assert.equal(award.balanceCheck.needed, award.milesLow, "balanceCheck's bar should match the same milesLow the rest of the card shows");
+});
+
+/* ---------- buildSweepDates (roadmap Phase 5c, "Date-range score sweep", 2026-08-07) ---------- */
+
+test("buildSweepDates: a window/interval combo under the cap uses the requested interval as-is", () => {
+  const r = T.buildSweepDates("2026-09-01", "2026-09-10", 30, 5, 12);
+  assert.equal(r.effectiveIntervalDays, 5);
+  assert.equal(r.widened, false);
+  assert.equal(r.samples.length, 7); // 0,5,10,15,20,25,30
+  assert.equal(r.samples[0].departDate, "2026-09-01");
+  assert.equal(r.samples[0].returnDate, "2026-09-10");
+  assert.equal(r.samples[6].departDate, "2026-10-01");
+  assert.equal(r.samples[6].returnDate, "2026-10-10");
+});
+
+test("buildSweepDates: return date shifts by the SAME offset as depart date, so trip length stays constant", () => {
+  const r = T.buildSweepDates("2026-09-01", "2026-09-10", 10, 5, 12);
+  r.samples.forEach((s) => {
+    const len = (new Date(s.returnDate) - new Date(s.departDate)) / 86400000;
+    assert.equal(len, 9, `trip length should stay 9 days at every sampled date, got ${len} for offset ${s.offset}`);
+  });
+});
+
+test("buildSweepDates: a one-way trip (no returnDate) only shifts departDate, returnDate stays null throughout", () => {
+  const r = T.buildSweepDates("2026-09-01", "", 10, 5, 12);
+  r.samples.forEach((s) => assert.equal(s.returnDate, null));
+});
+
+test("buildSweepDates: a naive combo that would exceed maxSamples widens the interval instead of silently shrinking the window", () => {
+  // 60 days / 3-day interval = 21 samples naively, way over a 12 cap
+  const r = T.buildSweepDates("2026-09-01", "2026-09-10", 60, 3, 12);
+  assert.equal(r.widened, true);
+  assert.ok(r.effectiveIntervalDays > 3, "interval should have widened");
+  assert.ok(r.samples.length <= 12, `sample count ${r.samples.length} must respect the cap`);
+  // the full window is still covered, just at a coarser interval
+  assert.equal(r.samples[0].offset, 0);
+  assert.ok(r.samples[r.samples.length - 1].offset <= 60);
+});
+
+test("buildSweepDates: never returns more samples than maxSamples, even at small intervals over a big window", () => {
+  const r = T.buildSweepDates("2026-09-01", "2026-09-10", 60, 1, 12);
+  assert.ok(r.samples.length <= 12);
+});
+
+test("buildSweepDates: the cheapest-in-cap-safe defaults (30 days / 5-day interval) never trip the daily cap on their own", () => {
+  const r = T.buildSweepDates("2026-09-01", "2026-09-10", 30, 5, 12);
+  assert.ok(r.samples.length <= 12, "default sweep should always fit comfortably inside a 20/day cap, leaving headroom for everything else");
 });
 
 console.log(`\n${passed} passed`);

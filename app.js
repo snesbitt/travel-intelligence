@@ -846,9 +846,21 @@ function buildLiveCandidates(inputs, offers) {
   // predates this filter.
   const hasStopsLimit = inputs.maxStops != null && inputs.maxStops < 3;
 
-  return offers
-    .filter((o) => !avoid.some((a) => (o.carrier || "").toLowerCase().includes(a)))
-    .filter((o) => !hasStopsLimit || Math.max(0, o.stops || 0) <= inputs.maxStops)
+  // 2026-08-07 (Susan: SFO->Tallinn "failed or timed out" bug): real live
+  // offers were coming back fine (HTTP 200, real Lufthansa/American/KLM
+  // fares) but every single one had 1+ stops -- no real nonstop US-Tallinn
+  // routing exists -- so Susan's saved "Nonstop only" filter zeroed the
+  // whole set out client-side. runOptimization() then collapsed that into
+  // the exact same generic empty state as a genuine API failure, and the
+  // UI reported "the live search failed or timed out" for a search that
+  // had actually succeeded. Tracking counts at each filter stage lets the
+  // caller tell "nothing came back" apart from "real offers came back and
+  // your own filter removed all of them" and say so honestly.
+  const rawOfferCount = offers.length;
+  const afterAirlineFilter = offers.filter((o) => !avoid.some((a) => (o.carrier || "").toLowerCase().includes(a)));
+  const afterStopsFilter = afterAirlineFilter.filter((o) => !hasStopsLimit || Math.max(0, o.stops || 0) <= inputs.maxStops);
+
+  const candidates = afterStopsFilter
     .slice(0, 12)
     .map((o, i) => {
       const price = Math.round(o.priceTotal / travelers); // per person, matching the model's display convention
@@ -905,6 +917,16 @@ function buildLiveCandidates(inputs, offers) {
         departTimeRaw: o.departTimeRaw || null, arriveTimeRaw: o.arriveTimeRaw || null,
       };
     });
+
+  // See the 2026-08-07 comment above — these ride along on the array
+  // (arrays are objects; this doesn't change its existing shape/contract
+  // for any caller that just iterates or reads .length) so runOptimization
+  // can distinguish a real "nothing came back" from "results existed but
+  // your own filters removed every one," without a second return type.
+  candidates.rawOfferCount = rawOfferCount;
+  candidates.stopsFilteredAllOut = hasStopsLimit && afterAirlineFilter.length > 0 && afterStopsFilter.length === 0;
+  candidates.airlineFilteredAllOut = avoid.length > 0 && rawOfferCount > 0 && afterAirlineFilter.length === 0;
+  return candidates;
 }
 
 /* ---------- priority suggestion ----------
@@ -1076,6 +1098,30 @@ function purchaseTiming(inputs) {
 
 /* ---------- award recommendation ---------- */
 
+// roadmap Phase 7a, "Loyalty balance integration" (2026-08-07): a
+// deliberately SEPARATE question from the cpp/"strong" verdict above.
+// "strong" judges whether miles are a good VALUE here at all, regardless
+// of what Susan actually has saved. This checks the plainer, more literal
+// question the roadmap card asks for: does her actual saved balance, in a
+// program that flies this itinerary's alliance, cover what this
+// redemption typically costs — and if not, how many more miles would she
+// need? Bar is milesLow (the generous/low end of the typical range), same
+// >= milesLow convention pickPrimaryLens already uses elsewhere in this
+// file for "milesUseful" — a consistent bar across the whole app rather
+// than a second, different threshold invented just for this. Pure
+// function, no DOM/network, same testability pattern as everything else
+// in this section.
+function loyaltyBalanceCheck(range, relevantPrograms) {
+  if (!relevantPrograms.length) {
+    return { status: "none", biggestBalance: 0, program: null, shortfall: range.milesLow, needed: range.milesLow };
+  }
+  const top = relevantPrograms.slice().sort((a, b) => b.balance - a.balance)[0];
+  if (top.balance >= range.milesLow) {
+    return { status: "enough", biggestBalance: top.balance, program: top.program, surplus: top.balance - range.milesLow, needed: range.milesLow };
+  }
+  return { status: "short", biggestBalance: top.balance, program: top.program, shortfall: range.milesLow - top.balance, needed: range.milesLow };
+}
+
 function awardRecommendation(best, inputs, programBalances) {
   const range = AWARD_RANGES[best.cabin] || AWARD_RANGES[inputs.cabin] || AWARD_RANGES.Economy;
   const milesMid = Math.round((range.milesLow + range.milesHigh) / 2);
@@ -1091,7 +1137,8 @@ function awardRecommendation(best, inputs, programBalances) {
   const alliance = best.alliance;
   const relevantPrograms = programBalances.filter((p) => p.balance > 0);
   const strong = cpp >= 1.6;
-  return { milesLow: range.milesLow, milesHigh: range.milesHigh, milesMid, feesMid, cpp, cppBestCase, cppWorstCase, strong, alliance, relevantPrograms, cabin: best.cabin };
+  const balanceCheck = loyaltyBalanceCheck(range, relevantPrograms);
+  return { milesLow: range.milesLow, milesHigh: range.milesHigh, milesMid, feesMid, cpp, cppBestCase, cppWorstCase, strong, alliance, relevantPrograms, balanceCheck, cabin: best.cabin };
 }
 
 /* ---------- upgrade tactics ----------
@@ -1317,6 +1364,45 @@ function buildInsights(inputs, candidates, best, weights, timing, usingLive) {
   return insights.slice(0, 8);
 }
 
+/* ---------- date-range score sweep (roadmap Phase 5c, "Date-range score
+ * sweep", 2026-08-07) ----------
+ * "See the cheapest date in one chart, not ten re-runs." Pure date math
+ * only — no network, no scoring; the caller (index.html's runDateSweep)
+ * does the actual per-date /api/fares calls and runOptimization() runs,
+ * reusing the exact same live pipeline a normal search uses so a swept
+ * date's score/price can never drift from what re-running that one date
+ * by hand would show.
+ *
+ * maxSamples exists to protect the shared DAILY_SEARCH_CAP (fares.mjs,
+ * 20 real SerpApi calls/day across the whole site) — a naive 60-day
+ * window at 3-day intervals is 21 samples, which alone would burn the
+ * entire day's cap in one click. When the requested window/interval
+ * would exceed maxSamples, the interval is widened (never the window
+ * silently shrunk) just enough to fit, and that widening is reported
+ * back so the UI can say so honestly rather than pretend it swept what
+ * was actually asked for.
+ */
+function addDaysIsoStr(dateStr, days) {
+  const d = new Date(dateStr + "T12:00:00");
+  if (isNaN(d)) return dateStr;
+  d.setDate(d.getDate() + days);
+  return d.toISOString().slice(0, 10);
+}
+
+function buildSweepDates(departDate, returnDate, windowDays, intervalDays, maxSamples) {
+  const naiveCount = Math.floor(windowDays / intervalDays) + 1;
+  const effectiveInterval = naiveCount > maxSamples ? Math.ceil(windowDays / (maxSamples - 1)) : intervalDays;
+  const samples = [];
+  for (let offset = 0; offset <= windowDays && samples.length < maxSamples; offset += effectiveInterval) {
+    samples.push({
+      offset,
+      departDate: addDaysIsoStr(departDate, offset),
+      returnDate: returnDate ? addDaysIsoStr(returnDate, offset) : null,
+    });
+  }
+  return { samples, effectiveIntervalDays: effectiveInterval, widened: effectiveInterval !== intervalDays };
+}
+
 function programMatchesAlliance(programName, alliance) {
   const map = {
     "Star Alliance": ["United", "Air Canada", "Lufthansa", "Singapore", "ANA", "Turkish"],
@@ -1340,10 +1426,20 @@ function runOptimization(inputs, liveOffers) {
   const candidates = usingLive ? buildLiveCandidates(inputs, liveOffers) : [];
   if (!candidates.length) {
     // No live offers at all, or every offer was filtered out (e.g. all on
-    // avoided airlines). routeKnown:false routes the UI to its no-real-data
-    // empty state; noLiveData distinguishes "nothing came back" for copy.
+    // avoided airlines, or all had more stops than the saved Stops filter
+    // allows). routeKnown:false routes the UI to its no-real-data empty
+    // state; noLiveData distinguishes "nothing came back" for copy.
+    // 2026-08-07: rawOfferCount/stopsFilteredAllOut/airlineFilteredAllOut
+    // (set by buildLiveCandidates when it ran at all) ride through here so
+    // the UI can tell "the live search genuinely found nothing" apart from
+    // "real fares came back and a saved filter zeroed them out" — see that
+    // function's own 2026-08-07 comment for the Tallinn bug this fixes.
     return { candidates: [], best: null, alternatives: [], usingLive: false, routeKnown: false,
-             noLiveData: true, weights: computeWeights(inputs.priorityRanks) };
+             noLiveData: true,
+             rawOfferCount: candidates.rawOfferCount || 0,
+             stopsFilteredAllOut: !!candidates.stopsFilteredAllOut,
+             airlineFilteredAllOut: !!candidates.airlineFilteredAllOut,
+             weights: computeWeights(inputs.priorityRanks) };
   }
   const weights = computeWeights(inputs.priorityRanks);
   candidates.forEach((c) => (c.weighted = weightedScore(c.scores, weights)));
@@ -1373,6 +1469,12 @@ if (typeof window !== "undefined") {
     // exposed 2026-07-20 for tests/app.test.js — these were already pure,
     // just not on the public surface (nothing here is DOM-touching).
     awardRecommendation, buildLiveCandidates, ASIA_COMFORT_BONUS, ASIAN_CARRIERS,
+    // exposed 2026-08-07 for tests/app.test.js — roadmap Phase 7a,
+    // "Loyalty balance integration."
+    loyaltyBalanceCheck,
+    // exposed 2026-08-07 for tests/app.test.js — roadmap Phase 5c,
+    // "Date-range score sweep."
+    buildSweepDates, addDaysIsoStr,
     // exposed 2026-07-21 for tests/app.test.js — saved preferences & trip
     // memory (phase 07's fuller slice, after the wallet).
     travelStyleFallback, flagsDislikedAirport, matchUpgradeWinCarrier,
