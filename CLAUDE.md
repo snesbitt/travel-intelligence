@@ -890,3 +890,83 @@ risk) — not just against whatever local snapshot happens to be on disk at
 the time — so a stale base can never again silently roll back real,
 already-shipped, already-tested work while appearing to only add
 something small.
+
+## 2026-08-07, later: Tallinn/stops-filtered fare bug, and Phase 5c (date-range score sweep) shipped
+
+**Bug: a route with real live fares could report "failed or timed out"
+when every real offer was filtered out by the user's own Stops setting.**
+Found via live E2E testing (SF to Tallinn, 1-stop max) per Susan's
+standing instruction to test against the real site after major changes,
+not just the unit suite. `runOptimization()` was collapsing two genuinely
+different cases into one generic "no data" message: (1) SerpApi actually
+returned nothing, and (2) SerpApi returned real offers but the Stops or
+Avoid-airline filter removed all of them before scoring. Fixed by
+threading two new flags, `stopsFilteredAllOut` and `airlineFilteredAllOut`,
+out of `buildLiveCandidates()`/`runOptimization()` so the results panel
+can say the true reason ("real fares came back, but all had more stops
+than your Stops filter allows") instead of implying the search itself
+failed. Delivered as `ea69986`; a same-day hotfix (`1d9238f`) additionally
+hid the not-yet-built date-sweep panel so it couldn't be reached before
+its function existed (see below). Verified live against the real Tallinn
+route post-fix.
+
+**Phase 5c, "date-range score sweep," built end to end.** The panel
+existed in the UI already (hidden), but `window.tiRunDateSweep()`, the
+function that actually runs it, did not. Built it in `index.html`:
+samples up to `SWEEP_MAX_SAMPLES = 6` dates around the last search's
+depart/return dates (via the pre-existing `buildSweepDates()` helper in
+`app.js`, which widens the interval rather than silently sampling fewer
+days than asked when the naive count would exceed the cap), running one
+real `fetchLiveOffers()` per sample against the shared `DAILY_SEARCH_CAP`
+(20/day) rather than reusing the zero-cost re-score pattern from
+`tiReoptimize`/`tiRelaxStopsAndRescore`/`tiRelaxAvoidAndRescore`. A date
+sweep genuinely needs fresh live data per date, so this one spends real
+quota and is capped hard at 6 samples/click to protect it. Renders a
+simple bar chart (`sweepRowHtml`/`renderSweepResults`), stars the
+cheapest date(s), and reuses this same entry's `stopsFilteredAllOut`/
+`airlineFilteredAllOut` flags for honest per-row "why no data" messaging
+instead of a generic empty state. Styled in `style.css`
+(`.sweep-chart`/`.sweep-row`/etc.). Verified via `node --check`, the full
+195/195 `npm test` suite (unchanged; the new code is UI-layer, no jsdom
+harness exists for it here, so verified instead via a standalone
+`new Function()` extraction of the actual shipped function bodies against
+three real scenarios), and a genuine live E2E round-trip via Claude-in-
+Chrome against travelintelligence.org (SFO to Tokyo, 6 real samples,
+prices $1,282 to $1,807, correct tie-starring). Delivered to disk and
+committed by Susan as `8e31c71`. `roadmap.html`'s Phase 5c card flipped
+from Future to Live in the same pass, describing the real per-sample cost
+honestly.
+
+**Still open as of this entry:** Phase 7a (loyalty balance integration)
+is live in the sense that the UI exists, but has not been independently
+spot-checked against a real funded loyalty balance. Phase 8 (server-side
+write-auth gate on `watch.mjs`, currently client-only) remains
+undelivered; `watch.mjs` is still version 3 with no `checkWriteAuth()`.
+Full narrative for both the Tallinn fix and Phase 5c lives in the
+`travel-intelligence-build-log.md` project doc.
+
+## 2026-08-07, end of day: session pause; roadmap.html edit not yet committed
+
+Susan is stepping away for the day. State at pause, verified directly via
+`git rev-parse`/`git log`/`git diff --stat` (read-only, no lock risk)
+rather than assumed: `index.html`, `style.css`, and this file's Phase 5c
+work above are committed and pushed (`8e31c71`, confirmed HEAD equals
+origin/main). `roadmap.html`'s Phase 5c status flip (Future to Live) is
+correctly on disk but **not yet committed**, a one-file, ~20-line diff.
+Next session (or Susan directly) should run:
+
+```
+git add roadmap.html CLAUDE.md
+git commit -m "Flip Phase 5c to Live on roadmap; document Tallinn fix + Phase 5c build"
+git push
+```
+
+(bundling this CLAUDE.md update into the same commit since it's also
+uncommitted as of this pause). No other uncommitted work exists in this
+repo at pause time.
+
+**Standing writing-style rule, added 2026-08-07 per Susan's direct
+correction: never use an em dash in anything written for her, chat,
+docs, code comments, or user-facing copy, full stop.** See
+`claude/standing-rules.md` (project doc) for the canonical statement of
+this rule going forward.

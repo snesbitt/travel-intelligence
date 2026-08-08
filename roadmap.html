@@ -131,27 +131,15 @@
       </div>
     </section>
 
-    <section class="phase phase--future" id="phase-05b">
-      <div class="phase__rail">5b</div>
-      <div class="phase__body">
-        <div class="phase__head">
-          <h3 class="phase__name">Region-to-region search</h3>
-          <span class="phase__status phase__status--future">Future</span>
-        </div>
-        <p class="phase__focus">Ask "how much to get to Europe" without picking a city first</p>
-        <p class="phase__covers">Allow a destination as a region name ("Europe," "East Asia," "Caribbean"). The engine would score 2&ndash;3 hub options for the region instead of forcing a single city.</p>
-      </div>
-    </section>
-
-    <section class="phase phase--future" id="phase-05c">
+    <section class="phase phase--live" id="phase-05c">
       <div class="phase__rail">5c</div>
       <div class="phase__body">
         <div class="phase__head">
           <h3 class="phase__name">Date-range score sweep</h3>
-          <span class="phase__status phase__status--future">Future</span>
+          <span class="phase__status phase__status--live">Live</span>
         </div>
         <p class="phase__focus">See the cheapest date in one chart, not ten re-runs</p>
-        <p class="phase__covers">Sample the top itinerary's score and price across a 30&ndash;60 day window at 3&ndash;5 day intervals, and chart it, instead of re-running the optimizer by hand to find the cheapest date.</p>
+        <p class="phase__covers">Sample the top itinerary's score and price across a 30&ndash;60 day window at 3&ndash;5 day intervals, and chart it, instead of re-running the optimizer by hand to find the cheapest date. Each sampled date is a real live search (capped at 6 per click to protect the shared daily quota); the interval widens automatically, and says so, rather than silently sampling fewer days than asked.</p>
       </div>
     </section>
 
@@ -187,7 +175,7 @@
           <span class="phase__status phase__status--live">Live</span>
         </div>
         <p class="phase__focus">Know who's playing where you're headed, before you go</p>
-        <p class="phase__covers">A bidirectional link with Vinyl Scout's Concert Radar (vinylscout.org): watch a trip here and see whether an artist you're interested in &mdash; catalog, wishlist, and Concert Radar's own venue-scraped listings, not just the curated Watching list &mdash; is playing near your destination during your dates, and the same match shows up on Concert Radar's own page too ("playing where you're headed"). This site's half is a new <code>GET /api/watched-trips</code> read endpoint returning destination city, coordinates, and date range only &mdash; deliberately no fares or points data. Vinyl Scout's half checks its catalog/wishlist/watching artists against a location+date-window SeatGeek query plus its own venue scrape, within a fixed ~25-mile radius. Built 2026-08-05, the day after the technical plan &mdash; each Watched Trips row now shows a real match inline when one exists, best-effort so a slow or unreachable Vinyl Scout never blocks this page's own data. Full build detail in this repo's own <code>CLAUDE.md</code> (2026-08-05 entry) and Vinyl Scout's <code>PROJECT.md</code> (Phase 10).</p>
+        <p class="phase__covers">A bidirectional link with Vinyl Scout's Concert Radar (vinylscout.org): watch a trip here and see whether an artist you follow &mdash; catalog, wishlist, or venue-scraped listings &mdash; is playing near your destination during your dates, with the same match showing up on Concert Radar's own page too. Only destination, coordinates, and date range are shared between the two sites, never fares or points data. The check is best-effort within a fixed ~25-mile radius, so a slow or unreachable Vinyl Scout never blocks this page's own data.</p>
       </div>
     </section>
 
