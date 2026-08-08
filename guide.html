@@ -122,8 +122,8 @@ score        = &Sigma; (dimensionScore[d] &times; dimWeight[d])  for d in the 7 
     </div>
 
     <div class="step" id="deploy">
-      <div><span class="step-num">05</span><span class="step-title">Push to main, Netlify deploys: four small Functions, nothing more</span></div>
-      <p class="step-body">Every push to main auto-publishes, no manual step. The backend is four small functions and nothing else: <code>fares</code> for the live search, <code>watch</code> for the watched-trip list, <code>watch-check</code> for the daily re-check, <code>scan-offers</code> for fares scanned by hand. No framework, no build step, no database beyond one storage service.</p>
+      <div><span class="step-num">05</span><span class="step-title">Push to main, Netlify deploys: six small Functions, nothing more</span></div>
+      <p class="step-body">Every push to main auto-publishes, no manual step. The backend is six small functions and nothing else: <code>fares</code> for the live search, <code>watch</code> for the watched-trip list, <code>watch-check</code> for the daily re-check, <code>scan-offers</code> for fares scanned by hand, <code>watched-trips</code> for the privacy-scoped read Vinyl Scout's Concert Radar checks against, and <code>concert-match-check</code> for the weekly sweep for newly matching shows. No framework, no build step, no database beyond one storage service.</p>
 
       <figure class="diagram">
         <svg viewBox="0 0 800 220" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Claude and Cowork build the static site and push to GitHub, Netlify auto-deploys, and the live site runs the scoring engine entirely in the visitor's browser">
