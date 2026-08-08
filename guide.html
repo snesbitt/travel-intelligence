@@ -110,8 +110,8 @@
 
       <p class="step-body">The actual math, in full: each of the 7 priority lenses (Cheapest, Best Value, Fastest, Most Comfortable, Best Upgrade Opportunity, Best Use of Miles, Best Overall Experience) has its own fixed weight per dimension, hand-tuned in <code>app.js</code>. If you rank more than one priority, a rank-1 pick's vector counts more than a rank-2 pick's, by this formula:</p>
       <pre style="background:var(--card);border:1px solid var(--border);border-radius:8px;padding:0.85rem 1rem;font-size:12px;overflow-x:auto;line-height:1.6;"><code>rankWeight   = (totalPriorities + 1 &minus; rank) / totalPriorities
-dimWeight[d] = &Sigma; (priorityVector[priority][d] &times; rankWeight[priority])
-               &mdash; then normalized so all 7 weights sum to 1
+dimWeight[d] = &Sigma; (priorityVector[priority][d] &times; rankWeight[priority]),
+               then normalized so all 7 weights sum to 1
 score        = &Sigma; (dimensionScore[d] &times; dimWeight[d])  for d in the 7 dimensions</code></pre>
       <p class="step-body">For example, under "Best Overall Experience" (the default lens most results are viewed through), the fixed vector is Cost 1.4, Comfort 0.5, Upgrade 0.4, Award 0.3, Flexibility 0.3, Risk 0.3, Time 0.2. Cost was raised from 0.3 to 1.4 on 2026-07-19, a direct, documented judgment call: an earlier version had a $2,400 nonstop beating a $1,300 one-stop under "Best Overall," which didn't hold up as a real recommendation. The new weight was tuned against that exact case and pinned by a regression test, so it can't silently drift back.</p>
     </div>

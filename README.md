@@ -64,8 +64,18 @@ a one-off demo.
   Netlify Blobs via `/api/watch`); a scheduled function
   (`watch-check.mjs`, daily 14:00 UTC) re-searches each watched trip, one
   live search per trip per day (~90/month at the cap), and the homepage
-  Watched Trips card shows the live fare floor with day-over-day deltas. Alerts are in-app; email/push would need a new credential and
-  is deliberately unwired.
+  Watched Trips card shows the live fare floor with day-over-day deltas.
+  Alerts are in-app; email/push would need a new credential and is
+  deliberately unwired. Watching or unwatching a trip requires a shared
+  edit key, remembered per device, enforced server-side (`watch.mjs`'s
+  `checkWriteAuth()`, checked against the `EDIT_SECRET` Netlify env var)
+  since 2026-08-08; browsing and running the optimizer stay open to
+  anyone with the link.
+- Award Strategy checks your saved loyalty balances against the
+  redemption this itinerary needs, but only counts a balance held in a
+  program that actually flies the itinerary's alliance: a big balance in
+  the wrong alliance is never reported as covering the trip, even if it's
+  the largest one in your wallet.
 - Upgrade plan → calendar: one click exports the dated upgrade timeline
   (bid deadline, seat-map check, check-in, gate ask) as an `.ics` file.
 - Booking handoffs: the winning itinerary links directly to the
@@ -116,14 +126,24 @@ No build step. Serve the directory and open it:
 
 ```bash
 npm run dev     # serves on :8888
-npm test        # runs tests/app.test.js (scoring), tests/fares.test.mjs
-                 # (fare cache/TTL), and tests/scan.test.mjs (scan validation)
+npm test        # runs the full suite: tests/app.test.js (scoring),
+                 # tests/fares.test.mjs (fare cache/TTL), tests/scan.test.mjs
+                 # (scan validation), tests/watch.test.mjs (watch-list logic),
+                 # tests/watch-auth.test.mjs (write-auth gate),
+                 # tests/watched-trips.test.mjs (Concert Radar cross-check
+                 # read), tests/concert-match-check.test.mjs (weekly match
+                 # sweep), and scripts/check-content-drift.mjs (about.html's
+                 # hand-typed stats vs. app.js's real data)
 ```
 
 ## Deploy
 
 Push to main on github.com/snesbitt/travel-intelligence and Netlify
-auto-deploys, publishing static pages plus the four Functions (`fares`,
-`watch`, `watch-check`, `scan-offers`). `SERPAPI_KEY` lives in Netlify env
-vars; without it, fare search returns no live results and the site says
-so plainly rather than showing a guess.
+auto-deploys, publishing static pages plus six Functions (`fares`,
+`watch`, `watch-check`, `scan-offers`, `watched-trips`,
+`concert-match-check`). `SERPAPI_KEY` lives in Netlify env vars; without
+it, fare search returns no live results and the site says so plainly
+rather than showing a guess. `EDIT_SECRET` is a second env var, required
+for `watch.mjs`'s POST/DELETE (watch/unwatch) to accept any request; if
+it's unset, watch/unwatch fails closed with a 401 on every call rather
+than silently accepting writes.

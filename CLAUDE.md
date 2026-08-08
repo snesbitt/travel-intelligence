@@ -109,22 +109,34 @@ not just a demo. Hold every future change to that standard.
   every fare beyond ~1.5× budget scored an identical 4, so Cost stopped
   discriminating on expensive routes (caught in this build's e2e
   review; regression-tested, charter ANA case still holds).
-- Backend: four live Netlify Functions, not static-only —
+- Backend: six live Netlify Functions, not static-only (updated
+  2026-08-08; was four as of the original build, then five once
+  `watched-trips.mjs` shipped 2026-08-05, then six once
+  `concert-match-check.mjs` shipped 2026-08-06, see below) —
   `netlify/functions/fares.mjs` (live fare search proxy to SerpApi, with
-  a 15-min result cache keyed by search params — reuses the
+  a 15-min result cache keyed by search params, reuses the
   `watched-trips` blob store under a `farecache-` prefix to protect the
   SerpApi quota without adding a second store; the cache-key and TTL
-  logic is exported as pure functions — `buildFareCacheKey`,
-  `isCacheFresh`, `CACHE_TTL_MS` — and covered by `tests/fares.test.mjs`,
+  logic is exported as pure functions, `buildFareCacheKey`,
+  `isCacheFresh`, `CACHE_TTL_MS`, and covered by `tests/fares.test.mjs`,
   12 assertions, no network/blobs mocking needed since `@netlify/blobs`
   is imported dynamically inside the handler rather than at module
   top-level), `scan-offers.mjs` (`/api/scan-offers`, stores Kayak/Booking
   fares scanned from Susan's own logged-in browser, under a
   `scanoffers-` prefix in the same store), `watch.mjs` (Blobs-backed
-  watched-trips store), and `watch-check.mjs` (daily scheduled re-search
-  of watched trips). Scoring itself still runs client-side in `app.js`
-  against live offers only — the seeded-RNG modeled fallback was deleted
-  2026-07-26 (see above) — the Functions supply data, not scoring.
+  watched-trips store; reached v4 2026-08-08, POST/DELETE now gated
+  server-side by `checkWriteAuth()` against the `EDIT_SECRET` env var,
+  matching `X-Edit-Key` header, and fails closed if the env var is
+  unset, see the Conventions section below), `watch-check.mjs` (daily
+  scheduled re-search of watched trips), `watched-trips.mjs` (`GET
+  /api/watched-trips`, a privacy-scoped read of watched trips, only
+  destination, coordinates, and dates, for Vinyl Scout's Concert Radar
+  to cross-check against), and `concert-match-check.mjs` (weekly
+  scheduled sweep flagging newly matching Concert Radar shows on
+  already-watched trips). Scoring itself still runs client-side in
+  `app.js` against live offers only, the seeded-RNG modeled fallback was
+  deleted 2026-07-26 (see above), the Functions supply data, not
+  scoring.
 - Frontend: `index.html` is the Input Card + results, importing the pure
   scoring logic from `app.js` via a plain `<script>` tag (no build step,
   no bundler).
@@ -248,6 +260,27 @@ award range), then runs the dated timeline against Business. Don't
 regress it to one-cabin-up advice — that framing buried the actual goal.
 Trip purpose is Vacation / Business / Both only.
 
+### Write endpoints are gated server-side, not just in the client
+
+Added 2026-08-08, after `watch.mjs` shipped v4. Any Netlify Function that
+accepts a POST/DELETE (a real write, not a read) should check
+`checkWriteAuth(req)` before touching the Blobs store, not just rely on
+the client sending an `X-Edit-Key` header: `watch.mjs` sent that header
+from `index.html` for a full day (since 2026-08-07) before the server
+actually checked it, so anyone with the site URL could add or remove
+watched trips regardless of whether they had the key. The pattern is the
+same one `vinyl-scout-repo/netlify/functions/wishlist.mjs` established
+first (v4, 2026-08-06): a pure `checkWriteAuth(req)` function comparing
+`req.headers.get("x-edit-key")` against `process.env.EDIT_SECRET`,
+called before any `getStore()` access so a missing/wrong key returns a
+clean 401 rather than a 500, and fails closed (rejects every write) if
+`EDIT_SECRET` is unset rather than silently accepting anything. Read-only
+GET paths stay open; this is about protecting the metered daily search
+quota and the shared store from an open write, not locking the whole
+site down. `EDIT_SECRET` is a per-site env var, set independently in each
+site's own Netlify project, not shared across the portfolio even when the
+same passphrase is reused.
+
 ### The watcher spends quota on a schedule — cap is a spend decision
 
 2026-07-26 (current state, reversing the 2026-07-20 decision at Susan's
@@ -345,11 +378,13 @@ either field's copy imply they affect the recommendation.
 - Pure logic lives in `app.js`, no DOM code. If scoring logic needs a DOM
   reference, that's a sign it belongs in `index.html`'s render layer
   instead.
-- Never hardcode secrets — the one credential (`SERPAPI_KEY`) lives in
-  Netlify env vars; any future key goes the same way, never in source.
+- Never hardcode secrets: the one credential (`SERPAPI_KEY`) lives in
+  Netlify env vars, and `EDIT_SECRET` (the watch/unwatch write-auth gate,
+  added 2026-08-08) works the same way; any future key goes the same
+  route, never in source.
 - **Radical simplicity wins** (Susan's standing rule, 2026-07-19).
   Simple beats complicated-and-bloated for this project, every time. The
-  backend stays three single-file Functions and one blob store; a new
+  backend stays six single-file Functions and one blob store; a new
   feature that needs more infrastructure has to earn it, and the first
   question about any addition is "what can we delete instead?"
 - **Brevity.** Explanations are a paragraph, not an essay. Don't
@@ -362,7 +397,7 @@ either field's copy imply they affect the recommendation.
 
 ## Deploy workflow
 
-No build step; three single-file Functions ride along with the static
+No build step; six single-file Functions ride along with the static
 pages. GitHub is connected and Netlify auto-deploys main:
 
 ```bash
