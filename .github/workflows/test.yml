@@ -5,6 +5,13 @@ on:
     branches: [main]
   pull_request:
     branches: [main]
+  schedule:
+    # Weekly, independent of any push: catches content drift (About page
+    # stat tiles vs. app.js's DIMENSIONS/PRIORITY_WEIGHTS, see
+    # scripts/check-content-drift.mjs) even on a week with no code changes
+    # at all. Runs the same job as a normal push, so no separate workflow
+    # file or new failure mode.
+    - cron: "0 13 * * 1"
 
 jobs:
   test:

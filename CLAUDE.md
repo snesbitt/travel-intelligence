@@ -970,3 +970,13 @@ correction: never use an em dash in anything written for her, chat,
 docs, code comments, or user-facing copy, full stop.** See
 `claude/standing-rules.md` (project doc) for the canonical statement of
 this rule going forward.
+
+## 2026-08-08 — second content-drift check: about.html's dimension/priority counts vs. app.js
+
+Extending the pattern built for Streaming Scout the same day (an automated check that fails CI if page copy drifts from the real data/code). Susan picked this as the first of several "slow, one at a time" follow-ons to the GitHub architecture review, explicitly deferring recommendation 1 (direct Claude-to-GitHub commits, still blocked on credential handling — no write-capable GitHub connector exists yet; confirmed by checking the official read-only GitHub integration and the MCP connector registry, neither offers a write path).
+
+`about.html`'s stat strip claims "7 scored dimensions" and "7 weighted priorities" — both hand-typed numbers describing `app.js`'s own `DIMENSIONS` array and `PRIORITY_WEIGHTS` object. Nothing enforced them staying in sync. New `scripts/check-content-drift.mjs` parses both directly out of `app.js` via regex (no eval, no module import of the whole app) and compares against the stat tiles.
+
+Verified both failure modes before shipping: temporarily set the "scored dimensions" tile to 9, confirmed the check fails with a clear message and the right numbers; restored and reconfirmed a clean pass. Wired into `package.json`'s `test` script and added the same weekly `schedule:` cron trigger streaming-scout got, so it also catches drift on weeks with zero code changes.
+
+Local `npm test` couldn't be run end-to-end during this build — `node_modules` was missing, and the `npm install` needed to fix that got cut off by this session's 45-second command timeout, leaving a partial install (`@netlify/blobs` present as an empty directory). This is a local-environment artifact, not a bug in the new check, which was verified standalone (both the pass and the two failure modes above) and via a plain JSON/text read of `package.json` and the workflow file. CI runs a full `npm ci` with no such timeout, so that's the real gate — confirm green after pushing.
