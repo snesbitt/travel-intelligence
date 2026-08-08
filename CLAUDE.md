@@ -1004,3 +1004,27 @@ New `tests/watch-auth.test.mjs` (10 assertions), same pattern as vinyl-scout-rep
 **Delivered:** `netlify/functions/watch.mjs`, `tests/watch-auth.test.mjs` (new), `package.json`, `roadmap.html`, `about.html`, this file. Susan needs to set a real `EDIT_SECRET` value in Netlify's environment variables (same variable `wishlist.mjs`/`records.mjs` already use in the sibling repo, so if she's already set one there for a *different* site this is a separate per-site env var, not shared across repos) before this gate actually rejects anything in production, otherwise it fails closed as designed (every write gets a 401) rather than failing open, but the site's own edit-key prompt will never produce a working key until the env var is set to match what she enters. **Flagging this clearly so it doesn't get missed:** check Netlify's Site settings, Environment variables for `travel-intelligence-susan` right after deploying, and set `EDIT_SECRET` to whatever passphrase she wants to use as the watch/unwatch edit key.
 
 Still open, unchanged: Phase 7a (loyalty balance integration) still not independently spot-checked against a real funded balance.
+
+## 2026-08-08, later still: Phase 7a spot-check found and fixed a real cross-alliance bug in the balance check
+
+Per Susan's "move on and i'll take the above on shortly" (proceeding to the next punchlist item, Phase 7a, while she handles Phase 8's `EDIT_SECRET` step at her own pace). Task was to independently verify Phase 7a ("Loyalty balance integration") against a real funded balance, per the standing note in this file that it was "live in the sense that the UI exists, but has not been independently spot-checked."
+
+Reading `awardRecommendation()` in `app.js` before running anything turned up a real bug rather than just a verification gap. The function's own header comment describes `loyaltyBalanceCheck` as checking "her actual saved balance, in a program that flies this itinerary's alliance," but `relevantPrograms` was built as `programBalances.filter((p) => p.balance > 0)`, with no alliance check at all. `buildInsights()` elsewhere in the same file already does the correct filter, via `programMatchesAlliance()`, for its own cross-alliance warning insight; `awardRecommendation` just never called it.
+
+Concrete failure mode, confirmed by hand before fixing anything: a wallet with Delta SkyMiles (SkyTeam) at 90,000 miles and Turkish Miles&Smiles (Star Alliance) at 20,000, against a Star Alliance itinerary (United), returned Delta as the "relevant" program and reported the balance as "enough, covers this itinerary, 65,000 miles to spare," a confident, specific, wrong claim, since Delta doesn't fly Star Alliance redemptions. The correct program (Turkish, 20,000, short by 5,000) never surfaced at all.
+
+Fixed by filtering `relevantPrograms` through the same `programMatchesAlliance(p.program, alliance)` check `buildInsights` already uses:
+```js
+const relevantPrograms = programBalances.filter((p) => p.balance > 0 && programMatchesAlliance(p.program, alliance));
+```
+`index.html`'s rendering needed no changes: its copy ("Add a balance above if you hold miles in a program that flies this alliance...") already described the intended behavior; only the underlying data was wrong.
+
+Two new regression tests in `tests/app.test.js` pin this: one confirming an out-of-alliance balance never appears in `relevantPrograms` or drives a false "enough" verdict, one confirming that with both an out-of-alliance and an in-alliance balance in the same wallet, only the in-alliance one is picked, even though it's smaller. Both fail against the pre-fix code (confirmed before applying the fix, not assumed) and pass after.
+
+**Verified for real:** staged the fixed `app.js` and updated `tests/app.test.js` alongside every other test file, all touched Netlify Functions, and `package.json`/`package-lock.json` into the cloud sandbox, ran a genuine `npm install` (full network access) and the complete `npm test` chain: **203 assertions, 0 failures**, across `app.test.js` (92, up from 90), `fares.test.mjs` (49), `scan.test.mjs` (5), `watch.test.mjs` (19), `watch-auth.test.mjs` (10), `watched-trips.test.mjs` (14), `concert-match-check.test.mjs` (14), plus the content-drift check passing clean.
+
+`roadmap.html`'s Phase 7a card flipped from `phase--future`/"Future" to `phase--live`/"Live", description updated to state plainly that a balance outside the itinerary's alliance is never counted, even if it's bigger, matching what the code now actually does.
+
+**Known adjacent gap, not fixed here, flagged for later:** `programMatchesAlliance`'s internal alliance map has no entry for Etihad ("Unaligned" in the top-level `ALLIANCES` table doesn't include it either, and neither map lists it under any alliance), so an Etihad Guest balance can never be reported as "relevant" to any itinerary even though it's a real option in the wallet UI and in `POINT_VALUATIONS.airlines`. Low-frequency edge case (one specific program), left alone rather than scope-creeping this fix; worth a one-line addition whenever Etihad comes up for real.
+
+**Delivered:** `app.js`, `tests/app.test.js`, `roadmap.html`, this file. Nothing committed or pushed; per this project's standing workflow, Susan runs `git add`/`commit`/`push` herself.

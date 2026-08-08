@@ -1135,7 +1135,16 @@ function awardRecommendation(best, inputs, programBalances) {
   const cppBestCase = ((best.price - range.feesLow) / Math.max(1, range.milesLow)) * 100;
   const cppWorstCase = ((best.price - range.feesHigh) / Math.max(1, range.milesHigh)) * 100;
   const alliance = best.alliance;
-  const relevantPrograms = programBalances.filter((p) => p.balance > 0);
+  // 2026-08-08 fix (Phase 7a spot-check): this used to be
+  // `programBalances.filter((p) => p.balance > 0)` — no alliance check at
+  // all, directly contradicting this function's own header comment ("a
+  // program that flies this itinerary's alliance") and the identical
+  // filter buildInsights already applies via programMatchesAlliance for
+  // its own cross-alliance warning. Real-world effect of the bug: the
+  // Award Strategy card could report "Your Delta SkyMiles balance covers
+  // this" for a Star Alliance itinerary Delta doesn't fly, just because
+  // Delta happened to be the biggest nonzero balance in the wallet.
+  const relevantPrograms = programBalances.filter((p) => p.balance > 0 && programMatchesAlliance(p.program, alliance));
   const strong = cpp >= 1.6;
   const balanceCheck = loyaltyBalanceCheck(range, relevantPrograms);
   return { milesLow: range.milesLow, milesHigh: range.milesHigh, milesMid, feesMid, cpp, cppBestCase, cppWorstCase, strong, alliance, relevantPrograms, balanceCheck, cabin: best.cabin };

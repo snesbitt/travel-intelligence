@@ -966,6 +966,32 @@ test("awardRecommendation: exposes balanceCheck as part of its normal return sha
   assert.equal(award.balanceCheck.needed, award.milesLow, "balanceCheck's bar should match the same milesLow the rest of the card shows");
 });
 
+// Phase 7a spot-check (2026-08-08): the function's own header comment
+// promises the balance check looks at "a program that flies this
+// itinerary's alliance" — buildInsights' separate cross-alliance warning
+// already relies on exactly that filter via programMatchesAlliance. This
+// pins awardRecommendation to the same rule: a big balance in the WRONG
+// alliance must never be reported as covering the redemption.
+test("awardRecommendation: relevantPrograms excludes balances outside this itinerary's alliance", () => {
+  const best = { candCpp: 1.8, cabin: "Economy", alliance: "Star Alliance", price: 900 };
+  // Delta SkyMiles is SkyTeam, not Star Alliance — plenty of balance, but
+  // not usable for a Star Alliance redemption on this itinerary.
+  const award = T.awardRecommendation(best, { cabin: "Economy" }, [{ program: "Delta SkyMiles", balance: 200000 }]);
+  assert.equal(award.relevantPrograms.length, 0, "an out-of-alliance balance should not appear as a relevant program");
+  assert.equal(award.balanceCheck.status, "none", "with no in-alliance balance, the verdict should be 'none', not a false 'enough' off Delta's balance");
+});
+
+test("awardRecommendation: relevantPrograms keeps in-alliance balances and ignores out-of-alliance ones in the same wallet", () => {
+  const best = { candCpp: 1.8, cabin: "Economy", alliance: "Star Alliance", price: 900 };
+  const award = T.awardRecommendation(best, { cabin: "Economy" }, [
+    { program: "Delta SkyMiles", balance: 300000 },     // SkyTeam — must be excluded
+    { program: "United MileagePlus", balance: 30000 },  // Star Alliance — must be kept
+  ]);
+  assert.equal(award.relevantPrograms.length, 1);
+  assert.equal(award.relevantPrograms[0].program, "United MileagePlus");
+  assert.equal(award.balanceCheck.program, "United MileagePlus", "the biggest-balance pick must come from the in-alliance pool, not the raw biggest balance overall (Delta's 300k)");
+});
+
 /* ---------- buildSweepDates (roadmap Phase 5c, "Date-range score sweep", 2026-08-07) ---------- */
 
 test("buildSweepDates: a window/interval combo under the cap uses the requested interval as-is", () => {
