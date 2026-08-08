@@ -7,7 +7,7 @@
     "@netlify/blobs": "^10.7.9"
   },
   "scripts": {
-    "test": "node tests/app.test.js && node tests/fares.test.mjs && node tests/scan.test.mjs && node tests/watch.test.mjs && node tests/watched-trips.test.mjs && node tests/concert-match-check.test.mjs && node scripts/check-content-drift.mjs",
+    "test": "node tests/app.test.js && node tests/fares.test.mjs && node tests/scan.test.mjs && node tests/watch.test.mjs && node tests/watch-auth.test.mjs && node tests/watched-trips.test.mjs && node tests/concert-match-check.test.mjs && node scripts/check-content-drift.mjs",
     "dev": "npx http-server -p 8888 -c-1 ."
   }
 }

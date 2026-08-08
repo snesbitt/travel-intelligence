@@ -1,5 +1,5 @@
 // netlify/functions/watch.mjs
-// version: 3 (2026-07-26)
+// version: 4 (2026-08-08)
 // The fare watcher's storage API — the audit's "one big bet." Watched
 // trips persist in a Netlify Blobs store; watch-check.mjs re-searches
 // them on a daily schedule. Capped at MAX_TRIPS=3 because each watched
@@ -7,8 +7,6 @@
 // quota/spend decision that belongs to Susan, per CLAUDE.md. Alerts are
 // in-app deltas (the homepage Watched Trips card); email/push would need
 // a new credential and is deliberately not wired.
-// Same open POST/DELETE model as streaming-scout's dismiss.mjs — no auth,
-// nothing sensitive stored (routes and dates only, never wallet data).
 //
 // QUOTA MATH (2026-07-26, Susan's explicit request to raise the cap back
 // to 3, superseding the 2026-07-20 decision below):
@@ -28,7 +26,19 @@
 //     the watcher, ~40/month headroom. Lowered from 3 at the time because
 //     manual-run headroom felt too thin; raised back to 3 now at Susan's
 //     request, with the tighter headroom stated plainly above.
-
+//
+// v4 (2026-08-08, roadmap Phase 8, "Protect watched trips" — server half):
+// POST/DELETE are now gated by the same X-Edit-Key / EDIT_SECRET pattern
+// vinyl-scout-repo's wishlist.mjs (v4, 2026-08-06) and records.mjs already
+// use — see checkWriteAuth() below. GET stays public (browsing/running the
+// optimizer was never the risk; watch/unwatch spending a metered daily
+// search on a shared store that's open to anyone with the link was). This
+// closes a real gap: index.html has sent an X-Edit-Key header on every
+// watch/unwatch request since 2026-08-07, but until this version the
+// server ignored it entirely — anyone with the site URL could add/remove
+// watched trips regardless of whether they had the key. watch-check.mjs
+// and watched-trips.mjs both access the Blobs store directly (getStore),
+// never through this HTTP handler, so neither is affected by this gate.
 import { getStore } from "@netlify/blobs";
 
 export const MAX_TRIPS = 3; // see quota math in the header comment above before changing this
@@ -41,6 +51,15 @@ function json(body, status) {
 }
 
 export const config = { path: "/api/watch" };
+
+// Same pattern as wishlist.mjs's checkWriteAuth (vinyl-scout-repo, v4,
+// 2026-08-06): fails closed if EDIT_SECRET is unset — a misconfigured
+// deploy rejects writes rather than silently accepting them from anyone.
+export function checkWriteAuth(req) {
+  const expected = process.env.EDIT_SECRET;
+  const provided = req.headers.get("x-edit-key");
+  return !!(expected && provided && provided === expected);
+}
 
 // 2026-08-05: pure request-validation + id-building, split out of the
 // handler so it's testable the same "export the pure logic" way
@@ -114,18 +133,30 @@ export function planRemoveTrip(trips, id) {
 }
 
 export default async (req) => {
+  const url = new URL(req.url);
+  const method = req.method;
+
+  // Auth gate runs BEFORE getStore() -- same order wishlist.mjs/records.mjs
+  // use. Checked here, ahead of any Blobs call, so an unauthorized or
+  // misconfigured request always gets a clean 401 rather than depending on
+  // getStore() not throwing first. GET is intentionally excluded — browsing
+  // watched trips and running the optimizer were never the risk this gate
+  // exists for.
+  if ((method === "POST" || method === "DELETE") && !checkWriteAuth(req)) {
+    return json({ error: "unauthorized — wrong or missing edit key" }, 401);
+  }
+
   // strong consistency: a GET right after a watch/unwatch must reflect it
   // (default eventual consistency made the card vanish on quick reloads)
   const store = getStore({ name: "watched-trips", consistency: "strong" });
-  const url = new URL(req.url);
 
-  if (req.method === "GET") {
+  if (method === "GET") {
     const trips = (await store.get("list", { type: "json" })) || [];
     const health = (await store.get("health", { type: "json" })) || null;
     return json({ trips, max: MAX_TRIPS, health });
   }
 
-  if (req.method === "POST") {
+  if (method === "POST") {
     let body;
     try { body = await req.json(); } catch (e) { return json({ error: "Invalid JSON body" }, 400); }
     const t = body && body.trip;
@@ -158,7 +189,7 @@ export default async (req) => {
     return json({ error: "Could not save the watch right now — please try again." }, 409);
   }
 
-  if (req.method === "DELETE") {
+  if (method === "DELETE") {
     const id = url.searchParams.get("id") || "";
     // same optimistic-concurrency pattern as POST, for the same reason —
     // an unwatch racing another write shouldn't be able to silently lose.
