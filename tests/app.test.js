@@ -1,10 +1,10 @@
 // tests/app.test.js
 // Minimal, dependency-free tests for app.js's pure functions. No test
-// framework — plain Node `assert`, run via `node tests/app.test.js` (see
+// framework, plain Node `assert`, run via `node tests/app.test.js` (see
 // the "test" script in package.json). app.js is a browser script (no
 // module.exports), so it's loaded here the way index.html loads it: by
 // giving it a `window` to attach `window.TravelIntel` to, then reading
-// that object back out. Nothing here touches the network or the DOM —
+// that object back out. Nothing here touches the network or the DOM, 
 // per the CRITICAL constraint on this repo, no live SerpApi calls.
 
 const assert = require("node:assert/strict");
@@ -52,7 +52,7 @@ test("buildLiveCandidates: an Asia-based carrier gets exactly +ASIA_COMFORT_BONU
     origin: "San Francisco", destination: "Tokyo", cabin: "Economy",
     departDate: "2027-03-01", maxBudget: 2000, travelers: 1, avoidAirlines: [],
   };
-  const asianCarrier = T.ASIAN_CARRIERS[0]; // e.g. "ANA" — pulled from the live list, not hardcoded
+  const asianCarrier = T.ASIAN_CARRIERS[0]; // e.g. "ANA", pulled from the live list, not hardcoded
   const nonAsianCarrier = "United"; // not a substring match for any entry in ASIAN_CARRIERS
   assert.ok(
     !T.ASIAN_CARRIERS.some((c) => nonAsianCarrier.toLowerCase().includes(c.toLowerCase())),
@@ -284,7 +284,7 @@ test("travelStyleFallback: unset or unknown style returns null (no override)", (
 });
 
 test("suggestPriorities: a saved travel style only applies when no stronger trip signal fires", () => {
-  // Tight budget still wins over a saved "Luxury" style — trip-specific
+  // Tight budget still wins over a saved "Luxury" style, trip-specific
   // signals must never be silently overridden by a saved default. (Uses a
   // long-haul route so the modeled typical fare is well above the budget.)
   const tightBudget = T.suggestPriorities({
@@ -343,7 +343,7 @@ test("toIATA: Greenville/Spartanburg resolve to GSP (incl. fuzzy)", () => {
 });
 
 test("runOptimization: known route (SFO->GSP) is ~3,600 km, not the 7,500 km default", () => {
-  // 2026-07-26: model path deleted — the geometry regression now guards the
+  // 2026-07-26: model path deleted, the geometry regression now guards the
   // LIVE path's duration estimate (used when an offer omits durationMinutes).
   const r = T.runOptimization({ origin: "San Francisco", destination: "Greenville, South Carolina",
     departDate: "2026-08-10", returnDate: "2026-08-11", cabin: "Economy", maxStops: 2, priorityRanks: {},
@@ -357,7 +357,7 @@ test("runOptimization: known route (SFO->GSP) is ~3,600 km, not the 7,500 km def
 });
 
 test("runOptimization: unresolved city WITH live offers is still real data (routeKnown=true); WITHOUT offers it hard-stops", () => {
-  // Live results are real by definition — an unresolved display name must not
+  // Live results are real by definition, an unresolved display name must not
   // suppress real quotes. The honesty gate now lives in the no-data path.
   const withOffers = T.runOptimization({ origin: "San Francisco", destination: "Atlantis, Lost Continent",
     departDate: "2026-08-10", cabin: "Economy", maxStops: 2, priorityRanks: {},
@@ -372,7 +372,7 @@ test("runOptimization: unresolved city WITH live offers is still real data (rout
   assert.equal(noOffers.noLiveData, true);
 });
 
-test("runOptimization with no live offers returns an honest noLiveData result — never synthetic candidates", () => {
+test("runOptimization with no live offers returns an honest noLiveData result, never synthetic candidates", () => {
   const r = T.runOptimization({ origin: "San Francisco", destination: "Tokyo",
     departDate: "2026-08-10", cabin: "Economy", maxStops: 2, priorityRanks: { Cheapest: 1 },
     preferredAlliances: [], preferredAirlines: [], avoidAirlines: [], programBalances: [], dateFlexibility: "Exact", travelers: 1 });
@@ -393,7 +393,7 @@ test("runOptimization: offers all filtered out (avoided airline) also returns no
   assert.equal(r.candidates.length, 0);
 });
 
-test("buildLiveCandidates (Susan 2026-07-31: 'I always want to fly nonstop if available'): maxStops actually excludes offers now — it used to be collected and silently ignored", () => {
+test("buildLiveCandidates (Susan 2026-07-31: 'I always want to fly nonstop if available'): maxStops actually excludes offers now, it used to be collected and silently ignored", () => {
   const inputs = { destination: "Tokyo", origin: "San Francisco", cabin: "Economy", maxBudget: 2000,
     departDate: "2026-08-10", travelers: 1, avoidAirlines: [] };
   const offers = [
@@ -402,7 +402,7 @@ test("buildLiveCandidates (Susan 2026-07-31: 'I always want to fly nonstop if av
     { carrier: "Delta", priceTotal: 700, stops: 2, durationMinutes: 900 },
   ];
   // no limit set (field omitted): every existing caller that predates this
-  // filter behaves exactly as before — all offers still score
+  // filter behaves exactly as before, all offers still score
   assert.equal(T.buildLiveCandidates({ ...inputs }, offers).length, 3);
   assert.deepEqual(T.buildLiveCandidates({ ...inputs, maxStops: 0 }, offers).map((c) => c.stops), [0]);
   assert.deepEqual(T.buildLiveCandidates({ ...inputs, maxStops: 1 }, offers).map((c) => c.stops), [0, 1]);
@@ -410,7 +410,7 @@ test("buildLiveCandidates (Susan 2026-07-31: 'I always want to fly nonstop if av
   assert.equal(T.buildLiveCandidates({ ...inputs, maxStops: 3 }, offers).length, 3, "3 = 'Any stops' in the UI, same as no limit");
 });
 
-/* ---------- 2026-08-07: SFO->Tallinn bug — filtered-to-zero diagnostics ---------- */
+/* ---------- 2026-08-07: SFO->Tallinn bug, filtered-to-zero diagnostics ---------- */
 // Real fares existed for this route (5+ real offers from SerpApi), but every
 // one had 1+ stops (no real nonstop US-Tallinn routing exists) and Susan's
 // saved "Nonstop only" filter zeroed them all out. runOptimization() used to
@@ -443,15 +443,15 @@ test("buildLiveCandidates: stopsFilteredAllOut is true only when real offers exi
   assert.equal(filtered.stopsFilteredAllOut, true);
   assert.equal(filtered.airlineFilteredAllOut, false);
 
-  // A genuine nonstop offer survives the same filter — not filtered out.
+  // A genuine nonstop offer survives the same filter, not filtered out.
   const offersWithNonstop = offersAllWithStops.concat([{ carrier: "United", priceTotal: 900, stops: 0, durationMinutes: 620 }]);
   const notFiltered = T.buildLiveCandidates(inputs, offersWithNonstop);
-  assert.equal(notFiltered.stopsFilteredAllOut, false, "at least one candidate survived — this isn't the filtered-to-zero case");
+  assert.equal(notFiltered.stopsFilteredAllOut, false, "at least one candidate survived, this isn't the filtered-to-zero case");
   assert.equal(notFiltered.length, 1);
 
   // No live offers at all is a different case from "offers existed and got filtered."
   const empty = T.buildLiveCandidates(inputs, []);
-  assert.equal(empty.stopsFilteredAllOut, false, "nothing came back at all — not a filtering problem");
+  assert.equal(empty.stopsFilteredAllOut, false, "nothing came back at all, not a filtering problem");
   assert.equal(empty.rawOfferCount, 0);
 });
 
@@ -476,7 +476,7 @@ test("runOptimization: threads stopsFilteredAllOut/rawOfferCount into the noLive
   const r = T.runOptimization(inputs, offers);
   assert.equal(r.noLiveData, true);
   assert.equal(r.routeKnown, false);
-  assert.equal(r.stopsFilteredAllOut, true, "the live fetch succeeded — this must not look like a generic failure");
+  assert.equal(r.stopsFilteredAllOut, true, "the live fetch succeeded, this must not look like a generic failure");
   assert.equal(r.airlineFilteredAllOut, false);
   assert.equal(r.rawOfferCount, 2);
 });
@@ -548,7 +548,7 @@ test("expanded city tables: new US regionals resolve with real geometry (no 7,50
 });
 
 
-/* ---------- 2026-07-24: displayCity — code or name in, city out ---------- */
+/* ---------- 2026-07-24: displayCity, code or name in, city out ---------- */
 
 test("displayCity: airport code in, city name out", () => {
   assert.equal(T.displayCity("GSP"), "Greenville, SC (GSP)");
@@ -773,7 +773,7 @@ test("toIATA (Susan 2026-07-31: 'improve city fields to handle misspellings'): c
   assert.equal(T.toIATA("Istambul"), "IST");
   assert.equal(T.toIATA("Melborne"), "MEL");
   // a lone, uncombined word that's too far from any single-word key and
-  // not close enough to a multi-word phrase like "san francisco" —
+  // not close enough to a multi-word phrase like "san francisco", 
   // correctly refuses to guess rather than picking something plausible
   assert.equal(T.toIATA("Fransisco"), null);
 });
@@ -816,10 +816,10 @@ test("fuzzyMatchKey: ambiguous ties refuse to guess rather than pick arbitrarily
   assert.equal(T.fuzzyMatchKey("lake", tieTable), null);
 });
 
-test("fuzzyMatchKey: exhaustive safety check — every single-edit typo (delete/substitute/adjacent-swap) of every real city or country key resolves back to that SAME key or safely to null, never to a different key", () => {
+test("fuzzyMatchKey: exhaustive safety check, every single-edit typo (delete/substitute/adjacent-swap) of every real city or country key resolves back to that SAME key or safely to null, never to a different key", () => {
   // Exercised via toIATA directly (rather than a hand-copied key list) so
   // this tracks the real data. CITY_IATA/COUNTRY_TO_IATA aren't on the
-  // public surface — only toIATA's resolution is.
+  // public surface, only toIATA's resolution is.
   const letters = "abcdefghijklmnopqrstuvwxyz";
   function variants(word) {
     const out = new Set();
@@ -860,14 +860,14 @@ test("suggestCities (Susan 2026-07-31: live typeahead as you type): ranked, dedu
   // exact match beats a shorter prefix elsewhere in the table
   const par = T.suggestCities("par");
   assert.equal(par[0].code, "CDG", "exact-prefix-tier city sorts before other 'par...' matches");
-  // typo tolerance: same distance-1 case toIATA resolves — Bangkok's
+  // typo tolerance: same distance-1 case toIATA resolves, Bangkok's
   // second airport (Don Mueang, DMK) is typo-fuzzy-matched right alongside
   // the primary, same as an exact "bangkok" query would surface both
   const bankok = T.suggestCities("bankok");
   assert.equal(bankok.length, 2);
   assert.deepEqual(bankok.map((r) => r.code).sort(), ["BKK", "DMK"]);
   // multiple real prefix matches, deduped by code, alphabetical within tier
-  // — includes Chicago's second airport (Midway) alongside its primary
+  //, includes Chicago's second airport (Midway) alongside its primary
   const chi = T.suggestCities("chi").map((r) => r.code).sort();
   assert.deepEqual(chi, ["KIV", "MDW", "ORD", "PEK", "SCL"], "Chicago (+Midway), China, Chile, Chisinau all legitimately start with 'chi'");
   // a code reached only via a COUNTRY_TO_IATA alias with no CITY_IATA
@@ -887,7 +887,7 @@ test("suggestCities: every suggested value resolves back to the same code via to
   });
 });
 
-test("suggestCities / toIATA (Susan 2026-07-31: 'paris has several airports — fix and do better'): multi-airport metros surface every real airport, each resolving to itself", () => {
+test("suggestCities / toIATA (Susan 2026-07-31: 'paris has several airports, fix and do better'): multi-airport metros surface every real airport, each resolving to itself", () => {
   const metros = {
     "new york": ["JFK", "EWR", "LGA"],
     washington: ["IAD", "DCA", "BWI"],
@@ -908,7 +908,7 @@ test("suggestCities / toIATA (Susan 2026-07-31: 'paris has several airports — 
   assert.equal(T.toIATA("Paris–Orly"), "ORY");
   // a plain hyphen instead of the en dash the label actually uses isn't an
   // exact alt-airport match, so it falls through to the existing whole-word
-  // fallback on "paris" and lands on the metro's primary code (CDG) — a
+  // fallback on "paris" and lands on the metro's primary code (CDG), a
   // safe, already-tested behavior, not a new guess.
   assert.equal(T.toIATA("paris-orly"), "CDG");
 });
@@ -968,13 +968,13 @@ test("awardRecommendation: exposes balanceCheck as part of its normal return sha
 
 // Phase 7a spot-check (2026-08-08): the function's own header comment
 // promises the balance check looks at "a program that flies this
-// itinerary's alliance" — buildInsights' separate cross-alliance warning
+// itinerary's alliance", buildInsights' separate cross-alliance warning
 // already relies on exactly that filter via programMatchesAlliance. This
 // pins awardRecommendation to the same rule: a big balance in the WRONG
 // alliance must never be reported as covering the redemption.
 test("awardRecommendation: relevantPrograms excludes balances outside this itinerary's alliance", () => {
   const best = { candCpp: 1.8, cabin: "Economy", alliance: "Star Alliance", price: 900 };
-  // Delta SkyMiles is SkyTeam, not Star Alliance — plenty of balance, but
+  // Delta SkyMiles is SkyTeam, not Star Alliance, plenty of balance, but
   // not usable for a Star Alliance redemption on this itinerary.
   const award = T.awardRecommendation(best, { cabin: "Economy" }, [{ program: "Delta SkyMiles", balance: 200000 }]);
   assert.equal(award.relevantPrograms.length, 0, "an out-of-alliance balance should not appear as a relevant program");
@@ -984,12 +984,24 @@ test("awardRecommendation: relevantPrograms excludes balances outside this itine
 test("awardRecommendation: relevantPrograms keeps in-alliance balances and ignores out-of-alliance ones in the same wallet", () => {
   const best = { candCpp: 1.8, cabin: "Economy", alliance: "Star Alliance", price: 900 };
   const award = T.awardRecommendation(best, { cabin: "Economy" }, [
-    { program: "Delta SkyMiles", balance: 300000 },     // SkyTeam — must be excluded
-    { program: "United MileagePlus", balance: 30000 },  // Star Alliance — must be kept
+    { program: "Delta SkyMiles", balance: 300000 },     // SkyTeam, must be excluded
+    { program: "United MileagePlus", balance: 30000 },  // Star Alliance, must be kept
   ]);
   assert.equal(award.relevantPrograms.length, 1);
   assert.equal(award.relevantPrograms[0].program, "United MileagePlus");
   assert.equal(award.balanceCheck.program, "United MileagePlus", "the biggest-balance pick must come from the in-alliance pool, not the raw biggest balance overall (Delta's 300k)");
+});
+
+// 2026-08-08: programMatchesAlliance's internal map had no Etihad entry at
+// all (neither the top-level ALLIANCES table nor this function's own map),
+// so an Etihad Guest balance could never be reported as relevant to any
+// itinerary, even though it's a real option in the wallet UI. Etihad is
+// Unaligned, same bucket as Alaska/Emirates/JetBlue.
+test("awardRecommendation: an Etihad Guest balance is recognized for an Unaligned itinerary", () => {
+  const best = { candCpp: 1.8, cabin: "Economy", alliance: "Unaligned", price: 900 };
+  const award = T.awardRecommendation(best, { cabin: "Economy" }, [{ program: "Etihad Guest", balance: 50000 }]);
+  assert.equal(award.relevantPrograms.length, 1, "Etihad Guest should be recognized as relevant to an Unaligned itinerary");
+  assert.equal(award.relevantPrograms[0].program, "Etihad Guest");
 });
 
 /* ---------- buildSweepDates (roadmap Phase 5c, "Date-range score sweep", 2026-08-07) ---------- */

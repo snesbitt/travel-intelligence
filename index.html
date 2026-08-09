@@ -11,7 +11,7 @@
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-title" content="Travel Intelligence">
 <link rel="preload" href="fonts/lora-latin-400-normal.woff2" as="font" type="font/woff2" crossorigin>
-<style>/* Self-hosted fonts (latin) — was Google Fonts; files from the official Fontsource/IBM npm releases, 2026-07-26 */
+<style>/* Self-hosted fonts (latin): was Google Fonts; files from the official Fontsource/IBM npm releases, 2026-07-26 */
 @font-face{font-family:"Lora";font-style:normal;font-weight:400;font-display:swap;src:url(fonts/lora-latin-400-normal.woff2) format("woff2")}
 @font-face{font-family:"Lora";font-style:italic;font-weight:400;font-display:swap;src:url(fonts/lora-latin-400-italic.woff2) format("woff2")}
 </style>
@@ -87,12 +87,12 @@
         </div>
         <!-- 2026-07-31 (Susan: "I always want to fly nonstop if available"):
              promoted out of the Flight preferences fold, same reasoning the
-             Via field got promoted for above — a standing rule, not an edge
+             Via field got promoted for above, a standing rule, not an edge
              case. Still saved as a preference (auto-saves across trips, see
              savePreferences/loadPreferences) even though it now lives on
              the main card; values are the same 0/1/2/3 maxStops the
              optimizer has always taken, now actually enforced as a hard
-             filter (see buildLiveCandidates in app.js — it used to be
+             filter (see buildLiveCandidates in app.js: it used to be
              collected and silently ignored). -->
         <div class="form-field" style="margin-top:10px;">
           <label>Stops <span class="form-hint">(saved as your default across trips)</span></label>
@@ -138,7 +138,7 @@
 
       <section class="block card" id="preferences">
         <h2 class="card-title">Flight preferences <span class="form-hint" id="prefs-status" style="font-weight:400;"></span></h2>
-        <p class="form-hint" style="margin-bottom:10px;">Everything in this card auto-saves to this browser and reloads next visit; nothing leaves your device. Cabin, airlines, alliances, times, and travel style all feed the optimizer and its suggestions; preferred seat and hotel brand are saved for reference only (this site doesn't score seats or hotels). Checked bags and carry-on-only are collected for context too, not scored — live fare data doesn't include baggage fees, so inventing a bag-fee estimate would be a guess dressed up as a number. Stops now lives on the main Trip card, next to Date flexibility — same saved preference, just promoted.</p>
+        <p class="form-hint" style="margin-bottom:10px;">Everything in this card auto-saves to this browser and reloads next visit; nothing leaves your device. Cabin, airlines, alliances, times, and travel style all feed the optimizer and its suggestions; preferred seat and hotel brand are saved for reference only (this site doesn't score seats or hotels). Checked bags and carry-on-only are collected for context too, not scored: live fare data doesn't include baggage fees, so inventing a bag-fee estimate would be a guess dressed up as a number. Stops now lives on the main Trip card, next to Date flexibility, same saved preference, just promoted.</p>
         <div class="form-field">
           <label>Cabin</label>
           <div class="pill-toggle" data-group="cabin">
@@ -280,7 +280,7 @@
   const form = document.getElementById("trip-form");
   const resultsEl = document.getElementById("results");
 
-  // pill toggles (single-select within a group) — aria-pressed mirrors the
+  // pill toggles (single-select within a group): aria-pressed mirrors the
   // visual selection so state isn't color-only (audit finding)
   document.querySelectorAll(".pill-toggle").forEach((group) => {
     group.querySelectorAll("button").forEach((b) => b.setAttribute("aria-pressed", b.classList.contains("sel") ? "true" : "false"));
@@ -298,12 +298,12 @@
      code shows up") ----------
    * ARIA 1.2 combobox pattern over T.suggestCities: role=combobox on the
    * input, role=listbox/option below it, aria-expanded/aria-activedescendant
-   * kept in sync with keyboard/mouse selection — a screen reader gets the
+   * kept in sync with keyboard/mouse selection, so a screen reader gets the
    * same state a sighted user sees, not just a floating div. Debounced
    * (~100ms) since it recomputes on every keystroke; the underlying lookup
    * itself is cheap (a few hundred short-string comparisons), the debounce
    * is purely to keep fast typing smooth. mousedown (not click) commits a
-   * selection so it fires before the input's blur closes the list —
+   * selection so it fires before the input's blur closes the list:
    * click would lose the race and the list would already be gone. */
   function attachCityAutocomplete(inputId) {
     const input = document.getElementById(inputId);
@@ -486,9 +486,9 @@
   /* ---------- saved preferences & trip memory (localStorage, this browser
      only) ----------
    * Roadmap phase 07's fuller slice, after the wallet (2026-07-14). Persists
-   * the durable fields in the "Flight preferences" card — cabin, stops,
+   * the durable fields in the "Flight preferences" card: cabin, stops,
    * airlines, alliances, times, disliked airports, seat/hotel, travel style,
-   * and the upgrade-wins log — across sessions, same auto-save-on-edit
+   * and the upgrade-wins log, across sessions, same auto-save-on-edit
    * pattern as the wallet above. Trip-specific fields (origin, destination,
    * dates, budget, bags) deliberately do NOT persist; those vary trip to
    * trip and defaulting them would be wrong, not helpful. */
@@ -499,14 +499,14 @@
   // 2026-07-31 (Susan: "default to Nonstop only" wasn't sticking): maxStops
   // used to live on a plain <select> with no "this is a deliberate choice"
   // signal, so a value saved back then (e.g. from whatever the select's own
-  // default was) is indistinguishable from an accidental leftover — but
+  // default was) is indistinguishable from an accidental leftover, but
   // loadPreferences() below was restoring it unconditionally, silently
   // overriding the new Nonstop-only default the whole stops filter fix
   // exists to serve. This flag is only ever set true by an actual click on
   // the Stops pill row (see the maxStops click handler below); until then,
   // any saved maxStops from before today is treated as not-a-real-choice
   // and left unapplied, so the page keeps its HTML default of Nonstop only.
-  // A genuine choice — made today or any day after — is still fully sticky,
+  // A genuine choice, made today or any day after, is still fully sticky,
   // exactly as the "saved as your default across trips" label promises.
   let maxStopsConfirmed = false;
 
@@ -548,7 +548,7 @@
     if (!prefs) return;
     if (prefs.cabin) setPillVal("cabin", prefs.cabin);
     // only restore a saved maxStops once it's been confirmed as a real,
-    // deliberate choice (see maxStopsConfirmed above) — otherwise the page
+    // deliberate choice (see maxStopsConfirmed above); otherwise the page
     // keeps its HTML default of Nonstop only instead of a stale carryover
     if (prefs.maxStopsConfirmed && prefs.maxStops != null && prefs.maxStops !== "") setPillVal("maxStops", prefs.maxStops);
     maxStopsConfirmed = !!prefs.maxStopsConfirmed;
@@ -626,8 +626,8 @@
   });
   document.querySelectorAll(".alliance-check").forEach((el) => el.addEventListener("change", () => savePreferences(true)));
   // maxStops moved from a plain <select> (handled generically above via
-  // PREFS_FIELD_IDS) to a promoted pill-toggle on the main card (2026-07-31)
-  // — pills save on click the same way the cabin pill already does.
+  // PREFS_FIELD_IDS) to a promoted pill-toggle on the main card (2026-07-31):
+  // pills save on click the same way the cabin pill already does.
   ["cabin", "maxStops"].forEach((group) => {
     document.querySelector(`.pill-toggle[data-group="${group}"]`).addEventListener("click", (e) => {
       // a real click on a Stops pill IS the deliberate choice that makes
@@ -681,7 +681,7 @@
 
   function collectInputs() {
     const T = window.TravelIntel;
-    // Primary priority gets rank 1, optional secondary rank 2 — same
+    // Primary priority gets rank 1, optional secondary rank 2, same
     // computeWeights machinery as before, driven by the two dropdowns.
     const priorityRanks = {};
     const primary = document.getElementById("priorityPrimary").value;
@@ -709,7 +709,7 @@
       cabin: pillVal("cabin") || "Economy",
       maxBudget: parseInt(document.getElementById("maxBudget").value, 10) || 1000,
       // 2026-07-31 (Susan: "default to Nonstop only"): fallback used to be
-      // "3" (Any stops) if no pill read as selected — directly contradicting
+      // "3" (Any stops) if no pill read as selected, directly contradicting
       // the HTML default (Nonstop only has the "sel" class) and the whole
       // reason this filter exists. Falling back to "0" here means even an
       // unexpected DOM state still defaults to nonstop, never silently to
@@ -733,7 +733,7 @@
     };
   }
 
-  // Returns { data, reason } — reason explains WHY a run fell back to the
+  // Returns { data, reason }: reason explains WHY a run fell back to the
   // model so the results header can say the true cause, never a generic
   // "awaiting credential" when the real problem is a typo or a timeout
   // (audit finding: one message for three distinct failure causes).
@@ -802,7 +802,7 @@
   }
 
   // Deep-scan feed: browser-collected Kayak/Booking offers stored via
-  // /api/scan-offers. Best-effort — absence or errors merge nothing.
+  // /api/scan-offers. Best-effort: absence or errors merge nothing.
   const SCAN_TTL_H = 24;
   async function fetchScanOffers(inputs) {
     const T = window.TravelIntel;
@@ -840,7 +840,7 @@
   }
 
   // 2026-07-26 (Susan's SFO→Osaka Jul 2027 run): airlines publish fares only
-  // ~330 days ahead. A depart date beyond that isn't a failure — it's a date
+  // ~330 days ahead. A depart date beyond that isn't a failure: it's a date
   // no airline has loaded yet. Detect it, say it, and don't waste a retry.
   const BOOKING_HORIZON_DAYS = 330;
   function daysOut(dateStr) {
@@ -856,7 +856,7 @@
 
   const FALLBACK_REASONS = {
     // 2026-07-31: toIATA now auto-corrects a stray typo or two (a dropped,
-    // doubled, swapped, or wrong letter — "Bankok" now resolves to Bangkok
+    // doubled, swapped, or wrong letter: "Bankok" now resolves to Bangkok
     // on its own), so this message only fires for names it genuinely
     // doesn't recognize, not a one-letter slip.
     "unknown-via": (inputs) => `"${inputs.viaCity}" isn't in the city table, even allowing for a typo or two; check the spelling or use a 3-letter airport code.`,
@@ -868,7 +868,7 @@
     "no-offers": () => `the live search returned no offers for this route/date.`,
     "api-fail": () => `the live search failed or timed out; re-run to retry.`,
     // 2026-08-05: fares.mjs's two abuse guards (an Origin/Referer allowlist
-    // and a daily SerpApi-call cap, both protecting the 100/month quota) —
+    // and a daily SerpApi-call cap, both protecting the 100/month quota):
     // deterministic failures, so unlike "api-fail" these are never retried
     // automatically (see fetchLiveOffers above) and get their own honest
     // copy instead of "re-run to retry", which would be false for both.
@@ -890,7 +890,7 @@
     resultsEl.innerHTML = '<div class="empty-state es-searching"><p>Searching live fares… <span class="form-hint">usually 3–12 seconds</span></p></div>';
     let live = await fetchLiveOffers(inputs);
     // 2026-07-26 (Susan hit a cold-route timeout): a slow first SerpApi call
-    // is transient — retry once, saying so, before ever giving up.
+    // is transient; retry once, saying so, before ever giving up.
     if (!live.data && live.reason === "api-fail" && daysOut(inputs.departDate) <= BOOKING_HORIZON_DAYS) {
       resultsEl.innerHTML = '<div class="empty-state es-searching"><p>Slow response, retrying… <span class="form-hint">cold routes can take a second attempt</span></p></div>';
       live = await fetchLiveOffers(inputs);
@@ -900,7 +900,7 @@
       if (live.data && live.data.offers) {
         live.data = { ...live.data, offers: live.data.offers.concat(scans.offers), provider: (live.data.provider || "live feed") + " + " + scans.label };
       } else {
-        // no primary live feed this run, but real scanned prices exist —
+        // no primary live feed this run, but real scanned prices exist:
         // score them, honestly labeled as the scan feed
         live.data = { live: true, offers: scans.offers, provider: scans.label, retrievedAt: new Date().toISOString() };
         live.reason = "ok";
@@ -922,7 +922,7 @@
     document.getElementById("results").scrollIntoView({ behavior: "smooth", block: "start" });
   });
 
-  // Live re-weighting from the results view — same fetched candidates,
+  // Live re-weighting from the results view: same fetched candidates,
   // different lens (scoring is pure/deterministic). This is the "look at
   // the data in different ways" filter: no form resubmit needed.
   window.tiRetryRun = function () {
@@ -940,7 +940,7 @@
     renderResults(inputs, T.runOptimization(inputs, window.__tiLastLive && window.__tiLastLive.offers));
   };
 
-  // 2026-08-07 (Susan: SFO->Tallinn bug) — same zero-extra-API-cost pattern
+  // 2026-08-07 (Susan: SFO->Tallinn bug): same zero-extra-API-cost pattern
   // as tiReoptimize() above: re-score the offers already fetched this run
   // against a relaxed filter instead of spending another metered daily
   // search on a retry that would return the identical filtered-to-empty
@@ -1024,7 +1024,7 @@
       ? `<p class="form-hint" style="margin-top:8px;">Interval widened to every ${sweep.effectiveIntervalDays} days to stay within a safe per-click search budget (max ${SWEEP_MAX_SAMPLES} live searches).</p>`
       : "";
     const capNote = stoppedAt != null
-      ? `<p class="form-hint" style="margin-top:8px;">Stopped after ${stoppedAt} sample${stoppedAt === 1 ? "" : "s"} — today's live-search quota ran out.</p>`
+      ? `<p class="form-hint" style="margin-top:8px;">Stopped after ${stoppedAt} sample${stoppedAt === 1 ? "" : "s"}: today's live-search quota ran out.</p>`
       : "";
     bodyEl.innerHTML = `<div class="sweep-chart">${rows}</div>${widenNote}${capNote}`;
   }
@@ -1111,7 +1111,7 @@
 
   function renderResults(inputs, result) {
     const T = window.TravelIntel;
-    // 2026-07-24: an unresolved route renders NO results — not a modeled
+    // 2026-07-24: an unresolved route renders NO results, not a modeled
     // card with a warning. The SFO->Greenville incident proved a warning
     // next to invented specifics still reads as a bookable itinerary.
     if (!result.routeKnown) {
@@ -1181,7 +1181,7 @@
       "Fewest stops": (a, b) => a.stops - b.stops || (a.travelMinutes || 1e9) - (b.travelMinutes || 1e9),
       "Shortest time": (a, b) => (a.travelMinutes || 1e9) - (b.travelMinutes || 1e9),
     };
-    const fmtTime = (m) => (m == null ? "—" : `${Math.floor(m / 60)}h ${m % 60}m`);
+    const fmtTime = (m) => (m == null ? "–" : `${Math.floor(m / 60)}h ${m % 60}m`);
     window.tiSortAlts = function (key) {
       const rows = alts.slice().sort(SORTS[key] || SORTS["Weighted score"]);
       document.getElementById("alt-tbody").innerHTML = altRowsHtml(rows);
@@ -1313,7 +1313,7 @@
           <h4>Redemption value <span class="tag" style="background:${award.strong ? "var(--good-dim)" : "var(--bad-dim)"};color:${award.strong ? "var(--good)" : "var(--bad)"};">${award.strong ? "Genuinely strong" : "Not recommended"}</span></h4>
           <p>Typical ${award.cabin} redemption on ${award.alliance} carriers runs ${award.milesLow.toLocaleString()}–${award.milesHigh.toLocaleString()} miles round-trip plus taxes/fees. Against this itinerary's ${T.fmtUSD(best.price)} cash price, the outcome depends on which award level is released: roughly ${Math.max(0, award.cppWorstCase).toFixed(1)}–${award.cppBestCase.toFixed(1)}¢ per mile across the range, and <strong>${award.cpp.toFixed(2)}¢/mile</strong> at this itinerary's estimate: the single verdict used everywhere on this page. ${award.strong ? "That clears the 1.6¢ bar for a genuinely good redemption; worth using miles here, if award space exists." : "That's below the roughly 1.6¢/mile bar; cash is the better call, and the miles are worth more saved for a stronger use."}</p>
         </div>
-        ${award.relevantPrograms.length ? `<div class="strategy-block"><h4>Your balances in play</h4><p>${award.relevantPrograms.map((p) => `${p.program}: ${p.balance.toLocaleString()} miles`).join(" · ")}</p><p>${award.balanceCheck.status === "enough" ? `<strong>Your ${award.balanceCheck.program} balance covers this</strong> — it clears the ~${award.balanceCheck.needed.toLocaleString()}-mile low end of the typical range, with ${award.balanceCheck.surplus.toLocaleString()} miles to spare.` : `<strong>Your ${award.balanceCheck.program} balance is short</strong> — this redemption typically starts around ${award.balanceCheck.needed.toLocaleString()} miles and you have ${award.balanceCheck.biggestBalance.toLocaleString()}; you'd need about ${award.balanceCheck.shortfall.toLocaleString()} more.`}</p></div>` : `<div class="strategy-block"><h4>No balance entered for a ${award.alliance} program</h4><p>Add a balance above if you hold miles in a program that flies this alliance, or check the transfer-partner note below if your points live on a transferable card. This redemption typically starts around ${award.balanceCheck.needed.toLocaleString()} miles.</p></div>`}
+        ${award.relevantPrograms.length ? `<div class="strategy-block"><h4>Your balances in play</h4><p>${award.relevantPrograms.map((p) => `${p.program}: ${p.balance.toLocaleString()} miles`).join(" · ")}</p><p>${award.balanceCheck.status === "enough" ? `<strong>Your ${award.balanceCheck.program} balance covers this.</strong> It clears the ~${award.balanceCheck.needed.toLocaleString()}-mile low end of the typical range, with ${award.balanceCheck.surplus.toLocaleString()} miles to spare.` : `<strong>Your ${award.balanceCheck.program} balance is short.</strong> This redemption typically starts around ${award.balanceCheck.needed.toLocaleString()} miles and you have ${award.balanceCheck.biggestBalance.toLocaleString()}; you'd need about ${award.balanceCheck.shortfall.toLocaleString()} more.`}</p></div>` : `<div class="strategy-block"><h4>No balance entered for a ${award.alliance} program</h4><p>Add a balance above if you hold miles in a program that flies this alliance, or check the transfer-partner note below if your points live on a transferable card. This redemption typically starts around ${award.balanceCheck.needed.toLocaleString()} miles.</p></div>`}
         ${inputs.creditCards.length ? `<div class="strategy-block"><h4>Transfer path from your cards</h4><p>${inputs.creditCards.map((cc) => T.TRANSFER_PARTNERS[cc] ? `<strong>${cc}</strong> (${T.TRANSFER_PARTNERS[cc].ratio}): ${T.TRANSFER_PARTNERS[cc].note}.` : "").filter(Boolean).join(" ")}</p></div>` : ""}
         <div class="strategy-block">
           <h4>Do this now</h4>
@@ -1414,7 +1414,7 @@
   /* ---------- fare watcher UI ---------- */
   // Edit key (roadmap Phase 8, "Protect watched trips," 2026-08-07). Same
   // pattern as Vinyl Scout's wishlist.html: a shared key remembered in
-  // localStorage per device (not sessionStorage — this is a page Susan
+  // localStorage per device (not sessionStorage: this is a page Susan
   // revisits daily, so a one-time-per-device prompt beats one per tab).
   // Only the two writes (watch/unwatch) ever need it; GET stays open.
   var TI_EDIT_KEY = "ti-edit-secret";
@@ -1457,14 +1457,14 @@
         } }),
       });
       const j = await r.json();
-      if (r.status === 401) { clearEditSecret(); btn.textContent = "Wrong edit key — click to retry"; return; }
+      if (r.status === 401) { clearEditSecret(); btn.textContent = "Wrong edit key: click to retry"; return; }
       if (!r.ok) { btn.textContent = j.error && j.error.includes("cap") ? "Watch cap reached (3)" : "Watch failed; retry"; return; }
       btn.textContent = "Watching ✓";
       renderWatched(j.trips);
     } catch (e) { btn.textContent = "Watch failed (offline?)"; }
   };
 
-  // "May 31, 2027" — noon anchor avoids timezone off-by-one on bare dates
+  // "May 31, 2027": noon anchor avoids timezone off-by-one on bare dates
   function fmtWatchDate(iso, withYear) {
     if (!iso) return "";
     const d = new Date(iso + "T12:00:00");
@@ -1506,9 +1506,9 @@
           : diff < 0 ? `<span class="watched-delta down">▼ $${fmtNum(Math.abs(diff))} (${Math.abs(pct)}%)</span>`
           : `<span class="watched-delta up">▲ $${fmtNum(diff)} (${pct}%)</span>`;
       }
-      const priceAmount = latest ? `$${fmtNum(latest.price)}` : t.baseline ? `$${fmtNum(t.baseline.price)}` : "—";
+      const priceAmount = latest ? `$${fmtNum(latest.price)}` : t.baseline ? `$${fmtNum(t.baseline.price)}` : "–";
       const priceMeta = latest
-        ? `${latest.carrier || "—"} · checked ${new Date(latest.at).toLocaleDateString("en-US", { month: "short", day: "numeric" })}`
+        ? `${latest.carrier || "–"} · checked ${new Date(latest.at).toLocaleDateString("en-US", { month: "short", day: "numeric" })}`
         : t.baseline ? "baseline · first check tonight" : "first check runs tonight";
       const histVals = checks.map((c) => c && c.price).filter((v) => typeof v === "number" && isFinite(v));
       const spark = histVals.length >= 2 ? `<span class="watched-spark" title="${histVals.length} nightly checks">${sparkline(histVals, 90, 22)}</span>` : "";
@@ -1549,37 +1549,37 @@
     checkConcertMatches(trips);
   }
 
-  // 2026-08-05, Phase 10 — Concert Radar hooks (Vinyl Scout half:
+  // 2026-08-05, Phase 10: Concert Radar hooks (Vinyl Scout half:
   // netlify/functions/artists-playing.mjs). Best-effort, fire-and-forget:
   // called from the end of renderWatched() so every render path (initial
   // load, a new watch, an unwatch) picks it up automatically without a
-  // separate call site. Two cross-site fetches per trip — first this
+  // separate call site. Two cross-site fetches per trip: first this
   // site's own /api/watched-trips (privacy-scoped: destination + lat/lon +
   // date range only, see that function's own header comment) to get the
   // coordinates a raw watched trip doesn't carry, then Vinyl Scout's
   // /api/artists-playing with those coordinates. A failure anywhere in
   // this chain (either site down, CORS, offline) silently leaves the row
-  // exactly as it already rendered — this is a bonus, never a blocker.
+  // exactly as it already rendered; this is a bonus, never a blocker.
   //
   // 2026-08-06 (Susan, direct request): each artist name now links to
   // Concert Radar, with an ?artist= (and, when known, &city=) query param
   // concert-radar.html reads on load to pre-fill and immediately run its
-  // own live search — see that file's 2026-08-06 initDeepLink(). Artist
+  // own live search, see that file's 2026-08-06 initDeepLink(). Artist
   // names come from an external API (SeatGeek, via artists-playing.mjs),
   // so the href value goes through encodeURIComponent (URL-safe) and the
-  // visible text still goes through escapeHtml (HTML-safe) — same
+  // visible text still goes through escapeHtml (HTML-safe), same
   // stored-XSS discipline the rest of this file already applies to
   // server-sourced strings (see the 2026-07-31 note on watched-item rows).
   //
-  // Also badges any artist name in m.newMatches — the weekly
+  // Also badges any artist name in m.newMatches, the weekly
   // concert-match-check.mjs scheduled function's output, merged in by
-  // watched-trips.mjs — as "new this week", so a match that's been
+  // watched-trips.mjs, as "new this week", so a match that's been
   // sitting there for a month doesn't read as something just discovered.
   // 2026-08-06, later same day (Susan: a Santigold+Chicago search on the
-  // Concert Radar deep link came back empty — "fix this search issue").
+  // Concert Radar deep link came back empty: "fix this search issue").
   // Root cause was entirely on Vinyl Scout's side (its Search panel never
   // sent a real location to SeatGeek at all, see concert-radar.html's own
-  // note) — but this link is the one place a real destination lat/lon is
+  // note), but this link is the one place a real destination lat/lon is
   // already known and can be handed over, so it now is: lat/lon (both
   // optional) geo-scope the deep-linked search to the actual trip
   // destination instead of Vinyl Scout's Berkeley default.
@@ -1594,8 +1594,8 @@
     return `<a href="${u.toString()}" target="_blank" rel="noopener">${escapeHtml(artistName)}</a>`;
   }
 
-  // 2026-08-06, same day (Susan: "improve it" — the several-second gap
-  // before the banner appears looked broken — plus "keep it cached until
+  // 2026-08-06, same day (Susan: "improve it", the several-second gap
+  // before the banner appears looked broken, plus "keep it cached until
   // the next automatic check so it all loads properly when the page
   // loads?"). Two changes, both scoped to THIS device's localStorage only
   // (single-user site, no cross-device sync needed):
@@ -1603,14 +1603,14 @@
   //      live cross-site check even starts, so a return visit shows the
   //      banner right away instead of a blank gap. This is a stale-while-
   //      revalidate cache, not a "trust the weekly check and skip the live
-  //      one" cache — the live per-page-load check in checkConcertMatches
+  //      one" cache: the live per-page-load check in checkConcertMatches
   //      still always runs and is still the source of truth; the cache
   //      only covers the paint that happens before it resolves.
   //   2. If there's nothing cached yet (first-ever visit, or a trip with
   //      no prior match), a small "checking…" placeholder shows instead of
   //      nothing, so the gap reads as loading rather than absent/broken.
   // On a failed live check (offline, CORS hiccup, Vinyl Scout down), the
-  // cached note is deliberately left showing rather than cleared — a
+  // cached note is deliberately left showing rather than cleared; a
   // check that couldn't run isn't evidence the show got cancelled. Only a
   // live check that actually completes updates or clears the cache.
   const CONCERT_CACHE_KEY = "ti-concert-match-cache-v1";
@@ -1625,7 +1625,7 @@
     const badge = (artist) => newKeys.has(String(artist).trim().toLowerCase()) ? ` <span class="concert-match-new" title="First matched in the weekly check">🆕 new this week</span>` : "";
     if (matches.length === 1) {
       const mm = matches[0];
-      return `🎵 ${concertRadarLink(mm.artist, cityForLink, lat, lon)} plays ${escapeHtml(mm.venue || "a venue nearby")} ${escapeHtml(mm.dateLabel || mm.date || "")} — while you're there${badge(mm.artist)}`;
+      return `🎵 ${concertRadarLink(mm.artist, cityForLink, lat, lon)} plays ${escapeHtml(mm.venue || "a venue nearby")} ${escapeHtml(mm.dateLabel || mm.date || "")}, while you're there${badge(mm.artist)}`;
     }
     const names = matches.slice(0, 4).map((mm) => concertRadarLink(mm.artist, cityForLink, lat, lon) + badge(mm.artist)).join(", ");
     return `🎵 ${matches.length} artists you follow are playing nearby while you're there: ${names}${matches.length > 4 ? "…" : ""}`;
@@ -1660,7 +1660,7 @@
     } catch (e) { return; }
     const cache = loadConcertCache();
     mapped.forEach(async (m) => {
-      if (m.lat == null || m.lon == null || !m.dateStart || !m.dateEnd) return; // unmapped destination — nothing to check
+      if (m.lat == null || m.lon == null || !m.dateStart || !m.dateEnd) return; // unmapped destination, nothing to check
       const row = document.querySelector(`.watched-item[data-id="${CSS.escape(m.id)}"]`);
       if (!row) return;
       const cityForLink = m.destination || "";
@@ -1682,7 +1682,7 @@
         if (matches.length) cache[m.id] = { matches, at: Date.now() }; else delete cache[m.id];
         saveConcertCache(cache);
       } catch (e) {
-        // Live check failed — drop an unfulfilled loading placeholder back
+        // Live check failed; drop an unfulfilled loading placeholder back
         // to nothing; leave a cached match exactly as it already painted.
         if (!cached || !cached.matches || !cached.matches.length) clearMatchNote(row);
       }
@@ -1694,7 +1694,7 @@
     if (!editKey) return;
     try {
       const r = await fetch("/api/watch?id=" + encodeURIComponent(id), { method: "DELETE", headers: { "X-Edit-Key": editKey } });
-      if (r.status === 401) { clearEditSecret(); alert("Wrong edit key — try again."); return; }
+      if (r.status === 401) { clearEditSecret(); alert("Wrong edit key: try again."); return; }
       const j = await r.json();
       renderWatched(j.trips);
       const btn = document.getElementById("watch-btn");
@@ -1715,7 +1715,7 @@
         document.getElementById("watched-rows").insertAdjacentHTML("afterbegin",
           `<p class="form-hint" style="color:var(--bad,#a24a3f);">⚠ The last scheduled health check failed (${new Date(j.health.at).toLocaleDateString("en-US", { month: "short", day: "numeric" })}): the fares backend may be down; watched-trip checks may have been skipped.</p>`);
       }
-    } catch (e) { /* backend absent — card stays hidden */ }
+    } catch (e) { /* backend absent, card stays hidden */ }
   })();
 
   /* ---------- upgrade plan → calendar (.ics) ---------- */

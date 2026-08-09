@@ -1,14 +1,14 @@
 // netlify/functions/scan-offers.mjs
 // version: 1 (2026-07-25)
-// Storage for browser-scanned OTA offers (Kayak, Booking.com) — the
+// Storage for browser-scanned OTA offers (Kayak, Booking.com), the
 // "deep scan" feed. Scans are collected in Susan's own logged-in Chrome
 // during a Cowork session (server-side scraping of these sites 403s and
 // violates their ToS; her browser doing her own personal searches does
-// not — the exact pattern Vinyl Scout uses for Discogs medians), then
+// not, the exact pattern Vinyl Scout uses for Discogs medians), then
 // POSTed here so the optimizer can merge them with the live SerpApi
 // feed. Same open POST model and Blobs store as watch.mjs (no auth,
 // nothing sensitive: routes, dates, carrier names, prices). Reuses the
-// watched-trips store under a "scanoffers-" key prefix — same
+// watched-trips store under a "scanoffers-" key prefix, same
 // single-store discipline as the fares.mjs cache ("farecache-").
 // Freshness is the reader's job: the frontend ignores scans older than
 // SCAN_TTL_H (exported for tests, 24h) rather than this file deleting

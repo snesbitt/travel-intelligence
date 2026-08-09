@@ -1,5 +1,5 @@
 // netlify/functions/lib/city-coords.mjs
-// version: 1 (2026-08-05, same-day fix — see below)
+// version: 1 (2026-08-05, same-day fix, see below)
 //
 // A DELIBERATE, verified-in-sync duplicate of app.js's CITY_COORDS table,
 // for use ONLY by Netlify Functions (currently watched-trips.mjs).
@@ -13,38 +13,38 @@
 // bundler (esbuild) only packages files it can see through STATIC
 // imports. A dynamic require() to a path outside the function's own
 // directory tree is invisible to it, so app.js silently never made it
-// into the deployed bundle — the function threw "Cannot find module" on
+// into the deployed bundle, the function threw "Cannot find module" on
 // every real invocation, and every call returned a 502. Caught the same
 // day this shipped, once Susan reported not seeing the feature live.
 //
 // This file is the standard fix for that class of bug: move the shared
-// data into something the bundler's static analysis actually sees — a
+// data into something the bundler's static analysis actually sees, a
 // real `import` inside netlify/functions/. It costs a second copy of the
 // same ~170 entries, which the old design specifically tried to avoid
-// (see this repo's CLAUDE.md, "Concert Radar ... built" entry) — but a
+// (see this repo's CLAUDE.md, "Concert Radar ... built" entry), but a
 // working duplicate beats an elegant approach that 502s in production.
 // Kept honest: tests/watched-trips.test.mjs has a dedicated assertion
 // that loads app.js's CITY_COORDS the SAME way the old runtime code did
 // (createRequire, safe in a Node test process, just not in the deployed
-// function) and diffs every key/value against this file — any future
+// function) and diffs every key/value against this file, any future
 // edit to one table without the other fails the test suite, not just a
 // silent runtime drift.
 //
 // 2026-08-05, same-day follow-up: Susan's watched Chicago trip
 // (destIata "ORD") came back in meta.unmapped even after the 502 fix
-// above — a second, separate bug, this one in app.js's table itself
+// above, a second, separate bug, this one in app.js's table itself
 // (predates this file, copied straight over): CITY_IATA maps 163 city
 // names to a primary code, but 79 of those codes (including ORD) were
-// never ALSO a CITY_COORDS key in their own right — only the city NAME
+// never ALSO a CITY_COORDS key in their own right, only the city NAME
 // was. That's invisible to app.js's own lookupCoords(), which has a
 // whole-word/fuzzy fallback chain that resolves free-text input like
 // "chicago" just fine, but buildWatchedTripsView() below does a plain
 // exact-match lookup on an already-resolved code, which has no such
 // fallback. Fixed by adding every missing code as its own key
-// (mechanically generated from the matching city-name entry — same
+// (mechanically generated from the matching city-name entry, same
 // coordinates, not independently sourced) plus 5 cities that had no
 // coordinate at all under either name or code (Muscat, Damascus, Minsk,
-// Nicosia, Kyiv — added from public capital-city coordinates). See the
+// Nicosia, Kyiv, added from public capital-city coordinates). See the
 // dated comment directly in app.js's own CITY_COORDS table for the same
 // note there.
 //
@@ -115,7 +115,7 @@ export const CITY_COORDS = {
   "west palm beach": [26.68, -80.10], pbi: [26.68, -80.10], "fort myers": [26.54, -81.76], rsw: [26.54, -81.76],
   sarasota: [27.40, -82.55], srq: [27.40, -82.55],
   // 2026-07-31 (Susan: "paris has several airports"): coordinates for every
-  // CITY_ALT_AIRPORTS code above that didn't already have an entry — a few
+  // CITY_ALT_AIRPORTS code above that didn't already have an entry, a few
   // (oak, sjc, bur, sna, bwi, nrt) were already here as standalone cities
   // and are reused as-is.
   lga: [40.78, -73.87], dca: [38.85, -77.04], mdw: [41.79, -87.75],
@@ -125,21 +125,21 @@ export const CITY_COORDS = {
   pkx: [39.51, 116.41], gmp: [37.56, 126.80], cia: [41.80, 12.59], aep: [-34.56, -58.42],
   cgh: [-23.63, -46.66], sdu: [-22.91, -43.16], dmk: [13.91, 100.61], ytz: [43.63, -79.40],
   // 2026-08-05 (found while diagnosing why watched-trips.mjs's Chicago
-  // lookup came back unmapped — Susan asked "who's playing in Chicago
+  // lookup came back unmapped, Susan asked "who's playing in Chicago
   // during my trip" and the answer required this table first): CITY_IATA
   // maps 163 city names to a primary code, but only a minority of those
-  // codes were ALSO present here as their own key — the rest (Chicago/ORD
+  // codes were ALSO present here as their own key, the rest (Chicago/ORD
   // among them) only resolved via lookupCoords()'s whole-word/fuzzy
   // fallback chain, which only works for FREE-TEXT city-name input, not a
   // bare already-resolved code like watch.mjs's stored destIata. Every
-  // code below is the SAME coordinate pair as its city-name entry above —
+  // code below is the SAME coordinate pair as its city-name entry above, 
   // mechanically generated by cross-referencing CITY_IATA against this
   // table, not independently sourced, so there's nothing new to verify
   // beyond what was already here. Five codes (mct, dam, msq, lca, kbp)
-  // had no coordinate entry at all under either name or code — added from
+  // had no coordinate entry at all under either name or code, added from
   // public capital-city coordinates (Muscat, Damascus, Minsk, Nicosia,
   // Kyiv/Boryspil) since this table had literally nothing to copy from
-  // for those five. This does not change any existing resolution — it
+  // for those five. This does not change any existing resolution, it
   // only adds a fast, exact-match path for codes lookupCoords() could
   // already reach the slow way; app.js's own comment above lookupCoords's
   // fuzzy-fallback block (search "not every CITY_COORDS key has a

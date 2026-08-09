@@ -1,29 +1,29 @@
 // netlify/functions/fares.mjs
 // version: 3 (2026-07-30)
-// Live fare search backend — the piece that takes Travel Intelligence out
+// Live fare search backend, the piece that takes Travel Intelligence out
 // of demo mode.
 //
 // v1 targeted the Amadeus Self-Service API; Amadeus decommissioned that
-// portal on 2026-07-17 (verified on their site the following day — new
+// portal on 2026-07-17 (verified on their site the following day, new
 // self-service signups no longer exist, enterprise-sales only). v2 swaps
 // the provider to SerpApi's Google Flights engine: real Google Flights
-// results, self-serve API key, free tier of 100 searches/month — ample
+// results, self-serve API key, free tier of 100 searches/month, ample
 // for personal trip planning. The credential lives ONLY in the Netlify
 // env var SERPAPI_KEY, never in source, per CLAUDE.md. With no credential
 // configured this returns {live:false, reason:"not_configured"} and the
 // frontend states plainly that it's running the documented model instead
-// — honest fallback, never a silent one.
+//, honest fallback, never a silent one.
 //
 // v3 (2026-07-30): adds a multi-city path for via/stopover trips ("SFO ->
 // Bangkok via Osaka"). Previously the frontend hard-blocked any via search
 // rather than reintroduce the synthetic-model path that was deliberately
-// deleted (see CLAUDE.md's radical-simplicity note) — but SerpApi's Google
+// deleted (see CLAUDE.md's radical-simplicity note), but SerpApi's Google
 // Flights engine already supports real multi-city itineraries natively
 // (type=3, multi_city_json), so via-routing can stay on the SAME "live
 // feed or honest no-data" principle: no modeling, just a real search with
 // more than one leg. A `legs` query param (JSON array of {origin,
 // destination, date}, 2-4 legs) switches the handler onto this path;
-// everything else — caching, offer mapping, response shape — is shared
+// everything else, caching, offer mapping, response shape, is shared
 // with the single-route path so the two can't drift apart.
 
 // Quota guard (added 2026-07-20): identical searches (same origin/dest/
@@ -36,7 +36,7 @@
 // @netlify/blobs is imported dynamically inside the handler, not at module
 // top-level, so this file's pure, dependency-free exports (buildFareCacheKey,
 // isCacheFresh, CACHE_TTL_MS, parseLegs, buildLegsCacheKey) can be imported
-// and unit-tested without needing @netlify/blobs installed/resolvable —
+// and unit-tested without needing @netlify/blobs installed/resolvable, 
 // Netlify's own runtime always has it available when the handler actually
 // runs, so this changes nothing about production behavior.
 
@@ -57,13 +57,13 @@ export const CACHE_TTL_MS = 15 * 60 * 1000; // 15 min - protects quota, short en
 
 // ---------- abuse protection (2026-08-05 audit backlog item) ----------
 // This endpoint has no auth (same open-by-design model as watch.mjs/
-// scan-offers.mjs — nothing sensitive is stored or returned), which means
+// scan-offers.mjs, nothing sensitive is stored or returned), which means
 // anything that can find the URL can spend Susan's 100-search/month
 // SerpApi quota: a scraper crawling it directly, another site embedding
 // it, a shared/indexed link. Two lightweight guards, deliberately NOT a
 // full per-IP rate limiter (more infrastructure than this problem needs,
 // per the radical-simplicity rule):
-//   1. Origin/Referer allowlist — rejects requests that didn't come from
+//   1. Origin/Referer allowlist, rejects requests that didn't come from
 //      a page this site actually serves. Not real auth (both headers are
 //      trivially spoofable by a determined scraper), but it stops the
 //      common, actually-observed case: something hitting the bare API
@@ -77,8 +77,8 @@ export const CACHE_TTL_MS = 15 * 60 * 1000; // 15 min - protects quota, short en
 //      genuine bug loop) to losing at most one day's headroom, not the
 //      whole month, and fails with an honest 429 rather than silently
 //      degrading to modeled data (no modeled path exists to fall back to
-//      — see the radical-simplicity note in CLAUDE.md).
-// Neither guard applies to the `?ping=1` health check above — it returns
+//, see the radical-simplicity note in CLAUDE.md).
+// Neither guard applies to the `?ping=1` health check above, it returns
 // before either check runs and never touches SerpApi, so it costs no
 // quota and needs no protecting.
 
@@ -89,7 +89,7 @@ const ALLOWED_ORIGINS = [
   "http://127.0.0.1:8888",
 ];
 
-// Pure — given a request's Origin and Referer headers, did this call come
+// Pure, given a request's Origin and Referer headers, did this call come
 // from a page this site actually serves? `netlify.toml`'s
 // Referrer-Policy is "strict-origin-when-cross-origin", so a real
 // same-origin browser fetch() from index.html always sends a full-URL
@@ -101,29 +101,29 @@ export function isAllowedOrigin(originHeader, refererHeader) {
     try {
       if (ALLOWED_ORIGINS.includes(new URL(refererHeader).origin)) return true;
     } catch (e) {
-      // malformed Referer — falls through to false, same as missing
+      // malformed Referer, falls through to false, same as missing
     }
   }
   return false;
 }
 
-export const DAILY_SEARCH_CAP = 20; // real SerpApi calls/day across both search paths — a spend/quota decision, Susan's call to raise (same convention as MAX_TRIPS in watch.mjs), not something to bump without her sign-off
+export const DAILY_SEARCH_CAP = 20; // real SerpApi calls/day across both search paths, a spend/quota decision, Susan's call to raise (same convention as MAX_TRIPS in watch.mjs), not something to bump without her sign-off
 
-// Pure — given today's already-used count, should the next real SerpApi
+// Pure, given today's already-used count, should the next real SerpApi
 // call be blocked? Exported so the cap logic itself is unit-testable
 // without needing @netlify/blobs.
 export function isOverDailyCap(count, cap = DAILY_SEARCH_CAP) {
   return count >= cap;
 }
 
-// Pure — the store key for today's counter, UTC calendar day (matches
+// Pure, the store key for today's counter, UTC calendar day (matches
 // how watch-check.mjs and the rest of this file already reason about
 // "today"). Exported so tests can assert on it directly.
 export function todayQuotaKey(now = new Date()) {
   return "farequota-" + now.toISOString().slice(0, 10);
 }
 
-// I/O — reserves one slot in today's counter with the same
+// I/O, reserves one slot in today's counter with the same
 // getWithMetadata/onlyIfMatch retry loop watch.mjs's handler already
 // uses, so concurrent requests can't both read an under-cap count and
 // both proceed. Returns {ok:true} once a slot is reserved (the caller is
@@ -139,12 +139,12 @@ async function reserveDailySearchSlot(store) {
       ? await store.setJSON(quotaKey, count + 1, { onlyIfMatch: etag })
       : await store.setJSON(quotaKey, count + 1, { onlyIfNew: true });
     if (result.modified) return { ok: true };
-    // someone else incremented (or created the key) in between — loop and retry against the fresh count
+    // someone else incremented (or created the key) in between, loop and retry against the fresh count
   }
   return { ok: false, reason: "contention" };
 }
 
-// Pure, no I/O — exported so the quota-cache logic is directly unit-testable
+// Pure, no I/O, exported so the quota-cache logic is directly unit-testable
 // without mocking fetch/@netlify/blobs (same pattern as audio-preview.mjs's
 // named exports in the vinyl-scout repo). Stable/deterministic: same search
 // params always produce the same key, order matters (that's fine, callers
@@ -153,13 +153,13 @@ export function buildFareCacheKey(origin, destination, departDate, returnDate, a
   return "farecache-" + ["v1", origin, destination, departDate, returnDate, adults, cabin].join("|");
 }
 
-// Pure — given a cache entry's stored timestamp and "now", is it still
+// Pure, given a cache entry's stored timestamp and "now", is it still
 // within the TTL window? Exported for the same reason as buildFareCacheKey.
 export function isCacheFresh(cachedAt, now, ttlMs) {
   return typeof cachedAt === "number" && (now - cachedAt) < ttlMs;
 }
 
-// Pure — validates and normalizes a `legs` query param into a { origin,
+// Pure, validates and normalizes a `legs` query param into a { origin,
 // destination, date } array, or null on anything malformed. Kept strict:
 // a bad via-routing request should fail loudly (400, see the handler)
 // rather than silently degrade into a wrong search.
@@ -187,7 +187,7 @@ export function parseLegs(raw) {
     normalized.push({ origin, destination, date });
   }
 
-  // Each leg must depart on or after the previous leg's date — a multi-city
+  // Each leg must depart on or after the previous leg's date, a multi-city
   // itinerary that goes backward in time isn't bookable and SerpApi will
   // just error on it less clearly than we can here.
   for (let i = 1; i < normalized.length; i++) {
@@ -197,7 +197,7 @@ export function parseLegs(raw) {
   return normalized;
 }
 
-// Pure — same role as buildFareCacheKey, for the multi-city path. Legs are
+// Pure, same role as buildFareCacheKey, for the multi-city path. Legs are
 // already normalized (parseLegs) by the time this is called.
 export function buildLegsCacheKey(legs, adults, cabin) {
   const legPart = legs.map((l) => `${l.origin}-${l.destination}-${l.date}`).join(">");
@@ -233,7 +233,7 @@ function parsePrice(v) {
 // Shared by both the single-route and multi-city paths: SerpApi's Google
 // Flights response shape (best_flights/other_flights, each an itinerary
 // with a `flights` segment array covering every leg requested) is
-// identical either way — for a multi-city search, `flights` already
+// identical either way, for a multi-city search, `flights` already
 // covers all legs concatenated and `price` is the whole itinerary's
 // total. Factored out so the two paths can't map offers differently.
 export function mapOffers(j) {
@@ -256,14 +256,14 @@ export function mapOffers(j) {
       // 2026-08-05 (audit backlog: wire preferredDepartTime/preferredArrivalTime
       // into real scoring): SerpApi's Google Flights response carries each
       // segment's departure_airport.time / arrival_airport.time as a
-      // "YYYY-MM-DD HH:MM" string — the outbound leg's first departure and
+      // "YYYY-MM-DD HH:MM" string, the outbound leg's first departure and
       // last arrival are what "preferred departure/arrival time" naturally
       // means. Passed through raw and unparsed; app.js's timeOfDayBucket()
       // reads just the hour and degrades to null (no scoring effect, same
       // as durationMinutes==null today) if this shape is ever wrong or a
-      // field is missing — it can't invent a wrong bucket, only go silent.
+      // field is missing, it can't invent a wrong bucket, only go silent.
       // NOTE: this exact field path is not yet verified against a live
-      // response (no SERPAPI_KEY in this dev environment) — see CLAUDE.md.
+      // response (no SERPAPI_KEY in this dev environment), see CLAUDE.md.
       departTimeRaw: (firstSeg && firstSeg.departure_airport && firstSeg.departure_airport.time) || null,
       arriveTimeRaw: (lastSeg && lastSeg.arrival_airport && lastSeg.arrival_airport.time) || null,
     };
@@ -296,7 +296,7 @@ export default async (req) => {
   }
 
   // Abuse guard #1 (see the block comment above CACHE_TTL_MS/ALLOWED_ORIGINS
-  // for the full reasoning) — checked before anything else in a real search
+  // for the full reasoning), checked before anything else in a real search
   // request, so an untrusted caller learns nothing about whether the key is
   // configured, cache state, etc.
   if (!isAllowedOrigin(req.headers.get("origin"), req.headers.get("referer"))) {
@@ -328,14 +328,14 @@ export default async (req) => {
       console.warn("fares.mjs: cache read failed", e && e.message);
     }
 
-    // Abuse guard #2 — only reached on a cache miss (a cache hit above
+    // Abuse guard #2, only reached on a cache miss (a cache hit above
     // already returned and never touches SerpApi, so it correctly costs
     // nothing against the daily cap).
     const quota = await reserveDailySearchSlot(store);
     if (!quota.ok) {
       return quota.reason === "cap"
-        ? json({ live: false, reason: "daily_cap_reached", detail: `Daily live-search cap (${DAILY_SEARCH_CAP}) reached — protects the monthly SerpApi quota. Try again tomorrow.` }, 429)
-        : json({ live: false, reason: "quota_check_failed", detail: "Could not verify today's search quota right now — please try again." }, 503);
+        ? json({ live: false, reason: "daily_cap_reached", detail: `Daily live-search cap (${DAILY_SEARCH_CAP}) reached: protects the monthly SerpApi quota. Try again tomorrow.` }, 429)
+        : json({ live: false, reason: "quota_check_failed", detail: "Could not verify today's search quota right now. Please try again." }, 503);
     }
 
     const q = new URLSearchParams({
@@ -413,12 +413,12 @@ export default async (req) => {
     console.warn("fares.mjs: cache read failed", e && e.message);
   }
 
-  // Abuse guard #2 — see the matching comment in the multi-city path above.
+  // Abuse guard #2, see the matching comment in the multi-city path above.
   const quota = await reserveDailySearchSlot(store);
   if (!quota.ok) {
     return quota.reason === "cap"
-      ? json({ live: false, reason: "daily_cap_reached", detail: `Daily live-search cap (${DAILY_SEARCH_CAP}) reached — protects the monthly SerpApi quota. Try again tomorrow.` }, 429)
-      : json({ live: false, reason: "quota_check_failed", detail: "Could not verify today's search quota right now — please try again." }, 503);
+      ? json({ live: false, reason: "daily_cap_reached", detail: `Daily live-search cap (${DAILY_SEARCH_CAP}) reached: protects the monthly SerpApi quota. Try again tomorrow.` }, 429)
+      : json({ live: false, reason: "quota_check_failed", detail: "Could not verify today's search quota right now. Please try again." }, 503);
   }
 
   const q = new URLSearchParams({
@@ -457,7 +457,7 @@ export default async (req) => {
     offers,
     droppedForUnparseablePrice,
     // 2026-07-25: Google Flights' own price intelligence, previously
-    // discarded. Costs zero extra quota — it rides along on the same
+    // discarded. Costs zero extra quota, it rides along on the same
     // search response. null when Google has no insight for the route.
     priceInsights: priceInsightsFrom(j),
   };

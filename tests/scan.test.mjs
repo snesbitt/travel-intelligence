@@ -1,4 +1,4 @@
-// tests/scan.test.mjs — pure-function coverage for the deep-scan feed.
+// tests/scan.test.mjs, pure-function coverage for the deep-scan feed.
 // No network, no blobs (scan-offers.mjs imports @netlify/blobs dynamically
 // inside the handler, same pattern as fares.mjs).
 import assert from "node:assert/strict";
@@ -37,7 +37,7 @@ test("sanitizeScan: offers are capped at 12 and negative/NaN prices dropped", ()
   assert.ok(rec.offers.every((o) => o.priceTotal > 0));
 });
 
-test("SCAN_TTL_H is 24 — frontend freshness window matches the documented contract", () => {
+test("SCAN_TTL_H is 24, frontend freshness window matches the documented contract", () => {
   assert.equal(SCAN_TTL_H, 24);
 });
 

@@ -3,7 +3,7 @@
 // scripts/check-content-drift.mjs (2026-08-08): about.html's "7 scored
 // dimensions" / "7 weighted priorities" stat tiles are hand-typed numbers
 // that describe app.js's own DIMENSIONS array and PRIORITY_WEIGHTS object.
-// Nothing enforced them staying in sync until now — this fails loudly if a
+// Nothing enforced them staying in sync until now, this fails loudly if a
 // future edit adds/removes a dimension or a priority lens in app.js without
 // updating the about.html copy that quotes the count.
 //

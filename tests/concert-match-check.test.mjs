@@ -1,6 +1,6 @@
 // tests/concert-match-check.test.mjs
 // Tests for concert-match-check.mjs's pure logic (computeMatchUpdate,
-// matchKey, resolveTripCoords) — added 2026-08-06, the weekly server-side
+// matchKey, resolveTripCoords), added 2026-08-06, the weekly server-side
 // half of the Concert Radar <-> Travel Intelligence integration (Susan's
 // direct request: "this feature needs to also have a weekly check for new
 // matches if you didn't already implement that"). Same "export the pure
@@ -67,7 +67,7 @@ test("computeMatchUpdate: an artist that drops off the match list keeps its firs
   assert.deepEqual(result.newThisWeek, ["Ziggy Marley"]);
 });
 
-test("computeMatchUpdate: no matches this run is safe — empty newThisWeek, firstSeenAt untouched", () => {
+test("computeMatchUpdate: no matches this run is safe, empty newThisWeek, firstSeenAt untouched", () => {
   const prev = { firstSeenAt: { "beck": "2026-07-01T00:00:00.000Z" } };
   const result = computeMatchUpdate(prev, [], NOW);
   assert.deepEqual(result.newThisWeek, []);
@@ -105,7 +105,7 @@ test("resolveTripCoords: falls back to destination name if destIata doesn't reso
   assert.deepEqual(coords, [41.98, -87.9]);
 });
 
-test("resolveTripCoords: unmapped on both — returns null, never guesses", () => {
+test("resolveTripCoords: unmapped on both, returns null, never guesses", () => {
   const coords = resolveTripCoords({ destIata: "ZZZ", destination: "Nowhereville" }, CITY_COORDS);
   assert.equal(coords, null);
 });

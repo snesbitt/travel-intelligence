@@ -1,6 +1,6 @@
 // tests/fares.test.mjs
 // Tests for fares.mjs's quota-protection cache logic (buildFareCacheKey,
-// isCacheFresh, CACHE_TTL_MS — added 2026-07-20). Pure functions only, no
+// isCacheFresh, CACHE_TTL_MS, added 2026-07-20). Pure functions only, no
 // fetch/@netlify/blobs mocking needed: this is the same "export the pure
 // logic for testability" pattern vinyl-scout's audio-preview.mjs uses.
 // Run via `node tests/fares.test.mjs` (also wired into `npm test`, see
@@ -283,7 +283,7 @@ test("todayQuotaKey: crossing a UTC day boundary produces a different key (the c
 
 /* ---------- mapOffers: departTimeRaw/arriveTimeRaw passthrough (2026-08-05,
    audit backlog: wire preferredDepartTime/preferredArrivalTime into real
-   scoring — app.js's timeOfDayBucket reads these) ---------- */
+   scoring, app.js's timeOfDayBucket reads these) ---------- */
 
 test("mapOffers: captures the first segment's departure time and the last segment's arrival time", () => {
   const j = {

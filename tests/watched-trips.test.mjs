@@ -1,12 +1,12 @@
 // tests/watched-trips.test.mjs
 // Tests for watched-trips.mjs's pure logic (buildWatchedTripsView) and its
-// coordinate table (loadCityCoords) — added 2026-08-05, Phase 10 (Concert
+// coordinate table (loadCityCoords), added 2026-08-05, Phase 10 (Concert
 // Radar hooks). Same "export the pure logic for testability" pattern
-// watch.mjs/fares.mjs already use. No @netlify/blobs mocking needed —
+// watch.mjs/fares.mjs already use. No @netlify/blobs mocking needed, 
 // buildWatchedTripsView takes a plain trips array.
 //
 // 2026-08-05, same-day fix: loadCityCoords originally loaded app.js's
-// CITY_COORDS at runtime via createRequire("../../app.js") — passed every
+// CITY_COORDS at runtime via createRequire("../../app.js"), passed every
 // local test and node --check, then 502'd in production because Netlify's
 // function bundler can't see a dynamic require to a file outside this
 // function's own directory tree, so app.js never made it into the
@@ -15,7 +15,7 @@
 // pattern the bundler actually supports). The sync-check test below is
 // what stands in for "single source of truth" now that there are
 // deliberately two copies of this table: it loads app.js's copy the SAME
-// way the old runtime code did (createRequire — safe in a Node test
+// way the old runtime code did (createRequire, safe in a Node test
 // process, just not in the deployed function) and diffs every key/value
 // against lib/city-coords.mjs, so the two can never silently drift apart
 // without failing the suite.
@@ -42,7 +42,7 @@ const require = createRequire(import.meta.url);
 
 // Loads app.js's CITY_COORDS the same way tests/app.test.js does: stub a
 // `window` for app.js to attach to, require it, read the table back out.
-// ONLY used here, for the sync-check test — production code no longer
+// ONLY used here, for the sync-check test, production code no longer
 // does this (see the file header above).
 function loadAppJsCityCoords() {
   const g = globalThis;
@@ -174,14 +174,14 @@ test("loadCityCoords: repeated calls return the identical object (it's a static 
 });
 
 /* ---------- sync check: lib/city-coords.mjs vs. app.js's own table ----------
-   The two tables are a deliberate duplicate (see file header) — this is
+   The two tables are a deliberate duplicate (see file header), this is
    what catches them drifting apart instead of a silent runtime mismatch. */
 
-test("lib/city-coords.mjs stays in sync with app.js's CITY_COORDS — same keys, same coordinates", () => {
+test("lib/city-coords.mjs stays in sync with app.js's CITY_COORDS, same keys, same coordinates", () => {
   const appCoords = loadAppJsCityCoords();
   const appKeys = Object.keys(appCoords).sort();
   const libKeys = Object.keys(LIB_CITY_COORDS).sort();
-  assert.deepEqual(libKeys, appKeys, "lib/city-coords.mjs is missing or has extra keys vs. app.js's CITY_COORDS — copy the current app.js table over");
+  assert.deepEqual(libKeys, appKeys, "lib/city-coords.mjs is missing or has extra keys vs. app.js's CITY_COORDS, copy the current app.js table over");
   for (const key of appKeys) {
     assert.deepEqual(LIB_CITY_COORDS[key], appCoords[key], `coordinates for "${key}" differ between app.js and lib/city-coords.mjs`);
   }
@@ -189,12 +189,12 @@ test("lib/city-coords.mjs stays in sync with app.js's CITY_COORDS — same keys,
 
 
 /* ---------- CORS header (2026-08-06 fix regression test) ----------
-   Only exercises the 405 (wrong-method) path — the only response this
+   Only exercises the 405 (wrong-method) path, the only response this
    handler can produce without a live Netlify Blobs store (a real GET
    always calls getStore(), which throws outside an actual Netlify
    runtime; this suite deliberately never mocks Blobs, same as the rest
    of this file). handler() is async, so the call is resolved here at
-   top level, BEFORE handing a plain synchronous closure to test() —
+   top level, BEFORE handing a plain synchronous closure to test(), 
    this file's test() helper calls fn() without awaiting it, so an
    async fn here would report "ok" immediately and only surface a
    failure later as an unhandled rejection after the summary line had
@@ -203,7 +203,7 @@ test("lib/city-coords.mjs stays in sync with app.js's CITY_COORDS — same keys,
 const corsRes = await handler(new Request("https://travelintelligence.org/api/watched-trips", { method: "POST" }));
 test("handler: a 405 (wrong method) response carries Access-Control-Allow-Origin for Vinyl Scout's cross-origin fetch", () => {
   assert.equal(corsRes.status, 405, "non-GET still rejected");
-  assert.equal(corsRes.headers.get("Access-Control-Allow-Origin"), ALLOWED_ORIGIN, "this header is exactly what was missing before the fix — concert-radar.html's cross-origin GET to this endpoint was silently failing with no visible error on either site");
+  assert.equal(corsRes.headers.get("Access-Control-Allow-Origin"), ALLOWED_ORIGIN, "this header is exactly what was missing before the fix, concert-radar.html's cross-origin GET to this endpoint was silently failing with no visible error on either site");
 });
 
 console.log(`\n${passed} passed`);

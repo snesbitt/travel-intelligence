@@ -1,6 +1,6 @@
 // tests/watch-auth.test.mjs
 // Regression suite for watch.mjs's v4 edit-key gate (roadmap Phase 8,
-// "Protect watched trips" — server half, 2026-08-08). Same pattern as
+// "Protect watched trips", server half, 2026-08-08). Same pattern as
 // vinyl-scout-repo's scripts/test-wishlist.mjs: exercises the exported
 // default handler directly with real Request objects, no live network.
 //
@@ -116,11 +116,11 @@ await atest("401 response carries a JSON {error: string} body, not an empty resp
   assert.equal(typeof body.error, "string");
 });
 
-await atest("GET stays public — no auth required, unaffected by the gate", async () => {
+await atest("GET stays public, no auth required, unaffected by the gate", async () => {
   // GET reaches getStore(), which throws without a real Netlify Blobs
   // environment configured (no siteID/token in this bare test process).
   // The point of this test is only that GET is never rejected with a 401
-  // by the auth gate itself — confirmed by checking the gate is skipped
+  // by the auth gate itself, confirmed by checking the gate is skipped
   // and the failure (if any) is a Blobs-config error, not an auth error.
   const req = new Request("https://travelintelligence.org/api/watch", { method: "GET" });
   try {
@@ -128,7 +128,7 @@ await atest("GET stays public — no auth required, unaffected by the gate", asy
     assert.notEqual(res.status, 401, "GET must never be rejected by the write-auth gate");
   } catch (e) {
     // getStore() throwing here (no Blobs env in this bare test process) is
-    // expected and fine — it proves execution got PAST the auth gate
+    // expected and fine, it proves execution got PAST the auth gate
     // (which only runs for POST/DELETE) rather than being blocked by it.
     assert.ok(!/unauthorized/i.test(e.message || ""), "a GET failure must not be an auth rejection");
   }

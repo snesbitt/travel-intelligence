@@ -100,22 +100,32 @@ h2.card-title { font-size: 11.5px; text-transform: uppercase; letter-spacing: 0.
 .divider { border-top: 1px solid var(--border); margin: 11px 0; }
 @media (min-width: 640px) { .divider { margin: 16px 0; } }
 
-/* roadmap: phase cards (rail-card style; markup format aligned with Vinyl Scout
-   2026-08-07 — chip-overview nav removed, status now lives on the outer
-   .phase element (.phase--live/.phase--future) instead of on .phase__rail
-   and .phase__status separately, matching the canonical reference) */
+/* roadmap: at-a-glance overview strip */
+.roadmap-overview { display: flex; flex-wrap: wrap; gap: 6px; margin: 0.9rem 0 1.4rem; padding: 0; list-style: none; }
+.ro-chip { display: inline-flex; align-items: center; gap: 5px; font-size: 11px; font-weight: 600; padding: 4px 9px 4px 8px; border-radius: 20px; border: 1px solid var(--border); text-decoration: none; color: var(--ink); background: var(--card); transition: border-color 0.15s ease; }
+.ro-chip:hover { border-color: var(--ink-faint); }
+.ro-dot { font-size: 9px; line-height: 1; }
+.ro-chip.ro-live { background: var(--good-dim); color: var(--good); border-color: transparent; }
+.ro-chip.ro-progress { background: var(--mid-dim); color: var(--mid); border-color: transparent; }
+.ro-chip.ro-planned { background: var(--bg-alt); color: #565b6e; border-color: transparent; }
+@media (min-width: 640px) {
+.roadmap-overview { gap: 8px; margin: 1.1rem 0 1.8rem; }
+.ro-chip { font-size: 12px; padding: 5px 11px 5px 9px; }
+}
+
+/* roadmap: phase cards (rail-card style, shared with Vinyl Scout) */
 .phase { display: grid; grid-template-columns: 48px 1fr; border: 1px solid var(--border); background: var(--card); border-radius: 8px; overflow: hidden; margin: 0 0 14px; }
 .phase:last-of-type { margin-bottom: 0; }
 .phase__rail { background: var(--bg-alt); border-right: 1px solid var(--border); display: flex; align-items: center; justify-content: center; font-family: var(--serif); font-style: italic; font-weight: 400; font-size: 22px; color: #565b6e; }
-.phase--live .phase__rail { color: var(--good); }
-.phase--progress .phase__rail { color: var(--mid); }
+.phase__rail--live { color: var(--good); }
+.phase__rail--progress { color: var(--mid); }
 .phase__body { padding: 16px 18px; }
 .phase__head { display: flex; align-items: baseline; gap: 10px; flex-wrap: wrap; margin: 0 0 6px; }
 .phase__name { font-size: 15px; font-weight: 700; color: var(--ink); margin: 0; }
 .phase__status { font-size: 9.5px; letter-spacing: 0.05em; text-transform: uppercase; padding: 2px 8px; border-radius: 5px; font-weight: 700; white-space: nowrap; }
 .phase__status--live { background: var(--good-dim); color: var(--good); }
 .phase__status--progress { background: var(--mid-dim); color: var(--mid); }
-.phase__status--future { background: var(--bg-alt); color: #565b6e; }
+.phase__status--planned { background: var(--bg-alt); color: #565b6e; }
 .phase__focus { font-family: var(--serif); font-style: italic; font-size: 13px; color: var(--accent); margin: 0 0 7px; }
 .phase__covers { font-size: 13.5px; line-height: 1.6; color: #565b6e; margin: 0; }
 @media (min-width: 640px) {
@@ -135,11 +145,10 @@ h2.card-title { font-size: 11.5px; text-transform: uppercase; letter-spacing: 0.
 .step-body { font-size: 13px; color: var(--ink); margin-top: 6px; }
 .mode-grid { display: grid; grid-template-columns: 1fr; gap: 10px; margin: 1rem 0; }
 .mode-card { background: var(--card); border: 1px solid var(--border); border-radius: 8px; padding: 0.8rem 0.9rem; }
-.mode-card__name { font-weight: 700; font-size: 19px; }
-.mode-card__role { font-size: 11px; text-transform: uppercase; letter-spacing: 0.05em; color: var(--accent); margin: 2px 0 6px; }
-.mode-card ul { margin: 0; padding-left: 15px; font-size: 13.5px; color: #565b6e; }
+.mode-card .mode-name { font-weight: 700; font-size: 13px; }
+.mode-card .mode-role { font-size: 10px; text-transform: uppercase; letter-spacing: 0.05em; color: var(--accent); margin: 2px 0 6px; }
+.mode-card ul { margin: 0; padding-left: 15px; font-size: 11.5px; color: #565b6e; }
 .mode-card ul li { margin-bottom: 2px; }
-.mode-caption { font-family: var(--sans); font-size: 13px; font-style: italic; color: var(--ink-dim); text-align: center; margin: 10px 0 4px; }
 @media (min-width: 640px) {
 .step { padding: 1.65rem 0; }
 .step-body { font-size: 14.5px; max-width: 68ch; }
@@ -154,7 +163,7 @@ h2.card-title { font-size: 11.5px; text-transform: uppercase; letter-spacing: 0.
 .wont-list { list-style: none; padding: 0; margin: 0; }
 .wont-list li { display: flex; gap: 8px; font-size: 13px; color: var(--ink); padding: 8px 0; border-bottom: 1px solid var(--border); }
 .wont-list li:last-child { border-bottom: none; }
-.wont-list li::before { content: "\2715"; color: var(--accent); flex-shrink: 0; font-size: 12px; }
+.wont-list li::before { content: "\2022"; color: var(--bad); flex-shrink: 0; }
 @media (min-width: 640px) {
 .about-section { margin-bottom: 1.9rem; }
 .about-section h3 { font-size: 16px; }
@@ -181,10 +190,10 @@ padding: 5px 12px 5px 8px;
 .pill-nav a b { color: var(--accent); font-weight: 700; margin-right: 4px; }
 .pill-nav a:hover { color: var(--ink); border-color: var(--ink-faint); }
 
-.mode-card--a { border-left: 3px solid var(--good); }
-.mode-card--b { border-left: 3px solid var(--mid); }
-.mode-card--c { border-left: 3px solid var(--accent); }
-.mode-card--d { border-left: 3px solid var(--gold); }
+.mode-card.tint-a { border-left: 3px solid var(--good); }
+.mode-card.tint-b { border-left: 3px solid var(--mid); }
+.mode-card.tint-c { border-left: 3px solid var(--accent); }
+.mode-card.tint-d { border-left: 3px solid var(--gold); }
 
 .about-num-badge { font-family: var(--serif); font-style: italic; color: var(--accent); font-size: 17px; margin-right: 6px; }
 .about-section-head { display: flex; align-items: baseline; margin-bottom: 6px; }
@@ -195,14 +204,14 @@ padding: 5px 12px 5px 8px;
 .stat-strip { display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px; margin: 1.1rem 0 1.7rem; }
 @media (min-width: 640px) { .stat-strip { grid-template-columns: repeat(4, 1fr); } }
 .stat-tile { background: var(--card); border: 1px solid var(--border); border-radius: 8px; padding: 0.75rem 0.85rem; text-align: center; }
-.stat-tile__num { font-family: var(--serif); font-style: italic; font-weight: 400; font-size: 22px; color: var(--accent); }
-.stat-tile__label { font-size: 10px; letter-spacing: 0.06em; text-transform: uppercase; color: #565b6e; margin-top: 2px; }
+.stat-tile .stat-num { font-family: var(--serif); font-style: italic; font-weight: 400; font-size: 22px; color: var(--accent); }
+.stat-tile .stat-label { font-size: 10px; letter-spacing: 0.06em; text-transform: uppercase; color: #565b6e; margin-top: 2px; }
 
 .page-card-grid { display: grid; grid-template-columns: 1fr; gap: 10px; margin: 0.9rem 0 0.4rem; }
 @media (min-width: 640px) { .page-card-grid { grid-template-columns: 1fr 1fr; } }
 .page-card { background: var(--card); border: 1px solid var(--border); border-left: 3px solid var(--accent); border-radius: 6px; padding: 0.8rem 0.95rem; }
-.page-card__title { margin: 0 0 4px; font-size: 13px; }
-.page-card__desc { margin: 0; font-size: 12px; color: #565b6e; }
+.page-card h4 { margin: 0 0 4px; font-size: 13px; }
+.page-card p { margin: 0; font-size: 12px; color: #565b6e; }
 
 .stack-col { border-radius: 8px; padding: 0.9rem 1rem; margin: 1rem 0 0.4rem; max-width: 420px; }
 .stack-col.this-site { background: var(--accent-dim); border: 1px solid #7f93ab; }
@@ -216,43 +225,16 @@ figure.diagram { margin: 1.4rem 0 1.8rem; text-align: center; }
 figure.diagram svg { max-width: 100%; height: auto; }
 figure.diagram figcaption { font-family: var(--sans); font-size: 10px; letter-spacing: 0.08em; text-transform: uppercase; color: #565b6e; margin-top: 8px; }
 
+.callout-row { display: grid; grid-template-columns: 1fr; gap: 10px; margin: 1rem 0 1.6rem; }
+@media (min-width: 640px) { .callout-row { grid-template-columns: 1fr 1fr; } }
 .callout { background: var(--card); border: 1px solid var(--border); border-radius: 8px; padding: 0.85rem 1rem; }
-
-/* Renamed from .callout-row/.callout.good|bad (2026-08-06 canonical-library
-   reconciliation): this is a two-up comparison-card pattern, a different
-   component from the single reference-note .callout above -- they used to
-   share the ".callout" name and collide with Vinyl Scout's canonical
-   single-block .callout meaning. Same visuals, new name only. */
-.compare-row { display: grid; grid-template-columns: 1fr; gap: 10px; margin: 1rem 0 1.6rem; }
-@media (min-width: 640px) { .compare-row { grid-template-columns: 1fr 1fr; } }
-.compare-card { background: var(--card); border: 1px solid var(--border); border-radius: 8px; padding: 0.85rem 1rem; }
-.compare-card__kicker { font-size: 10px; letter-spacing: 0.08em; text-transform: uppercase; font-weight: 700; margin-bottom: 4px; }
-.compare-card--good .compare-card__kicker { color: var(--good); }
-.compare-card--bad .compare-card__kicker { color: var(--bad); }
-.compare-card--gold .compare-card__kicker { color: var(--gold); }
-.compare-card p { margin: 0; font-size: 12.5px; color: var(--ink); }
+.callout .callout-kicker { font-size: 10px; letter-spacing: 0.08em; text-transform: uppercase; font-weight: 700; margin-bottom: 4px; }
+.callout.good .callout-kicker { color: var(--good); }
+.callout.bad .callout-kicker { color: var(--bad); }
+.callout.gold .callout-kicker { color: var(--gold); }
+.callout p { margin: 0; font-size: 12.5px; color: var(--ink); }
 
 .step-divider { margin: 2.4rem 0 1.6rem; border-top: 1px solid var(--border); }
-
-/* Promoted from guide.html's page-scoped <style> (2026-08-06 canonical-library
-   reconciliation) -- Build Your Own section components, folded in from the
-   retired start.html. Only guide.html uses these today. */
-.prompt-box { background: #24262b; border: 1px solid #454852; border-radius: 9px; padding: 1.1rem 1.2rem; margin: 1.1rem 0 1.6rem; position: relative; }
-.prompt-box pre { margin: 0; white-space: pre-wrap; word-wrap: break-word; font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; font-size: 12.5px; line-height: 1.6; color: #efe8db; }
-.prompt-copy { position: absolute; top: 10px; right: 10px; background: #efe8db; color: #24262b; border: none; border-radius: 6px; font-family: var(--sans); font-size: 11px; font-weight: 700; letter-spacing: 0.03em; padding: 6px 11px; cursor: pointer; }
-.prompt-copy:hover { background: #fff; }
-
-.next-grid { display: grid; grid-template-columns: 1fr; gap: 10px; margin: 0.9rem 0 1.7rem; }
-@media (min-width: 640px) { .next-grid { grid-template-columns: 1fr 1fr; } }
-.next-card { background: var(--card); border: 1px solid var(--border); border-left: 3px solid var(--accent); border-radius: 6px; padding: 0.8rem 0.95rem; }
-.next-card__n { font-family: var(--serif); font-style: italic; font-weight: 400; color: var(--accent); font-size: 13px; }
-.next-card h4 { margin: 2px 0 4px; font-size: 13px; }
-.next-card p { margin: 0; font-size: 12px; color: var(--ink-dim); }
-
-.need-list { list-style: none; padding: 0; margin: 0 0 1.7rem; }
-.need-list li { display: flex; gap: 8px; font-size: 13px; padding: 6px 0; border-bottom: 1px solid var(--border); }
-.need-list li:last-child { border-bottom: none; }
-.need-list li::before { content: "\2022"; color: var(--good); flex-shrink: 0; }
 
 /* =========================================================
    Travel-Intelligence-specific: input card, scoring, output
@@ -279,7 +261,7 @@ figure.diagram figcaption { font-family: var(--sans); font-size: 10px; letter-sp
 .form-field textarea { resize: vertical; min-height: 44px; }
 .form-field input:focus, .form-field select:focus, .form-field textarea:focus { outline: 2px solid var(--accent); outline-offset: 1px; }
 /* 2026-07-31: city/airport autocomplete (see attachCityAutocomplete in
-   index.html) — a positioned listbox under the field, ARIA combobox
+   index.html), a positioned listbox under the field, ARIA combobox
    pattern. .ac-wrap replaces the input's own position: static so the list
    anchors to the field, not the page; the input itself keeps its normal
    .form-field styling untouched. */
@@ -299,7 +281,7 @@ figure.diagram figcaption { font-family: var(--sans); font-size: 10px; letter-sp
 .ac-option mark { background: none; color: var(--accent); font-weight: 700; padding: 0; }
 .ac-option.active, .ac-option:hover { background: var(--accent-dim); }
 .ac-option .ac-code { font-size: 10.5px; color: #565b6e; flex-shrink: 0; }
-/* Cabin/purpose/date-flex pills — padding bumped 2026-07-20 so the
+/* Cabin/purpose/date-flex pills, padding bumped 2026-07-20 so the
    button box clears the 44px touch-target guideline (was ~26-30px tall);
    min-height is the floor, flex centering keeps the compact pill look. */
 .pill-toggle { display: flex; flex-wrap: wrap; gap: 6px; }
@@ -362,19 +344,6 @@ figure.diagram figcaption { font-family: var(--sans); font-size: 10px; letter-sp
 .score-fill { height: 100%; border-radius: 5px; background: var(--accent); }
 .score-val { font-size: 12px; font-weight: 700; text-align: right; }
 @media (min-width: 640px) { .score-row { grid-template-columns: 130px 1fr 38px; } }
-
-/* ---- date-range sweep chart (roadmap Phase 5c, 2026-08-07) ---- */
-.sweep-chart { display: flex; flex-direction: column; gap: 8px; }
-.sweep-row { display: grid; grid-template-columns: 92px 1fr 64px 72px; align-items: center; gap: 8px; }
-.sweep-row--empty { grid-template-columns: 92px 1fr; color: var(--ink); opacity: 0.6; }
-.sweep-date { font-size: 12px; font-weight: 600; color: var(--ink); }
-.sweep-bar-track { background: var(--bg-alt); border-radius: 5px; height: 9px; overflow: hidden; }
-.sweep-bar-fill { height: 100%; border-radius: 5px; background: var(--accent); }
-.sweep-row--best .sweep-bar-fill { background: var(--good); }
-.sweep-row--best .sweep-date { color: var(--good); }
-.sweep-price { font-size: 12.5px; font-weight: 700; text-align: right; color: var(--ink); }
-.sweep-score { text-align: right; white-space: nowrap; }
-@media (min-width: 640px) { .sweep-row { grid-template-columns: 120px 1fr 76px 90px; } }
 
 /* ---- alternatives comparison table ---- */
 .alt-table-wrap { overflow-x: auto; -webkit-overflow-scrolling: touch; }
@@ -439,14 +408,13 @@ table.alt-table td.rank-cell { font-family: var(--serif); font-style: italic; co
 .ti-toggle:hover { background: rgba(31, 58, 95, 0.06); }
 
 /* --- audit fixes (2026-07-19): contrast + mobile input zoom ------------
-   .form-hint measured 1.96:1 on the cream background — darkened to clear
+   .form-hint measured 1.96:1 on the cream background, darkened to clear
    WCAG AA (4.5:1) while keeping the dim hierarchy. 16px inputs under
    640px stop iOS auto-zoom on focus.
    2026-07-20 follow-up: that first pass only patched 3 of ~20 selectors
    still using var(--ink-dim) (#82869a, ~3.0:1, fails AA everywhere).
    The other two "fixes" here (.alt-table th, .rec-price-sub) were also
-   overrides at the bottom of the file rather than at the source rule —
-   .alt-table th's override never actually applied, because the real
+   overrides at the bottom of the file rather than at the source rule, .alt-table th's override never actually applied, because the real
    selector is `table.alt-table th`, which is MORE specific than the
    single-class `.alt-table th` override and always won the cascade
    regardless of source order. Swept every remaining var(--ink-dim) text
@@ -454,8 +422,7 @@ table.alt-table td.rank-cell { font-family: var(--serif); font-style: italic; co
    file, --bg through --gold-dim) directly at each declaration instead of
    bolting on more possibly-losing overrides; removed the two dead
    overrides below now that their target rules carry the fix themselves.
-   2026-08-05 follow-up: that "every remaining" claim was still wrong —
-   ~13 more direct var(--ink-dim)/var(--ink-faint) text-color declarations
+   2026-08-05 follow-up: that "every remaining" claim was still wrong, ~13 more direct var(--ink-dim)/var(--ink-faint) text-color declarations
    were still unswept (.phase__rail, .phase__status--planned,
    .phase__covers, footer .wrap, figure.diagram figcaption, .ac-option
    .ac-code, .rec-detail .rd-label, .empty-state .es-icon, details.refine
@@ -464,7 +431,7 @@ table.alt-table td.rank-cell { font-family: var(--serif); font-style: italic; co
    after this comment was written and never checked against it. All are
    now #565b6e (ink-dim's job) or #6b7080 (ink-faint's job) directly at
    the declaration. #6b7080 does NOT clear 4.5:1 on every background,
-   though — only on --card (4.53:1); it drops to 3.66–4.05:1 on --bg,
+   though, only on --card (4.53:1); it drops to 3.66–4.05:1 on --bg,
    --bg-alt and the *-dim tokens. So ink-faint text sitting on --card
    (the watched-trips card body, minus .watched-codes' rgba(33,31,26,0.05)
    chip tint, which darkens the effective backdrop just enough to also
@@ -473,9 +440,9 @@ table.alt-table td.rank-cell { font-family: var(--serif); font-style: italic; co
    watched-codes) got #565b6e instead, same as ink-dim's fix, since it's
    the one literal in this file proven to clear AA everywhere. Border-only
    uses of these variables (.ro-chip:hover, .pill-nav a:hover) are left
-   alone — not text, not a contrast requirement. Left unmodified per an
+   alone, not text, not a contrast requirement. Left unmodified per an
    explicitly scoped-out request: index.html:576's inline
-   `color:var(--ink-faint)` on the upgrade-wins delete button — same bug
+   `color:var(--ink-faint)` on the upgrade-wins delete button, same bug
    class, different file; flagged for a follow-up pass, not fixed here. */
 .form-hint { color: #6b7080; }
 @media (max-width: 639px) {
@@ -493,7 +460,7 @@ table.alt-table td.rank-cell { font-family: var(--serif); font-style: italic; co
 .watched-codes { font-family: ui-monospace, "SF Mono", Menlo, Consolas, monospace; font-size: 10.5px; font-weight: 500; letter-spacing: 0.05em; color: #565b6e; background: rgba(33, 31, 26, 0.05); border: 1px solid var(--line, #d8d0bf); padding: 1.5px 7px; border-radius: 999px; vertical-align: 2.5px; margin-left: 6px; white-space: nowrap; }
 .watched-route-meta { font-size: 12px; color: #6b7080; display: flex; gap: 8px; flex-wrap: wrap; }
 /* 2026-07-26 vertical-density pass: the price side is a 2-line column with
-   the sparkline BESIDE it, not a 4-item stack — each watched row is now
+   the sparkline BESIDE it, not a 4-item stack, each watched row is now
    exactly two text lines tall. */
 .watched-price-col { display: flex; flex-direction: column; align-items: flex-end; gap: 2px; min-width: fit-content; }
 .watched-price-line { display: flex; align-items: center; gap: 8px; }
@@ -505,7 +472,7 @@ table.alt-table td.rank-cell { font-family: var(--serif); font-style: italic; co
 .watched-actions { display: flex; gap: 8px; align-items: center; padding-left: 8px; }
 .watched-unwatch { background: none; border: none; font-size: 16px; color: #6b7080; cursor: pointer; padding: 4px 6px; line-height: 1; flex-shrink: 0; }
 .watched-unwatch:hover { color: var(--ink, #2a241b); }
-/* 2026-08-05, Phase 10 — Concert Radar match note. Appended (JS, best-effort,
+/* 2026-08-05, Phase 10, Concert Radar match note. Appended (JS, best-effort,
    never blocks the row's own render) when a cross-site check against Vinyl
    Scout's /api/artists-playing finds a catalog/wishlist/watching artist
    playing near this trip's destination during its dates. Spans the full row
@@ -513,25 +480,12 @@ table.alt-table td.rank-cell { font-family: var(--serif); font-style: italic; co
    (--good) to read as a bonus/upside note, not a warning. */
 .concert-match { grid-column: 1 / -1; font-size: 12px; color: var(--good, #3f6b4f); background: var(--good-dim, #e2e8de); border-radius: 8px; padding: 6px 10px; margin-top: 2px; line-height: 1.4; }
 .concert-match a { color: inherit; text-decoration: underline; text-underline-offset: 2px; }
-/* 2026-08-06 — weekly concert-match-check.mjs's "new this week" flag
+/* 2026-08-06, weekly concert-match-check.mjs's "new this week" flag
    (Susan's direct request). Small caps-style badge, not a full second
    color, so it reads as a footnote on the match rather than competing
    with the green "this is good news" framing above. */
 .concert-match-new { font-size: 10px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.03em; color: var(--good, #3f6b4f); opacity: 0.85; }
-/* 2026-08-06 (Susan: "improve it" + cache question) — the concert-match
-   check runs two chained cross-site fetches after the initial render, so
-   on a first-ever visit (nothing cached yet) the row can sit with no
-   sign anything's happening for several seconds, reading as broken/absent
-   rather than loading. This is that placeholder. Literal #6b7080, not
-   var(--ink-faint) directly, matching the 2026-08-05 contrast-sweep finding
-   above that ink-faint only clears 4.5:1 AA on the --card background this
-   row sits on (see the big comment block ~line 410) — not a new color,
-   reusing the one already proven safe here. Swapped for the real
-   .concert-match note (or removed) once the live check resolves; never
-   left showing indefinitely. */
-.concert-match-loading { grid-column: 1 / -1; font-size: 12px; color: #6b7080; font-style: italic; margin-top: 2px; }
-/* 2026-07-24 mobile pass: watched rows stack cleanly at phone widths —
-   route on its own line, price row beneath, 44px unwatch target, no
+/* 2026-07-24 mobile pass: watched rows stack cleanly at phone widths, route on its own line, price row beneath, 44px unwatch target, no
    squeezed three-way column fight. */
 @media (max-width: 640px) {
   .watched-item { grid-template-columns: 1fr; gap: 8px; }
@@ -544,7 +498,7 @@ table.alt-table td.rank-cell { font-family: var(--serif); font-style: italic; co
 }
 
 /* 2026-07-24: booking deep links live on their own wrapping row under the
-   carrier meta line — each link wraps as a whole unit (never mid-phrase),
+   carrier meta line, each link wraps as a whole unit (never mid-phrase),
    with 44px tap targets on mobile per the working agreement. */
 .rec-links { display: flex; flex-wrap: wrap; gap: 6px 16px; margin-top: 6px; font-size: 12px; }
 .rec-links a.pick-open { white-space: nowrap; }
@@ -554,7 +508,7 @@ table.alt-table td.rank-cell { font-family: var(--serif); font-style: italic; co
 }
 
 /* 2026-07-25: the Watch control also lives on the recommendation card
-   itself — the top controls strip kept it, but the card is where the eye
+   itself, the top controls strip kept it, but the card is where the eye
    looks for it. Same handler, per-button state. */
 .rec-links .rec-watch { font-size: 12px; padding: 4px 12px; }
 @media (max-width: 640px) { .rec-links .rec-watch { min-height: 44px; } }
@@ -565,7 +519,7 @@ table.alt-table td.rank-cell { font-family: var(--serif); font-style: italic; co
 .watched-spark { display: block; line-height: 1; margin: 1px 0; }
 @media (prefers-reduced-motion: no-preference) { .sparkline path { transition: none; } }
 
-/* 2026-07-26: per-row link-outs on the alternatives table — every row can be
+/* 2026-07-26: per-row link-outs on the alternatives table, every row can be
    reviewed and bought, not just the best recommendation. */
 .alt-links { display: flex; flex-wrap: wrap; gap: 2px 10px; margin-top: 4px; font-size: 11px; }
 .alt-links a { color: var(--accent); font-weight: 600; white-space: nowrap; text-decoration: none; }

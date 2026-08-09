@@ -1,10 +1,10 @@
 // tests/watch.test.mjs
 // Tests for watch.mjs's pure decision logic (validateTripInput, buildWatchId,
-// planAddTrip, planRemoveTrip — added 2026-08-05 alongside an optimistic-
+// planAddTrip, planRemoveTrip, added 2026-08-05 alongside an optimistic-
 // concurrency fix for the 3-trip cap race and a fix for returnDate/
 // travelers being silently dropped from the watch-id). Same "export the
 // pure logic for testability" pattern fares.mjs's buildFareCacheKey/
-// parseLegs already use — no @netlify/blobs mocking needed since none of
+// parseLegs already use, no @netlify/blobs mocking needed since none of
 // this touches storage. Run via `node tests/watch.test.mjs` (wired into
 // `npm test`). No live network calls.
 
