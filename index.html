@@ -1518,7 +1518,7 @@
         ? `${latest.carrier || "–"} · checked ${new Date(latest.at).toLocaleDateString("en-US", { month: "short", day: "numeric" })}`
         : t.baseline ? "baseline · first check tonight" : "first check runs tonight";
       const histVals = checks.map((c) => c && c.price).filter((v) => typeof v === "number" && isFinite(v));
-      const spark = histVals.length >= 2 ? `<span class="watched-spark" title="${histVals.length} nightly checks">${sparkline(histVals, 90, 22)}</span>` : "";
+      const spark = histVals.length >= 2 ? `<span class="watched-spark" title="${histVals.length} checks">${sparkline(histVals, 90, 22)}</span>` : "";
       const oCode = T.toIATA(t.origin), dCode = T.toIATA(t.destination);
       const codeChip = oCode && dCode ? ` <span class="watched-codes">${oCode}–${dCode}</span>` : "";
       const travLabel = `${t.travelers} traveler${String(t.travelers) === "1" ? "" : "s"}`;

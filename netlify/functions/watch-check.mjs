@@ -1,14 +1,17 @@
 // netlify/functions/watch-check.mjs
-// version: 1 (2026-07-19)
-// Daily scheduled re-search for watched trips, the half of the fare
-// watcher that "does the watching" the Purchase Strategy used to
-// outsource to the user. Runs once a day at 14:00 UTC (morning US),
-// spends AT MOST one SerpApi search per watched trip (≤2), skips trips
-// checked in the last 20h (idempotent on retries) and trips whose
-// departure has passed. It records the LIVE FARE FLOOR (cheapest offer's
-// total price + carrier), not the engine's weighted winner, which is
-// computed client-side; the Watched Trips card labels it exactly that
-// way. History capped at 30 checks per trip.
+// version: 2 (2026-08-11, cadence stretched to every-other-day, MAX_TRIPS
+// raised to 6, see watch.mjs's quota-math comment for the full reasoning)
+// Scheduled re-search for watched trips, the half of the fare watcher
+// that "does the watching" the Purchase Strategy used to outsource to
+// the user. The function itself still fires daily at 14:00 UTC (morning
+// US, cron unchanged), but each trip is only actually re-searched at
+// most once every ~44h (an every-other-day cadence in practice), spends
+// AT MOST one SerpApi search per watched trip per re-search cycle, skips
+// trips checked more recently than that (idempotent on retries) and
+// trips whose departure has passed. It records the LIVE FARE FLOOR
+// (cheapest offer's total price + carrier), not the engine's weighted
+// winner, which is computed client-side; the Watched Trips card labels
+// it exactly that way. History capped at 30 checks per trip.
 
 import { getStore } from "@netlify/blobs";
 
@@ -48,11 +51,11 @@ export default async () => {
   const now = Date.now();
   const CABIN_CLASS = { Economy: "1", "Premium Economy": "2", Business: "3", First: "4" };
   let searched = 0;
-  const MAX_TRIPS = 3; // must match watch.mjs's MAX_TRIPS, that file is the source of truth (raised 2026-07-26, Susan)
+  const MAX_TRIPS = 6; // must match watch.mjs's MAX_TRIPS, that file is the source of truth (raised 2026-08-11, Susan)
 
   for (const trip of trips.slice(0, MAX_TRIPS)) {
     const last = trip.checks && trip.checks.length ? Date.parse(trip.checks[trip.checks.length - 1].at) : 0;
-    if (now - last < 20 * 3600 * 1000) continue;               // already checked today
+    if (now - last < 44 * 3600 * 1000) continue;               // already checked within the last ~2 days (every-other-day cadence, 2026-08-11)
     if (Date.parse(trip.departDate + "T23:59:00Z") < now) continue; // trip departed
 
     const q = new URLSearchParams({
