@@ -112,7 +112,7 @@ test("planAddTrip (the fixed bug): the SAME route/date/cabin with a DIFFERENT re
   assert.equal(plan.trips[1].returnDate, "2026-09-14");
 });
 
-const CAP_DESTS = ["AAA", "BBB", "CCC"]; // 3-letter, distinct, length must equal MAX_TRIPS
+const CAP_DESTS = ["AAA", "BBB", "CCC", "DDD", "EEE", "FFF"]; // 3-letter, distinct, length must equal MAX_TRIPS
 assert.equal(CAP_DESTS.length, MAX_TRIPS, "test fixture must track MAX_TRIPS if it ever changes");
 
 test("planAddTrip: at the cap, a new (non-duplicate) trip is rejected with a 409", () => {

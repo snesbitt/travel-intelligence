@@ -1096,3 +1096,15 @@ Susan asked directly: "make sure the watched trips are ordered from soonest to l
 **Verified, each step independent:** every edit applied via an anchor-and-verify script (abort on anything but an exact single match, caught one of my own typos this way, `let` vs. the file's actual `const`, before it could touch anything wrong). `git diff` reviewed in full before either commit. Both commits pushed (`c6277c5` for the ordering fix, `6471c5f` for the cap and cadence), and both confirmed actually deployed via Netlify's own deploy record (`commit_ref` matching exactly), not just pushed.
 
 **Delivered, and already committed and pushed, unlike this file's usual pattern:** `index.html`, `netlify/functions/watch.mjs`, `netlify/functions/watch-check.mjs`. Both commits above are already on `origin/main` and confirmed live. This CLAUDE.md entry itself is the one piece still pending; Susan commits and pushes it herself per the standing workflow.
+
+## 2026-08-11, later: watch.test.mjs's CAP_DESTS fixture never got updated when MAX_TRIPS changed, found and fixed, full suite reverified
+
+The `6471c5f`/`c6277c5` commits above were pushed without running this repo's own `npm test` chain first, a real miss against this file's own established practice (every prior entry here confirms tests were run before delivering). Caught after the fact, not guessed: `tests/watch.test.mjs` has a deliberate self-check assert, `CAP_DESTS.length` must equal `MAX_TRIPS`, and `CAP_DESTS` was still hardcoded to the old cap of 3 while `MAX_TRIPS` had already moved to 6. The suite aborted on that assertion before finishing, not a real product bug, a stale test fixture.
+
+One unrelated environment issue found and cleared along the way: `node_modules/@netlify/blobs` was silently empty locally (a broken or partial install, not a repo problem). `rm -rf node_modules package-lock.json && npm install` fixed it and let the suite actually run to completion for the first time this session.
+
+Fixed: `CAP_DESTS` in `tests/watch.test.mjs` extended from three entries (`AAA`, `BBB`, `CCC`) to six (`AAA` through `FFF`), matching the new cap. `watch-auth.test.mjs` does not reference `MAX_TRIPS` at all, nothing to fix there.
+
+Verified for real: full `npm test` rerun locally after the fix, every suite green, ending on the content-drift check passing clean.
+
+Delivered and committed together in this same commit: `tests/watch.test.mjs`, this changelog entry.
