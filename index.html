@@ -1494,7 +1494,14 @@
     }
     if (!trips || !trips.length) { card.classList.add("ti-hidden"); return; }
     card.classList.remove("ti-hidden");
-    rows.innerHTML = trips.map((t) => {
+    // 2026-08-11 (Susan: order watched trips soonest to latest): departDate
+    // is always a validated YYYY-MM-DD string (validateTripInput in
+    // watch.mjs enforces the format server-side), so a plain string
+    // compare sorts chronologically without needing Date parsing. Sorted
+    // here, once, so every render path (initial load, a new watch, an
+    // unwatch) gets the ordering automatically.
+    const sortedTrips = trips.slice().sort((a, b) => (a.departDate || "").localeCompare(b.departDate || ""));
+    rows.innerHTML = sortedTrips.map((t) => {
       const checks = t.checks || [];
       const latest = checks[checks.length - 1];
       const prev = checks.length > 1 ? checks[checks.length - 2] : (t.baseline ? { price: t.baseline.price } : null);
@@ -1546,7 +1553,7 @@
         </div>
       </div>`;
     }).join("");
-    checkConcertMatches(trips);
+    checkConcertMatches(sortedTrips);
   }
 
   // 2026-08-05, Phase 10: Concert Radar hooks (Vinyl Scout half:
