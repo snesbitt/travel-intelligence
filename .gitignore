@@ -7,3 +7,4 @@ _to_delete/
 # Scratch backups / one-off fix scripts — not deployed
 *.backup
 fix-*.py
+node_modules/
