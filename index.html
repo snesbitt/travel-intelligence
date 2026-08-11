@@ -1563,7 +1563,7 @@
       // rows get the verified aa.com deep link; everything else gets the
       // route+dates-prefilled Google Flights search.
       const wCarrier = (checks.length && checks[checks.length - 1] && checks[checks.length - 1].carrier) || (t.baseline && t.baseline.carrier) || "";
-      const wUrls = T.liveSearchUrls({ origin: t.origin, destination: t.destination, departDate: t.departDate, returnDate: t.returnDate, travelers: t.travelers }, /american|\bAA\b/i.test(wCarrier) ? "American" : "");
+      const wUrls = T.liveSearchUrls({ origin: t.origin, destination: t.destination, departDate: t.departDate, returnDate: t.returnDate, travelers: t.travelers, returnFromCity: t.returnFromCity }, /american|\bAA\b/i.test(wCarrier) ? "American" : "");
       const wBook = wUrls.carrierDeep || wUrls.googleFlights;
       // 2026-07-31: origin/destination/cabin/id all come straight from the
       // POST /api/watch body a visitor submits, so every one of them gets

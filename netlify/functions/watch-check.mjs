@@ -1,6 +1,8 @@
 // netlify/functions/watch-check.mjs
-// version: 2 (2026-08-11, cadence stretched to every-other-day, MAX_TRIPS
-// raised to 6, see watch.mjs's quota-math comment for the full reasoning)
+// version: 3 (2026-08-11, later still: open-jaw support -- a watched
+// trip's return leg can now depart from a different city than the
+// outbound destination, see the multi-city branch below. Version 2's
+// cadence/cap change, same day, is unchanged.)
 // Scheduled re-search for watched trips, the half of the fare watcher
 // that "does the watching" the Purchase Strategy used to outsource to
 // the user. The function itself still fires daily at 14:00 UTC (morning
@@ -58,15 +60,40 @@ export default async () => {
     if (now - last < 44 * 3600 * 1000) continue;               // already checked within the last ~2 days (every-other-day cadence, 2026-08-11)
     if (Date.parse(trip.departDate + "T23:59:00Z") < now) continue; // trip departed
 
-    const q = new URLSearchParams({
-      engine: "google_flights",
-      departure_id: trip.originIata, arrival_id: trip.destIata,
-      outbound_date: trip.departDate,
-      adults: String(trip.travelers || 1),
-      currency: "USD", hl: "en", api_key: key,
-    });
-    if (trip.returnDate) { q.set("return_date", trip.returnDate); q.set("type", "1"); } else { q.set("type", "2"); }
-    if (CABIN_CLASS[trip.cabin]) q.set("travel_class", CABIN_CLASS[trip.cabin]);
+    // 2026-08-11: open-jaw support (the return leg departs from a
+    // different city than the outbound destination, e.g. fly into
+    // Victoria Falls, home from Kasane after an overland safari leg).
+    // A real 2-leg multi-city SerpApi request (type=3), the same
+    // departure_id/arrival_id/date shape fares.mjs's `legs` path already
+    // uses for via/stopover routing on the Optimize form -- not a new
+    // request format, just this trip's own fields mapped onto it. Every
+    // other trip (returnFromIata unset, by far the common case) is
+    // completely unaffected: same single-route request as always.
+    let q;
+    if (trip.returnFromIata) {
+      const legs = [
+        { departure_id: trip.originIata, arrival_id: trip.destIata, date: trip.departDate },
+        { departure_id: trip.returnFromIata, arrival_id: trip.originIata, date: trip.returnDate },
+      ];
+      q = new URLSearchParams({
+        engine: "google_flights",
+        type: "3",
+        multi_city_json: JSON.stringify(legs),
+        adults: String(trip.travelers || 1),
+        currency: "USD", hl: "en", api_key: key,
+      });
+      if (CABIN_CLASS[trip.cabin]) q.set("travel_class", CABIN_CLASS[trip.cabin]);
+    } else {
+      q = new URLSearchParams({
+        engine: "google_flights",
+        departure_id: trip.originIata, arrival_id: trip.destIata,
+        outbound_date: trip.departDate,
+        adults: String(trip.travelers || 1),
+        currency: "USD", hl: "en", api_key: key,
+      });
+      if (trip.returnDate) { q.set("return_date", trip.returnDate); q.set("type", "1"); } else { q.set("type", "2"); }
+      if (CABIN_CLASS[trip.cabin]) q.set("travel_class", CABIN_CLASS[trip.cabin]);
+    }
 
     try {
       const res = await fetch("https://serpapi.com/search?" + q);
