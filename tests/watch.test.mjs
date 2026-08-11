@@ -50,6 +50,25 @@ test("validateTripInput: a missing/blank returnDate (one-way) is fine", () => {
   assert.deepEqual(validateTripInput(trip({ returnDate: "" })), { ok: true });
 });
 
+/* ---------- validateTripInput: open-jaw (returnFromIata), 2026-08-11 ---------- */
+
+test("validateTripInput: a well-formed open-jaw trip (returnFromIata + a real returnDate) is valid", () => {
+  assert.deepEqual(validateTripInput(trip({ returnFromIata: "BBK" })), { ok: true });
+});
+
+test("validateTripInput: rejects a malformed returnFromIata", () => {
+  assert.ok(validateTripInput(trip({ returnFromIata: "bbk" })).error);
+  assert.ok(validateTripInput(trip({ returnFromIata: "BBKX" })).error);
+});
+
+test("validateTripInput: an open-jaw return with no returnDate is rejected (indistinguishable from a one-way otherwise)", () => {
+  assert.ok(validateTripInput(trip({ returnFromIata: "BBK", returnDate: "" })).error);
+});
+
+test("validateTripInput: no returnFromIata at all is unaffected (the common case)", () => {
+  assert.deepEqual(validateTripInput(trip()), { ok: true });
+});
+
 /* ---------- buildWatchId ---------- */
 
 test("buildWatchId: same trip always produces the same id", () => {
@@ -77,6 +96,20 @@ test("buildWatchId: one-way (no returnDate) does not collide with a round-trip o
 test("buildWatchId: an unspecified travelers count normalizes to 1, matching the stored-trip default", () => {
   const a = buildWatchId(trip({ travelers: undefined }));
   const b = buildWatchId(trip({ travelers: 1 }));
+  assert.equal(a, b);
+});
+
+test("buildWatchId (2026-08-11, open-jaw): a different returnFromIata produces a different id, same route/dates otherwise", () => {
+  const a = buildWatchId(trip({ returnFromIata: "BBK" }));
+  const b = buildWatchId(trip({ returnFromIata: "GBE" }));
+  const plain = buildWatchId(trip());
+  assert.notEqual(a, b, "two open-jaw watches returning from different cities must not collide");
+  assert.notEqual(a, plain, "an open-jaw watch must not collide with the plain round-trip to the same route/dates");
+});
+
+test("buildWatchId: no returnFromIata normalizes the same way whether the field is absent or empty", () => {
+  const a = buildWatchId(trip({ returnFromIata: undefined }));
+  const b = buildWatchId(trip({ returnFromIata: "" }));
   assert.equal(a, b);
 });
 

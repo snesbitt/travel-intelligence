@@ -536,6 +536,28 @@ test("liveSearchUrls: unresolved city or missing date produces NO links (never a
   assert.deepEqual(T.liveSearchUrls({ origin: "SFO", destination: "BNA" }, "American"), { carrierDeep: null, googleFlights: null });
 });
 
+/* ---------- 2026-08-11: open-jaw (return from a different city) ---------- */
+
+const OPENJAW_INPUTS = { origin: "SFO", destination: "VFA", returnFromCity: "BBK",
+  departDate: "2027-05-21", returnDate: "2027-06-01", travelers: 1 };
+
+test("liveSearchUrls: open-jaw gets an honest Google Flights query naming the real return leg, not a same-city round trip", () => {
+  const u = T.liveSearchUrls(OPENJAW_INPUTS, "United");
+  const q = decodeURIComponent(u.googleFlights.split("q=")[1]);
+  assert.equal(q, "Flights from SFO to VFA on 2027-05-21, returning BBK to SFO on 2027-06-01");
+});
+
+test("liveSearchUrls: open-jaw NEVER produces an AA carrierDeep link, even for American (unverified URL shape, per the no-unverified-links rule)", () => {
+  const u = T.liveSearchUrls(OPENJAW_INPUTS, "American");
+  assert.equal(u.carrierDeep, null);
+  assert.ok(u.googleFlights, "the honest fallback link must still be present");
+});
+
+test("liveSearchUrls: no returnFromCity is unaffected (the common case, same output as before open-jaw existed)", () => {
+  const u = T.liveSearchUrls(DEEPLINK_INPUTS, "American");
+  assert.ok(u.carrierDeep.includes("type=RoundTrip"));
+});
+
 test("expanded city tables: new US regionals resolve with real geometry (no 7,500 km default)", () => {
   for (const [city, code] of [["Nashville", "BNA"], ["Savannah", "SAV"], ["Charleston", "CHS"], ["fort lauderdale", "FLL"]]) {
     assert.equal(T.toIATA(city), code);
@@ -696,6 +718,11 @@ test("scanSourceUrl refuses Booking.com (deep link unverified) and non-scanned r
   const inputs = { origin: "San Francisco", destination: "Gaborone", departDate: "2027-05-31", returnDate: "2027-06-10" };
   assert.equal(T.scanSourceUrl(inputs, "Booking.com · scanned 2h ago"), null);
   assert.equal(T.scanSourceUrl(inputs, null), null);
+});
+
+test("scanSourceUrl (2026-08-11): refuses an open-jaw trip too, same unverified-URL-shape reasoning as Booking.com", () => {
+  const inputs = { origin: "SFO", destination: "VFA", returnFromCity: "BBK", departDate: "2027-05-21", returnDate: "2027-06-01" };
+  assert.equal(T.scanSourceUrl(inputs, "Kayak · scanned 2h ago"), null);
 });
 
 test("scanSourceUrl returns null when the route does not resolve", () => {
