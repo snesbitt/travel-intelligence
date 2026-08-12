@@ -60,11 +60,14 @@ a one-off demo.
 - Collapsible density: long cards (13 loyalty programs, 18 TPG valuation
   rows, the 9-step upgrade timeline) open collapsed to their high-signal
   rows with explicit "Show all N" toggles.
-- The fare watcher: "Watch this trip" saves a route (max 3, stored in
+- The fare watcher: "Watch this trip" saves a route (up to 6, stored in
   Netlify Blobs via `/api/watch`); a scheduled function
-  (`watch-check.mjs`, daily 14:00 UTC) re-searches each watched trip, one
-  live search per trip per day (~90/month at the cap), and the homepage
-  Watched Trips card shows the live fare floor with day-over-day deltas.
+  (`watch-check.mjs`, daily 14:00 UTC) re-searches each watched trip
+  roughly every other day (skipping any trip checked more recently than
+  ~44h ago), keeping usage at ~90 SerpApi searches/month at the cap even
+  with double the trips (raised from 3 on 2026-08-11, see CLAUDE.md), and
+  the homepage Watched Trips card shows the live fare floor with
+  day-over-day deltas.
   Alerts are in-app; email/push would need a new credential and is
   deliberately unwired. Watching or unwatching a trip requires a shared
   edit key, remembered per device, enforced server-side (`watch.mjs`'s

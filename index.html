@@ -1492,7 +1492,12 @@
       });
       const j = await r.json();
       if (r.status === 401) { clearEditSecret(); btn.textContent = "Wrong edit key: click to retry"; return; }
-      if (!r.ok) { btn.textContent = j.error && j.error.includes("cap") ? "Watch cap reached (3)" : "Watch failed; retry"; return; }
+      // 2026-08-12: was a hardcoded "Watch cap reached (3)" -- stale the
+      // moment MAX_TRIPS changed (it moved to 6 on 2026-08-11, see
+      // CLAUDE.md). watch.mjs's planAddTrip already builds the correct,
+      // current-cap error string server-side; just show it instead of
+      // re-deriving a number here that can drift out of sync again.
+      if (!r.ok) { btn.textContent = j.error && j.error.includes("cap") ? j.error : "Watch failed; retry"; return; }
       btn.textContent = "Watching ✓";
       renderWatched(j.trips);
     } catch (e) { btn.textContent = "Watch failed (offline?)"; }
