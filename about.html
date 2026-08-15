@@ -62,14 +62,14 @@
 
     <div class="about-section" id="the-stack">
       <div class="about-section-head"><span class="about-num-badge">02</span><h3>the stack</h3></div>
-      <p>Under the hood, this is a simple site: plain web pages that run the same scoring engine in your browser every time, so the same trip and the same fares always produce the same answer, never a random guess. Six small pieces of server code handle what a browser can't do alone: one searches live fares (<code>/api/fares</code>), one saves a route you ask it to watch (protected by a shared edit key, so only you can add or remove one), one re-checks those watched routes daily, one stores fares you scan yourself from Kayak or Booking, one exposes a privacy-scoped read of your watched trips (destination, coordinates, and dates only) for Vinyl Scout's Concert Radar to check against, and one runs a weekly sweep for newly matching shows on trips you're already watching. Trip details reach the fare search only when you run one; your saved wallet never leaves your browser. Mileage and award figures remain hand-maintained, distance-scaled planning ranges; award availability is not yet searched, and the UI labels them as such wherever they appear. Here's what that adds up to today:</p>
+      <p>Under the hood, this is a simple site: plain web pages that run the same scoring engine in your browser every time, so the same trip and the same fares always produce the same answer, never a random guess. Six small pieces of server code handle what a browser can't do alone: one searches live fares (<code>/api/fares</code>), one saves a route you ask it to watch (protected by a shared edit key, so only you can add or remove one), one re-checks those watched routes every other day, one stores fares you scan yourself from Kayak or Booking, one exposes a privacy-scoped read of your watched trips (destination, coordinates, and dates only) for Vinyl Scout's Concert Radar to check against, and one runs a weekly sweep for newly matching shows on trips you're already watching. Trip details reach the fare search only when you run one; your saved wallet never leaves your browser. Mileage and award figures remain hand-maintained, distance-scaled planning ranges; award availability is not yet searched, and the UI labels them as such wherever they appear. Here's what that adds up to today:</p>
 
       <div class="stack-col this-site">
         <h4>This site, today</h4>
         <ul>
           <li>Static pages, six small server functions, no build step</li>
           <li>Live Google Flights fares, plus fares you scan yourself from Kayak or Booking</li>
-          <li>Daily fare re-check for watched trips, with a health status log</li>
+          <li>Every-other-day fare re-check for watched trips, with a health status log</li>
           <li>Watching a trip is protected by a shared edit key, enforced server-side, so a shared link can't quietly spend your watch slots</li>
           <li>Concert Radar cross-check: watched trips are checked against Vinyl Scout's catalog/wishlist/watching artists for shows nearby, both directions (built 2026-08-05, with <a href="https://vinylscout.org/">vinylscout.org</a>)</li>
           <li>GitHub repo, auto-deploy on push</li>
