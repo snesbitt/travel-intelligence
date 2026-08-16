@@ -76,25 +76,6 @@ export function validateTripInput(t) {
   if (/^\d{4}-\d{2}-\d{2}$/.test(t.returnDate || "") && t.returnDate < t.departDate) {
     return { error: "returnDate is before departDate: a watch with an impossible range can never search real fares" };
   }
-  // 2026-08-11: open-jaw support (the return leg departs from a different
-  // city than the outbound destination, e.g. fly into Victoria Falls,
-  // home from Kasane after an overland safari leg). Real Google Flights
-  // itinerary, same "live feed or honest no-data" principle fares.mjs's
-  // `legs` multi-city path already established for via/stopover routing,
-  // see watch-check.mjs's buildMultiCitySearchParams. Only meaningful
-  // paired with a real return date: an open-jaw outbound with no return
-  // leg is indistinguishable from a plain one-way, and returnFromIata
-  // would otherwise silently do nothing downstream, rejected loudly here
-  // instead of drifting into a stored trip whose id implies a search it
-  // doesn't actually run.
-  if (t.returnFromIata) {
-    if (!/^[A-Z]{3}$/.test(t.returnFromIata)) {
-      return { error: "returnFromIata must be a 3-letter airport code" };
-    }
-    if (!/^\d{4}-\d{2}-\d{2}$/.test(t.returnDate || "")) {
-      return { error: "an open-jaw return (returnFromIata) needs a real returnDate" };
-    }
-  }
   return { ok: true };
 }
 
@@ -110,36 +91,20 @@ export function validateTripInput(t) {
 // request made after it; it'll just be judged as a new watch (subject to
 // the normal MAX_TRIPS cap) rather than silently dropping the new
 // returnDate/travelers, which is the correct direction to fail in.
-// 2026-08-11: same non-breaking-migration approach as the 2026-08-05
-// returnDate/travelers addition above -- adding returnFromIata to the id
-// tuple means every NEW watch's id gets a 7th field, but no existing
-// stored trip's id is ever recomputed (id is stored per-trip), so nothing
-// already watching breaks. The only transition cost, same as before: a
-// route watched before this change won't dedupe against an open-jaw
-// request for the same route made after it; it's judged a new watch
-// instead, which is the correct direction to fail in.
 export function buildWatchId(t) {
   const returnDate = /^\d{4}-\d{2}-\d{2}$/.test(t.returnDate || "") ? t.returnDate : null;
   const travelers = Math.min(9, Math.max(1, parseInt(t.travelers, 10) || 1));
-  const returnFrom = /^[A-Z]{3}$/.test(t.returnFromIata || "") ? t.returnFromIata : "-";
-  return [t.originIata, t.destIata, t.departDate, t.cabin || "Economy", returnDate || "-", travelers, returnFrom].join("|");
+  return [t.originIata, t.destIata, t.departDate, t.cabin || "Economy", returnDate || "-", travelers].join("|");
 }
 
 function normalizeTrip(t, id) {
   const returnDate = /^\d{4}-\d{2}-\d{2}$/.test(t.returnDate || "") ? t.returnDate : null;
   const travelers = Math.min(9, Math.max(1, parseInt(t.travelers, 10) || 1));
-  // 2026-08-11: open-jaw, see validateTripInput/buildWatchId above. Only
-  // stored when it passed validation (so always paired with a real
-  // returnDate here); a falsy/malformed value normalizes to null, same
-  // "never guess" convention as returnDate above.
-  const returnFromIata = /^[A-Z]{3}$/.test(t.returnFromIata || "") ? t.returnFromIata : null;
   return {
     id,
     originIata: t.originIata, destIata: t.destIata,
     origin: String(t.origin || t.originIata).slice(0, 60), destination: String(t.destination || t.destIata).slice(0, 60),
     departDate: t.departDate, returnDate,
-    returnFromIata,
-    returnFromCity: returnFromIata ? String(t.returnFromCity || t.returnFromIata).slice(0, 60) : null,
     cabin: ["Economy", "Premium Economy", "Business", "First", "Best Value"].includes(t.cabin) ? t.cabin : "Economy",
     travelers,
     createdAt: new Date().toISOString(),

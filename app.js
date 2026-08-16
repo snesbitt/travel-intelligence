@@ -654,25 +654,11 @@ function liveSearchUrls(inputs, carrier) {
   const o = toIATA(inputs.preferredAirport || inputs.origin);
   const d = toIATA(inputs.destination);
   if (!o || !d || !inputs.departDate) return { carrierDeep: null, googleFlights: null };
-  // 2026-08-11: open-jaw (the return leg departs from a different city than
-  // `d`, e.g. fly into Victoria Falls, home from Kasane). `rf` is null for
-  // every ordinary round-trip/one-way, so nothing below changes shape for
-  // the vast majority of calls.
-  const rf = inputs.returnFromCity ? toIATA(inputs.returnFromCity) : null;
-  const gq = rf
-    ? "Flights from " + o + " to " + d + " on " + inputs.departDate +
-      (inputs.returnDate ? ", returning " + rf + " to " + o + " on " + inputs.returnDate : "")
-    : "Flights from " + o + " to " + d + " on " + inputs.departDate +
-      (inputs.returnDate ? " through " + inputs.returnDate : "");
+  const gq = "Flights from " + o + " to " + d + " on " + inputs.departDate +
+    (inputs.returnDate ? " through " + inputs.returnDate : "");
   const googleFlights = "https://www.google.com/travel/flights?q=" + encodeURIComponent(gq);
   let carrierDeep = null;
-  // Open-jaw AA deep links are deliberately NOT attempted: the "MultiCity"
-  // slices type this would need was never verified live (the comment above
-  // this function is explicit -- never ship an unverified URL), unlike the
-  // OneWay/RoundTrip shapes already tested. Falls back to carrierSite()
-  // (existing behavior for every other carrier already) or the honest,
-  // best-effort Google Flights query link above.
-  if (!rf && /american/i.test(carrier || "")) {
+  if (/american/i.test(carrier || "")) {
     const slice = (a, b, dt) => ({ orig: a, origNearby: false, dest: b, destNearby: false, date: dt });
     const slices = [slice(o, d, inputs.departDate)];
     let type = "OneWay";
@@ -693,12 +679,6 @@ function liveSearchUrls(inputs, carrier) {
 // fall back to the universal Google Flights link. Never ship unverified URLs.
 function scanSourceUrl(inputs, src) {
   if (!src || !/^kayak/i.test(String(src))) return null;
-  // Open-jaw (2026-08-11): Kayak's multi-city URL format was never verified
-  // live the way the plain round-trip format in the comment above this
-  // function was, so this deliberately returns null rather than guess at
-  // an unverified shape; liveSearchUrls' Google Flights link is still
-  // available as the honest fallback.
-  if (inputs.returnFromCity) return null;
   const o = toIATA(inputs.preferredAirport || inputs.origin);
   const d = toIATA(inputs.destination);
   if (!o || !d || !inputs.departDate) return null;

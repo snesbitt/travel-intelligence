@@ -1,0 +1,1527 @@
+/* Travel Intelligence, optimization engine
+ * Pure, deterministic, client-side. ONE data path (2026-07-26, the
+ * radical-simplicity pass): fares arrive live from /api/fares (Google
+ * Flights via SerpApi) plus /api/scan-offers (Susan's own Kayak/Booking
+ * scans) and are scored by buildLiveCandidates. The seeded-RNG synthetic
+ * model that used to back unreachable-backend runs was DELETED, when no
+ * real offers exist the engine returns noLiveData and the UI says so
+ * honestly. Mileage/award figures remain distance-scaled planning ranges
+ * (award space isn't searched yet). See guide.html steps 02–04.
+ */
+
+/* ---------- reference data (hand-maintained, not live-fetched) ---------- */
+
+const ALLIANCES = {
+  "Star Alliance": ["United", "Air Canada", "Lufthansa", "Singapore Airlines", "ANA", "Turkish Airlines"],
+  // "JAL" added 2026-08-07: live SerpApi/Google Flights results return the
+  // carrier as the bare abbreviation "JAL", not "Japan Airlines", caught
+  // during E2E verification of the same-day preferred-alliance feature,
+  // where a real SFO->Tokyo search returned exactly this carrier string
+  // and silently missed the Oneworld match. Same fix pattern ASIAN_CARRIERS
+  // already uses below (listing both the full name and the short form).
+  "Oneworld": ["American", "Japan Airlines", "JAL", "British Airways", "Qatar Airways", "Cathay Pacific", "Qantas"],
+  "SkyTeam": ["Delta", "Air France", "KLM", "Korean Air"],
+  "Unaligned": ["Alaska Airlines", "Emirates", "JetBlue", "Etihad Airways"],
+};
+
+const ALL_CARRIERS = Object.values(ALLIANCES).flat();
+
+// General reputation for complimentary/mileage upgrade generosity, 0-100.
+// This is a hand-maintained editorial judgment, not a live seat-map read.
+// See about.html for how this differs from a real inventory check.
+const UPGRADE_FRIENDLY = {
+  United: 78, "Air Canada": 63, Lufthansa: 52, "Singapore Airlines": 38, ANA: 44, "Turkish Airlines": 58,
+  American: 74, "Japan Airlines": 42, "British Airways": 48, "Qatar Airways": 33, "Cathay Pacific": 43, Qantas: 54,
+  Delta: 81, "Air France": 46, KLM: 49, "Korean Air": 41,
+  "Alaska Airlines": 71, Emirates: 28, JetBlue: 62,
+};
+
+// Typical ROUND-TRIP miles + taxes/fees ranges by cabin (roughly double
+// the commonly-cited one-way figures). Wide ranges on purpose, real
+// pricing depends on route and release, which this engine doesn't fetch.
+// Used only to judge whether a redemption is *plausible*, framed to the
+// user as a planning range, never a quote.
+const AWARD_RANGES = {
+  Economy: { milesLow: 25000, milesHigh: 120000, feesLow: 11, feesHigh: 240 },
+  "Premium Economy": { milesLow: 50000, milesHigh: 170000, feesLow: 40, feesHigh: 360 },
+  Business: { milesLow: 115000, milesHigh: 320000, feesLow: 80, feesHigh: 800 },
+  First: { milesLow: 160000, milesHigh: 480000, feesLow: 120, feesHigh: 1000 },
+  "Best Value": { milesLow: 50000, milesHigh: 200000, feesLow: 40, feesHigh: 500 },
+};
+
+// Round-trip cash price model inputs, approximate mid-market planning
+// figures, not a fetched fare. See the eyebrow banner on index.html.
+const CABIN_BASE = { Economy: 620, "Premium Economy": 1250, Business: 3600, First: 8200, "Best Value": 850 };
+const CABIN_STOP_DISCOUNT = { Economy: 26, "Premium Economy": 45, Business: 90, First: 160, "Best Value": 40 };
+const CABIN_FLOOR = { Economy: 220, "Premium Economy": 560, Business: 1800, First: 4200, "Best Value": 320 };
+const CABIN_COMFORT_BASE = { Economy: 38, "Premium Economy": 58, Business: 85, First: 97, "Best Value": 54 };
+
+const TRANSFER_PARTNERS = {
+  "American Express Membership Rewards": { ratio: "1:1", value: 2.0, note: "transfers to most Star Alliance and Oneworld programs, plus Delta, Flying Blue, Virgin Atlantic, ANA, Avianca LifeMiles" },
+  "Chase Ultimate Rewards": { ratio: "1:1", value: 2.05, note: "transfers to United, Air Canada Aeroplan, Air France/KLM Flying Blue, Virgin Atlantic, Singapore, British Airways; no American or Delta" },
+  "Capital One": { ratio: "1:1 (most partners)", value: 1.85, note: "transfers to Air Canada Aeroplan, Turkish, Avianca LifeMiles, Air France/KLM, Cathay, EVA" },
+  "Citi ThankYou": { ratio: "1:1 (most partners)", value: 1.9, note: "transfers to Turkish, Air France/KLM, Avianca LifeMiles, Qatar Avios" },
+  "Bilt Rewards": { ratio: "1:1", value: 2.2, note: "transfers to United, American, Air France/KLM, Turkish, Alaska; the only major card that transfers to American, and TPG's highest-valued currency" },
+  "Wells Fargo": { ratio: "1:1", value: 1.75, note: "transfers to Air France/KLM, Avianca LifeMiles, Virgin Atlantic" },
+  "Marriott Bonvoy": { ratio: "3:1 (plus a 5,000 bonus per 60k converted)", value: 0.8, note: "weak ratio for flights; hotel points converted to air are rarely a good redemption" },
+};
+
+// TPG's published monthly valuations, July 2026 issue (thepointsguy.com/
+// loyalty-programs/monthly-valuations/). Hand-copied on 2026-07-18, not
+// live-fetched, re-copy monthly or when a program devalues. Cents per
+// point/mile. This is the "which airline's points are actually worth the
+// most" answer, straight from the source Susan asked to pull in.
+const POINT_VALUATIONS = {
+  asOf: "July 2026 (TPG monthly valuations, copied 2026-07-18)",
+  cards: {
+    "Bilt Rewards": 2.2, "Chase Ultimate Rewards": 2.05, "American Express Membership Rewards": 2.0,
+    "Citi ThankYou": 1.9, "Capital One": 1.85, "Wells Fargo": 1.75,
+  },
+  airlines: {
+    "Alaska Atmos Rewards": 1.55, "Flying Blue (Air France/KLM)": 1.55, "Air Canada Aeroplan": 1.5,
+    "Virgin Atlantic Flying Club": 1.5, "Avianca LifeMiles": 1.45, "American AAdvantage": 1.4,
+    "ANA Mileage Club": 1.4, "Avios (BA/Iberia/Qatar)": 1.4, "JetBlue TrueBlue": 1.35,
+    "United MileagePlus": 1.3, "Cathay Asia Miles": 1.3, "Qantas Frequent Flyer": 1.3,
+    "Singapore KrisFlyer": 1.3, "Southwest Rapid Rewards": 1.25, "Delta SkyMiles": 1.2,
+    "Emirates Skywards": 1.2, "Etihad Guest": 1.2, "Turkish Miles&Smiles": 1.1,
+  },
+};
+
+// Active transfer bonuses, hand-copied 2026-07-18 from TPG's current-
+// transfer-bonuses page; these expire and change monthly, so each entry
+// carries its end date and the UI must always show it.
+const TRANSFER_BONUSES = [
+  { from: "American Express Membership Rewards", to: "Virgin Atlantic Flying Club", bonus: "30%", ends: "Jul 31, 2026" },
+  { from: "Capital One", to: "EVA Air Infinity MileageLands", bonus: "30%", ends: "Jul 31, 2026" },
+];
+
+// Hand-maintained coordinates for common origin/destination cities and
+// airport codes, used to compute a real great-circle distance per route.
+// Flight time and the distance scaling of fares derive from THIS, not a
+// schedule read, but geometry plus a cruise-speed model, so a nonstop to
+// Europe reads ~11h, not a fabricated short-haul number. If a city isn't
+// here, the engine says so in the insights and assumes a generic 7,500 km
+// long-haul rather than silently pretending. Kept in sync with
+// netlify/functions/lib/city-coords.mjs's copy (same 349 keys, including
+// every code Incident #3's 2026-08-05 fix added), tests/watched-trips.
+// test.mjs's sync-check test diffs the two directly.
+//
+// Correction, 2026-08-06: an earlier version of this comment claimed this
+// table had drifted 102 keys behind lib/city-coords.mjs and that the
+// sync-check test below was broken. Both claims were wrong, caused by a
+// stale cached file read on the tooling side that session, not a real gap
+// in this repo. Verified directly against git history: this table already
+// had all 349 keys (including "ord"/Chicago) and window.TravelIntel
+// already exposed CITY_COORDS as of commit 6f6147a, before that session's
+// changes. No functional content changed here as a result, reformatted
+// only, to match lib/city-coords.mjs's layout.
+const CITY_COORDS = {
+  "san francisco": [37.62, -122.38], sfo: [37.62, -122.38], sjc: [37.36, -121.93], oak: [37.72, -122.22],
+  "los angeles": [33.94, -118.41], lax: [33.94, -118.41], "san diego": [32.73, -117.19], seattle: [47.45, -122.31],
+  portland: [45.59, -122.60], denver: [39.86, -104.67], phoenix: [33.43, -112.01], "las vegas": [36.08, -115.15],
+  dallas: [32.90, -97.04], austin: [30.19, -97.67], houston: [29.98, -95.34], chicago: [41.98, -87.90],
+  minneapolis: [44.88, -93.22], detroit: [42.21, -83.35], atlanta: [33.64, -84.43], miami: [25.79, -80.29],
+  orlando: [28.43, -81.31], tampa: [27.98, -82.53], charlotte: [35.21, -80.94], washington: [38.95, -77.46],
+  "new york": [40.64, -73.78], nyc: [40.64, -73.78], jfk: [40.64, -73.78], ewr: [40.69, -74.17],
+  boston: [42.36, -71.01], philadelphia: [39.87, -75.24], honolulu: [21.32, -157.92], anchorage: [61.17, -150.00],
+  vancouver: [49.19, -123.18], toronto: [43.68, -79.63], montreal: [45.47, -73.74], "mexico city": [19.44, -99.07],
+  cancun: [21.04, -86.87], london: [51.47, -0.45], lhr: [51.47, -0.45], paris: [49.01, 2.55], cdg: [49.01, 2.55],
+  rome: [41.80, 12.24], fco: [41.80, 12.24], madrid: [40.47, -3.56], barcelona: [41.30, 2.08],
+  lisbon: [38.77, -9.13], amsterdam: [52.31, 4.76], frankfurt: [50.03, 8.56], munich: [48.35, 11.79],
+  zurich: [47.46, 8.55], geneva: [46.24, 6.11], vienna: [48.11, 16.57], prague: [50.10, 14.26],
+  berlin: [52.36, 13.50], dublin: [53.43, -6.25], edinburgh: [55.95, -3.37], copenhagen: [55.62, 12.66],
+  stockholm: [59.65, 17.92], oslo: [60.19, 11.10], helsinki: [60.32, 24.96], athens: [37.94, 23.94],
+  istanbul: [41.26, 28.74], "tel aviv": [32.01, 34.89], dubai: [25.25, 55.36], doha: [25.27, 51.61],
+  delhi: [28.56, 77.10], mumbai: [19.09, 72.87], singapore: [1.36, 103.99], bangkok: [13.69, 100.75],
+  "hong kong": [22.31, 113.91], tokyo: [35.55, 139.78], hnd: [35.55, 139.78], nrt: [35.77, 140.39],
+  osaka: [34.43, 135.23], seoul: [37.46, 126.44], icn: [37.46, 126.44], beijing: [40.08, 116.58],
+  shanghai: [31.14, 121.81], taipei: [25.08, 121.23], manila: [14.51, 121.02], sydney: [-33.95, 151.18],
+  melbourne: [-37.67, 144.84], auckland: [-37.01, 174.79], "buenos aires": [-34.82, -58.54],
+  "sao paulo": [-23.43, -46.47], "rio de janeiro": [-22.81, -43.25], lima: [-12.02, -77.11],
+  bogota: [4.70, -74.15], santiago: [-33.39, -70.79], johannesburg: [-26.14, 28.25], "cape town": [-33.96, 18.60],
+  cairo: [30.12, 31.41], nairobi: [-1.32, 36.93], casablanca: [33.37, -7.59], reykjavik: [63.99, -22.61],
+  greenville: [34.90, -82.22], gsp: [34.90, -82.22], spartanburg: [34.90, -82.22],
+  gaborone: [-24.56, 25.92], gbe: [-24.56, 25.92],
+  tallinn: [59.41, 24.83], tll: [59.41, 24.83], riga: [56.92, 23.97], rix: [56.92, 23.97],
+  vilnius: [54.63, 25.29], vno: [54.63, 25.29], chisinau: [46.93, 28.93], kiv: [46.93, 28.93],
+  zagreb: [45.74, 16.07], zag: [45.74, 16.07], ljubljana: [46.22, 14.46], lju: [46.22, 14.46],
+  bratislava: [48.17, 17.21], bts: [48.17, 17.21], belgrade: [44.82, 20.31], beg: [44.82, 20.31],
+  sofia: [42.70, 23.41], sof: [42.70, 23.41], tirana: [41.41, 19.72], tia: [41.41, 19.72],
+  valletta: [35.86, 14.48], mla: [35.86, 14.48], sarajevo: [43.82, 18.33], sjj: [43.82, 18.33],
+  skopje: [41.96, 21.62], skp: [41.96, 21.62], podgorica: [42.36, 19.25], tgd: [42.36, 19.25],
+  pristina: [42.57, 21.04], prn: [42.57, 21.04],
+  tbilisi: [41.67, 44.95], tbs: [41.67, 44.95], yerevan: [40.15, 44.40], evn: [40.15, 44.40],
+  baku: [40.47, 50.05], gyd: [40.47, 50.05], almaty: [43.35, 77.04], ala: [43.35, 77.04],
+  tashkent: [41.26, 69.28], tas: [41.26, 69.28],
+  // 2026-07-24 US regional coverage pass (paired with CITY_IATA below):
+  sacramento: [38.70, -121.59], smf: [38.70, -121.59], burbank: [34.20, -118.36], bur: [34.20, -118.36],
+  "santa ana": [33.68, -117.87], "orange county": [33.68, -117.87], sna: [33.68, -117.87],
+  "palm springs": [33.83, -116.51], psp: [33.83, -116.51], fresno: [36.78, -119.72], fat: [36.78, -119.72],
+  reno: [39.50, -119.77], rno: [39.50, -119.77], boise: [43.56, -116.22], boi: [43.56, -116.22],
+  spokane: [47.62, -117.53], geg: [47.62, -117.53], "salt lake city": [40.79, -111.98], slc: [40.79, -111.98],
+  tucson: [32.12, -110.94], tus: [32.12, -110.94], albuquerque: [35.04, -106.61], abq: [35.04, -106.61],
+  "el paso": [31.81, -106.38], elp: [31.81, -106.38], "san antonio": [29.53, -98.47], sat: [29.53, -98.47],
+  "kansas city": [39.30, -94.71], mci: [39.30, -94.71], "st louis": [38.75, -90.37], "saint louis": [38.75, -90.37], stl: [38.75, -90.37],
+  "new orleans": [29.99, -90.26], msy: [29.99, -90.26], memphis: [35.04, -89.98], mem: [35.04, -89.98],
+  nashville: [36.12, -86.68], bna: [36.12, -86.68], louisville: [38.17, -85.74], sdf: [38.17, -85.74],
+  lexington: [38.04, -84.61], lex: [38.04, -84.61], cincinnati: [39.05, -84.66], cvg: [39.05, -84.66],
+  columbus: [40.00, -82.89], cmh: [40.00, -82.89], cleveland: [41.41, -81.85], cle: [41.41, -81.85],
+  pittsburgh: [40.49, -80.23], pit: [40.49, -80.23], indianapolis: [39.72, -86.29], ind: [39.72, -86.29],
+  milwaukee: [42.95, -87.90], mke: [42.95, -87.90], omaha: [41.30, -95.89], oma: [41.30, -95.89],
+  "des moines": [41.53, -93.66], dsm: [41.53, -93.66], "oklahoma city": [35.39, -97.60], okc: [35.39, -97.60],
+  tulsa: [36.20, -95.89], tul: [36.20, -95.89], baltimore: [39.18, -76.67], bwi: [39.18, -76.67],
+  hartford: [41.94, -72.68], bdl: [41.94, -72.68], providence: [41.72, -71.43], pvd: [41.72, -71.43],
+  buffalo: [42.94, -78.73], buf: [42.94, -78.73], rochester: [43.12, -77.67], roc: [43.12, -77.67],
+  syracuse: [43.11, -76.11], syr: [43.11, -76.11], albany: [42.75, -73.80], alb: [42.75, -73.80],
+  raleigh: [35.88, -78.79], durham: [35.88, -78.79], rdu: [35.88, -78.79], richmond: [37.51, -77.32], ric: [37.51, -77.32],
+  norfolk: [36.89, -76.20], orf: [36.89, -76.20], columbia: [33.94, -81.12], cae: [33.94, -81.12],
+  charleston: [32.90, -80.04], chs: [32.90, -80.04], savannah: [32.13, -81.20], sav: [32.13, -81.20],
+  asheville: [35.44, -82.54], avl: [35.44, -82.54], knoxville: [35.81, -83.99], tys: [35.81, -83.99],
+  chattanooga: [35.04, -85.20], cha: [35.04, -85.20], birmingham: [33.56, -86.75], bhm: [33.56, -86.75],
+  jacksonville: [30.49, -81.69], jax: [30.49, -81.69], "fort lauderdale": [26.07, -80.15], fll: [26.07, -80.15],
+  "west palm beach": [26.68, -80.10], pbi: [26.68, -80.10], "fort myers": [26.54, -81.76], rsw: [26.54, -81.76],
+  sarasota: [27.40, -82.55], srq: [27.40, -82.55],
+  // 2026-07-31 (Susan: "paris has several airports"): coordinates for every
+  // CITY_ALT_AIRPORTS code above that didn't already have an entry, a few
+  // (oak, sjc, bur, sna, bwi, nrt) were already here as standalone cities
+  // and are reused as-is.
+  lga: [40.78, -73.87], dca: [38.85, -77.04], mdw: [41.79, -87.75],
+  lgb: [33.82, -118.15], ont: [34.06, -117.60], hou: [29.65, -95.28], dal: [32.85, -96.85],
+  lgw: [51.15, -0.18], stn: [51.89, 0.24], ltn: [51.87, -0.37], lcy: [51.51, 0.06],
+  ory: [48.73, 2.36], bva: [49.45, 2.11], itm: [34.79, 135.44], sha: [31.20, 121.34],
+  pkx: [39.51, 116.41], gmp: [37.56, 126.80], cia: [41.80, 12.59], aep: [-34.56, -58.42],
+  cgh: [-23.63, -46.66], sdu: [-22.91, -43.16], dmk: [13.91, 100.61], ytz: [43.63, -79.40],
+  // 2026-08-05 (found while diagnosing why watched-trips.mjs's Chicago
+  // lookup came back unmapped, Susan asked "who's playing in Chicago
+  // during my trip" and the answer required this table first): CITY_IATA
+  // maps 163 city names to a primary code, but only a minority of those
+  // codes were ALSO present here as their own key, the rest (Chicago/ORD
+  // among them) only resolved via lookupCoords()'s whole-word/fuzzy
+  // fallback chain, which only works for FREE-TEXT city-name input, not a
+  // bare already-resolved code like watch.mjs's stored destIata. Every
+  // code below is the SAME coordinate pair as its city-name entry above,   // mechanically generated by cross-referencing CITY_IATA against this
+  // table, not independently sourced, so there's nothing new to verify
+  // beyond what was already here. Five codes (mct, dam, msq, lca, kbp)
+  // had no coordinate entry at all under either name or code, added from
+  // public capital-city coordinates (Muscat, Damascus, Minsk, Nicosia,
+  // Kyiv/Boryspil) since this table had literally nothing to copy from
+  // for those five. This does not change any existing resolution, it
+  // only adds a fast, exact-match path for codes lookupCoords() could
+  // already reach the slow way; app.js's own comment above lookupCoords's
+  // fuzzy-fallback block (search "not every CITY_COORDS key has a
+  // same-name key") predicted this exact gap and can be retired now that
+  // it's closed.
+  akl: [-37.01, 174.79], ams: [52.31, 4.76], anc: [61.17, -150.00], arn: [59.65, 17.92],
+  ath: [37.94, 23.94], atl: [33.64, -84.43], aus: [30.19, -97.67], bcn: [41.30, 2.08],
+  ber: [52.36, 13.50], bkk: [13.69, 100.75], bog: [4.70, -74.15], bom: [19.09, 72.87],
+  bos: [42.36, -71.01], cai: [30.12, 31.41], clt: [35.21, -80.94], cmn: [33.37, -7.59],
+  cph: [55.62, 12.66], cpt: [-33.96, 18.60], cun: [21.04, -86.87], dam: [33.51, 36.28],
+  del: [28.56, 77.10], den: [39.86, -104.67], dfw: [32.90, -97.04], doh: [25.27, 51.61],
+  dtw: [42.21, -83.35], dub: [53.43, -6.25], dxb: [25.25, 55.36], edi: [55.95, -3.37],
+  eze: [-34.82, -58.54], fra: [50.03, 8.56], gig: [-22.81, -43.25], gru: [-23.43, -46.47],
+  gva: [46.24, 6.11], hel: [60.32, 24.96], hkg: [22.31, 113.91], hnl: [21.32, -157.92],
+  iad: [38.95, -77.46], iah: [29.98, -95.34], ist: [41.26, 28.74], jnb: [-26.14, 28.25],
+  kbp: [50.45, 30.52], kef: [63.99, -22.61], kix: [34.43, 135.23], las: [36.08, -115.15],
+  lca: [35.17, 33.36], lim: [-12.02, -77.11], lis: [38.77, -9.13], mad: [40.47, -3.56],
+  mco: [28.43, -81.31], mct: [23.59, 58.38], mel: [-37.67, 144.84], mex: [19.44, -99.07],
+  mia: [25.79, -80.29], mnl: [14.51, 121.02], msp: [44.88, -93.22], msq: [53.90, 27.56],
+  muc: [48.35, 11.79], nbo: [-1.32, 36.93], ord: [41.98, -87.90], osl: [60.19, 11.10],
+  pdx: [45.59, -122.60], pek: [40.08, 116.58], phl: [39.87, -75.24], phx: [33.43, -112.01],
+  prg: [50.10, 14.26], pvg: [31.14, 121.81], san: [32.73, -117.19], scl: [-33.39, -70.79],
+  sea: [47.45, -122.31], sin: [1.36, 103.99], syd: [-33.95, 151.18], tlv: [32.01, 34.89],
+  tpa: [27.98, -82.53], tpe: [25.08, 121.23], vie: [48.11, 16.57], yul: [45.47, -73.74],
+  yvr: [49.19, -123.18], yyz: [43.68, -79.63], zrh: [47.46, 8.55],
+};
+
+function lookupCoords(name) {
+  if (!name) return null;
+  const n = name.trim().toLowerCase();
+  if (CITY_COORDS[n]) return CITY_COORDS[n];
+  // 2026-07-24: same whole-word fix toIATA received on 2026-07-23, the
+  // raw substring scan here had the identical bug class, silently
+  // matching short keys inside unrelated words. Longest key wins.
+  let bestKey = null;
+  for (const key of Object.keys(CITY_COORDS)) {
+    if (wholeWordIncludes(n, key) || wholeWordIncludes(key, n)) {
+      if (!bestKey || key.length > bestKey.length) bestKey = key;
+    }
+  }
+  if (bestKey) return CITY_COORDS[bestKey];
+  // 2026-07-26 (Susan: "Estonia" resolved to a real IATA code via toIATA's
+  // COUNTRY_TO_IATA table, but geometry still came back null): toIATA and
+  // lookupCoords used to be two separate lookups that could disagree,   // a bare country name could resolve to a bookable code while its
+  // distance/flight-time estimate silently failed. Falling back through
+  // toIATA's resolution keeps them in lockstep: whatever code the trip
+  // will actually search on is the same code geometry is estimated from.
+  const code = toIATA(n);
+  if (code && CITY_COORDS[code.toLowerCase()]) return CITY_COORDS[code.toLowerCase()];
+  return null;
+}
+
+function haversineKm(a, b) {
+  const R = 6371, toRad = (d) => (d * Math.PI) / 180;
+  const dLat = toRad(b[0] - a[0]), dLon = toRad(b[1] - a[1]);
+  const s = Math.sin(dLat / 2) ** 2 + Math.cos(toRad(a[0])) * Math.cos(toRad(b[0])) * Math.sin(dLon / 2) ** 2;
+  return Math.round(2 * R * Math.asin(Math.sqrt(s)));
+}
+
+function routeDistanceKm(origin, destination) {
+  const a = lookupCoords(origin), b = lookupCoords(destination);
+  if (!a || !b) return { km: null, known: false };
+  return { km: haversineKm(a, b), known: true };
+}
+
+// City → primary IATA code, for the live fare search. Same coverage as
+// CITY_COORDS; a raw 3-letter input is used as-is.
+// Top 100 travel destinations: country/region → primary IATA
+const COUNTRY_TO_IATA = {
+  "united states": "ORD", "usa": "ORD", "us": "ORD", "canada": "YYZ", "mexico": "MEX",
+  "costa rica": "SJO", "panama": "PTY", "belize": "BZE", "bahamas": "NAS", "jamaica": "MBJ", "puerto rico": "SJU", "dominican republic": "PUJ",
+  "barbados": "BGI", "trinidad and tobago": "POS", "aruba": "AUA", "curacao": "CUR",
+  "argentina": "EZE", "brazil": "GIG", "chile": "SCL", "colombia": "BOG", "peru": "LIM", "ecuador": "UIO", "venezuela": "CCS", "bolivia": "VVI", "paraguay": "ASU", "uruguay": "MVD",
+  "united kingdom": "LHR", "uk": "LHR", "england": "LHR", "ireland": "DUB", "france": "CDG", "germany": "FRA", "spain": "MAD", "italy": "FCO",
+  "netherlands": "AMS", "belgium": "BRU", "luxembourg": "LUX", "switzerland": "ZRH", "austria": "VIE", "portugal": "LIS",
+  "greece": "ATH", "iceland": "KEF", "norway": "OSL", "sweden": "ARN", "denmark": "CPH", "finland": "HEL", "poland": "WAW", "czechia": "PRG", "czech republic": "PRG", "hungary": "BUD", "romania": "OTP",
+  "ukraine": "KBP", "belarus": "MSQ", "cyprus": "LCA",
+  "israel": "TLV", "united arab emirates": "DXB", "uae": "DXB", "saudi arabia": "RUH", "qatar": "DOH", "bahrain": "BAH", "oman": "MCT", "turkey": "IST", "egypt": "CAI", "lebanon": "BEY", "jordan": "AMM", "iran": "IKA", "iraq": "BGW", "syria": "DAM",
+  "india": "DEL", "pakistan": "KHI", "bangladesh": "DAC", "sri lanka": "CMB", "nepal": "KTM", "afghanistan": "KBL",
+  "thailand": "BKK", "vietnam": "SGN", "cambodia": "PNH", "laos": "VTE", "myanmar": "RGN", "malaysia": "KUL", "singapore": "SIN", "indonesia": "CGK", "philippines": "MNL", "east timor": "DIL",
+  "china": "PEK", "japan": "HND", "south korea": "ICN", "korea": "ICN", "north korea": "FNJ", "taiwan": "TPE", "mongolia": "ULN",
+  "australia": "SYD", "new zealand": "AKL", "fiji": "SUV", "samoa": "APW", "tonga": "NAN", "vanuatu": "VLI", "solomon islands": "HIR", "png": "POM", "papua new guinea": "POM",
+  "south africa": "JNB", "kenya": "NBO", "morocco": "CMN", "nigeria": "LOS", "ethiopia": "ADD", "tanzania": "DAR", "uganda": "EBB",
+  "ghana": "ACC", "senegal": "DSS", "ivory coast": "ABJ", "cameroon": "NSI", "botswana": "GBE", "namibia": "WDH", "zambia": "LUN", "zimbabwe": "HRE", "madagascar": "TNR", "mauritius": "MRU", "seychelles": "SEZ",
+  // 2026-07-26 (Susan: Estonia didn't resolve): the whole Baltic/Balkan/
+  // Caucasus/Central Asia region was silently unmapped, same bug class as
+  // the SFO->Greenville incident. Capital-city IATA codes, matched with
+  // CITY_IATA + CITY_COORDS entries below (same pattern as botswana/gaborone).
+  "estonia": "TLL", "latvia": "RIX", "lithuania": "VNO", "moldova": "KIV",
+  "croatia": "ZAG", "slovenia": "LJU", "slovakia": "BTS", "serbia": "BEG", "bulgaria": "SOF",
+  "albania": "TIA", "malta": "MLA", "bosnia": "SJJ", "bosnia and herzegovina": "SJJ",
+  "north macedonia": "SKP", "macedonia": "SKP", "montenegro": "TGD", "kosovo": "PRN",
+  "georgia": "TBS", "armenia": "EVN", "azerbaijan": "GYD",
+  "kazakhstan": "ALA", "uzbekistan": "TAS",
+};
+
+const CITY_IATA = {
+  "san francisco": "SFO", "los angeles": "LAX", "san diego": "SAN", seattle: "SEA", portland: "PDX",
+  denver: "DEN", phoenix: "PHX", "las vegas": "LAS", dallas: "DFW", austin: "AUS", houston: "IAH",
+  chicago: "ORD", minneapolis: "MSP", detroit: "DTW", atlanta: "ATL", miami: "MIA", orlando: "MCO",
+  tampa: "TPA", charlotte: "CLT", washington: "IAD", "new york": "JFK", boston: "BOS",
+  philadelphia: "PHL", honolulu: "HNL", anchorage: "ANC", vancouver: "YVR", toronto: "YYZ",
+  montreal: "YUL", "mexico city": "MEX", cancun: "CUN", london: "LHR", paris: "CDG", rome: "FCO",
+  madrid: "MAD", barcelona: "BCN", lisbon: "LIS", amsterdam: "AMS", frankfurt: "FRA", munich: "MUC",
+  zurich: "ZRH", geneva: "GVA", vienna: "VIE", prague: "PRG", berlin: "BER", dublin: "DUB",
+  edinburgh: "EDI", copenhagen: "CPH", stockholm: "ARN", oslo: "OSL", helsinki: "HEL", athens: "ATH",
+  istanbul: "IST", "tel aviv": "TLV", dubai: "DXB", doha: "DOH", delhi: "DEL", mumbai: "BOM",
+  singapore: "SIN", bangkok: "BKK", "hong kong": "HKG", tokyo: "HND", osaka: "KIX", seoul: "ICN",
+  beijing: "PEK", shanghai: "PVG", taipei: "TPE", manila: "MNL", sydney: "SYD", melbourne: "MEL",
+  auckland: "AKL", "buenos aires": "EZE", "sao paulo": "GRU", "rio de janeiro": "GIG", lima: "LIM",
+  bogota: "BOG", santiago: "SCL", johannesburg: "JNB", "cape town": "CPT", cairo: "CAI",
+  nairobi: "NBO", casablanca: "CMN", reykjavik: "KEF",
+  muscat: "MCT", damascus: "DAM", minsk: "MSQ", nicosia: "LCA", kiev: "KBP", kyiv: "KBP",
+  greenville: "GSP", spartanburg: "GSP", gaborone: "GBE",
+  tallinn: "TLL", riga: "RIX", vilnius: "VNO", chisinau: "KIV",
+  zagreb: "ZAG", ljubljana: "LJU", bratislava: "BTS", belgrade: "BEG", sofia: "SOF",
+  tirana: "TIA", valletta: "MLA", sarajevo: "SJJ", skopje: "SKP", podgorica: "TGD",
+  pristina: "PRN", tbilisi: "TBS", yerevan: "EVN", baku: "GYD", almaty: "ALA", tashkent: "TAS",
+  // 2026-07-24: US regional coverage pass, after the Greenville incident,
+  // every entry here has a matching CITY_COORDS entry above (name and code).
+  // Ambiguous names resolve to the biggest US airport of that name by
+  // passenger volume: charleston->CHS (SC), columbia->CAE (SC),
+  // rochester->ROC (NY).
+  sacramento: "SMF", "san jose": "SJC", oakland: "OAK", burbank: "BUR",
+  "santa ana": "SNA", "orange county": "SNA", "palm springs": "PSP", fresno: "FAT",
+  reno: "RNO", boise: "BOI", spokane: "GEG", "salt lake city": "SLC",
+  tucson: "TUS", albuquerque: "ABQ", "el paso": "ELP", "san antonio": "SAT",
+  "kansas city": "MCI", "st louis": "STL", "saint louis": "STL", "new orleans": "MSY",
+  memphis: "MEM", nashville: "BNA", louisville: "SDF", lexington: "LEX",
+  cincinnati: "CVG", columbus: "CMH", cleveland: "CLE", pittsburgh: "PIT",
+  indianapolis: "IND", milwaukee: "MKE", omaha: "OMA", "des moines": "DSM",
+  "oklahoma city": "OKC", tulsa: "TUL", baltimore: "BWI", hartford: "BDL",
+  providence: "PVD", buffalo: "BUF", rochester: "ROC", syracuse: "SYR",
+  albany: "ALB", raleigh: "RDU", durham: "RDU", richmond: "RIC",
+  norfolk: "ORF", columbia: "CAE", charleston: "CHS", savannah: "SAV",
+  asheville: "AVL", knoxville: "TYS", chattanooga: "CHA", birmingham: "BHM",
+  jacksonville: "JAX", "fort lauderdale": "FLL", "west palm beach": "PBI",
+  "fort myers": "RSW", sarasota: "SRQ",
+};
+
+// Whole-word substring test: true if `needle` appears in `haystack` as a
+// complete word/phrase (flanked by non-letters or the string edges), not
+// merely as a run of matching characters. Prevents short keys like "us"
+// or "uk" from matching inside an unrelated word ("Muscat", "Kuwait").
+function wholeWordIncludes(haystack, needle) {
+  if (!needle) return false;
+  const esc = needle.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+  return new RegExp(`(^|[^a-z])${esc}([^a-z]|$)`).test(haystack);
+}
+
+// Damerau-Levenshtein restricted to ADJACENT transpositions only (swapping
+// two neighboring characters costs 1, same as a single insert/delete/
+// substitute), covers the common "pairs"/"paris" typo class without the
+// full unrestricted-transposition algorithm's extra bookkeeping, which
+// nothing here needs.
+function levenshtein(a, b) {
+  a = a == null ? "" : String(a);
+  b = b == null ? "" : String(b);
+  const al = a.length, bl = b.length;
+  if (al === 0) return bl;
+  if (bl === 0) return al;
+  const d = [];
+  for (let i = 0; i <= al; i++) d.push([i]);
+  for (let j = 0; j <= bl; j++) d[0][j] = j;
+  for (let i = 1; i <= al; i++) {
+    for (let j = 1; j <= bl; j++) {
+      const cost = a[i - 1] === b[j - 1] ? 0 : 1;
+      let best = Math.min(d[i - 1][j] + 1, d[i][j - 1] + 1, d[i - 1][j - 1] + cost);
+      if (i > 1 && j > 1 && a[i - 1] === b[j - 2] && a[i - 2] === b[j - 1]) {
+        best = Math.min(best, d[i - 2][j - 2] + 1);
+      }
+      d[i][j] = best;
+    }
+  }
+  return d[al][bl];
+}
+
+// 2026-07-31 (Susan: "improve city fields to handle misspellings"): the
+// typo-tolerance layer toIATA and suggestCities both use. Finds the SINGLE
+// closest key to `input` within edit distance 1, refusing to guess when
+// two keys are equally close (an ambiguous typo, never resolved arbitrarily)
+// or when the input is too short to disambiguate safely (under 4 chars).
+// A 3-letter input is already treated as a literal IATA code by toIATA
+// before this layer is ever reached).
+function fuzzyMatchKey(input, table) {
+  if (!input || input.length < 4) return null;
+  let bestKey = null, bestDist = Infinity, tie = false;
+  for (const key of Object.keys(table)) {
+    const dist = levenshtein(input, key);
+    if (dist > 1) continue;
+    if (dist < bestDist) { bestKey = key; bestDist = dist; tie = false; }
+    else if (dist === bestDist) { tie = true; }
+  }
+  if (!bestKey || tie) return null;
+  return table[bestKey];
+}
+
+// 2026-07-31 (Susan: "with the Paris example only CDG came up but paris has
+// several airports" / "fix and do better"): CITY_IATA's one-code-per-city
+// shape was silently hiding every other real, bookable airport in the same
+// metro. Each secondary airport gets its own exact-match alias (so typing
+// it directly still resolves) and its own suggestCities row. `primary:
+// true` marks the entry that's already CITY_IATA's own code for that key.
+// Listed here too so suggestCities can build one ordered list per metro.
+const METRO_AIRPORTS = {
+  "new york": [
+    { code: "JFK", primary: true },
+    { code: "EWR", value: "Newark" },
+    { code: "LGA", value: "LaGuardia" },
+  ],
+  washington: [
+    { code: "IAD", primary: true },
+    { code: "DCA", value: "Reagan National" },
+    { code: "BWI", value: "Baltimore" },
+  ],
+  chicago: [
+    { code: "ORD", primary: true },
+    { code: "MDW", value: "Chicago–Midway" },
+  ],
+  london: [
+    { code: "LHR", primary: true },
+    { code: "LGW", value: "London–Gatwick" },
+    { code: "STN", value: "London–Stansted" },
+    { code: "LTN", value: "London–Luton" },
+    { code: "LCY", value: "London City" },
+  ],
+  paris: [
+    { code: "CDG", primary: true },
+    { code: "ORY", value: "Paris–Orly" },
+    { code: "BVA", value: "Paris–Beauvais" },
+  ],
+  tokyo: [
+    { code: "HND", primary: true },
+    { code: "NRT", value: "Tokyo–Narita" },
+  ],
+  bangkok: [
+    { code: "BKK", primary: true },
+    { code: "DMK", value: "Bangkok–Don Mueang" },
+  ],
+};
+
+// Exact-match aliases for every non-primary metro airport whose alt name
+// isn't already a CITY_IATA/COUNTRY_TO_IATA key in its own right (e.g.
+// "Baltimore" already resolves via CITY_IATA, so it isn't duplicated here).
+const ALT_AIRPORT_IATA = {};
+for (const [key, airports] of Object.entries(METRO_AIRPORTS)) {
+  for (const a of airports) {
+    if (a.primary || !a.value) continue;
+    const aliasKey = a.value.toLowerCase();
+    if (!CITY_IATA[aliasKey] && !COUNTRY_TO_IATA[aliasKey]) ALT_AIRPORT_IATA[aliasKey] = a.code;
+  }
+}
+
+function toIATA(name) {
+  if (!name) return null;
+  const n = name.trim().toLowerCase();
+  if (/^[a-z]{3}$/.test(n)) return n.toUpperCase();
+  if (COUNTRY_TO_IATA[n]) return COUNTRY_TO_IATA[n];
+  if (CITY_IATA[n]) return CITY_IATA[n];
+  if (ALT_AIRPORT_IATA[n]) return ALT_AIRPORT_IATA[n];
+  // Whole-word fallback: scan every key for a whole-word match in either
+  // direction, and prefer the longest matching key so a specific entry
+  // ("north korea") wins over a shorter, more general one ("korea").
+  const bestMatch = (table) => {
+    let bestKey = null;
+    for (const key of Object.keys(table)) {
+      if (wholeWordIncludes(n, key) || wholeWordIncludes(key, n)) {
+        if (!bestKey || key.length > bestKey.length) bestKey = key;
+      }
+    }
+    return bestKey ? table[bestKey] : null;
+  };
+  const whole = bestMatch(CITY_IATA) || bestMatch(COUNTRY_TO_IATA);
+  if (whole) return whole;
+  // Typo-tolerance layer: reached only when nothing above resolves. Single-
+  // edit-distance only, refuses on ties, and never overrides an exact match
+  // (COUNTRY_TO_IATA's Iran/Iraq sit 1 edit apart but both resolve outright
+  // via the exact lookups above, since neither ever reaches this layer).
+  return fuzzyMatchKey(n, CITY_IATA) || fuzzyMatchKey(n, COUNTRY_TO_IATA);
+}
+
+// 2026-07-24: code -> canonical display city, derived from CITY_IATA
+// (first name listed for a code wins, so GSP -> "Greenville", HND ->
+// "Tokyo"). Lets Susan type either "gsp" or "Greenville" and always see
+// the CITY in results, watched trips, and calendar exports.
+const IATA_DISPLAY = {};
+for (const [name, code] of Object.entries(CITY_IATA)) {
+  if (!IATA_DISPLAY[code]) IATA_DISPLAY[code] = name.replace(/(^|[\s-])[a-z]/g, (m) => m.toUpperCase());
+}
+// 2026-07-26 (Susan): ambiguous or lesser-known city names display with
+// their state/country so a watched row reads unambiguously.
+Object.assign(IATA_DISPLAY, {
+  GSP: "Greenville, SC",
+  GBE: "Gaborone, Botswana",
+  CHS: "Charleston, SC",
+  CAE: "Columbia, SC",
+  SAV: "Savannah, GA",
+});
+
+function titleCaseKey(key) {
+  return key.replace(/(^|[\s-])[a-z]/g, (m) => m.toUpperCase());
+}
+
+// One row per real, individually-bookable airport, built once from
+// CITY_IATA (expanded through METRO_AIRPORTS for multi-airport metros) so
+// suggestCities and toIATA's alt-airport aliases can't drift apart.
+const CITY_AIRPORT_ROWS = (() => {
+  const rows = [];
+  for (const [key, code] of Object.entries(CITY_IATA)) {
+    const metro = METRO_AIRPORTS[key];
+    if (metro) {
+      for (const a of metro) {
+        const value = a.primary ? titleCaseKey(key) : a.value;
+        const label = (a.primary ? (IATA_DISPLAY[a.code] || titleCaseKey(key)) : value) + " (" + a.code + ")";
+        rows.push({ key, code: a.code, value, label, primary: Boolean(a.primary) });
+      }
+    } else {
+      const value = titleCaseKey(key);
+      const label = (IATA_DISPLAY[code] || value) + " (" + code + ")";
+      rows.push({ key, code, value, label, primary: true });
+    }
+  }
+  return rows;
+})();
+
+const COUNTRY_AIRPORT_ROWS = Object.entries(COUNTRY_TO_IATA).map(([key, code]) => {
+  const value = titleCaseKey(key);
+  const label = (IATA_DISPLAY[code] || value) + " (" + code + ")";
+  return { key, code, value, label, primary: true };
+});
+
+// 2026-07-31 (Susan: live typeahead as you type): ranked, deduped-by-code
+// city/country suggestions for the origin/destination fields. Three tiers,
+// checked in order and never mixed within a query, exact key match, then
+// prefix match, then (only if nothing above fired, and only for queries
+// long enough to disambiguate, same 4-char floor as toIATA's typo layer)
+// a single-edit-distance typo match, so a query like "bankok" surfaces the
+// same Bangkok metro toIATA("bankok") would resolve to. Within a tier,
+// city matches sort before country matches and a metro's primary airport
+// always leads its own group, so `suggestCities("par")[0]` is Paris/CDG,
+// not Paraguay/ASU.
+function suggestCities(query, limit) {
+  limit = limit || 8;
+  if (!query) return [];
+  const q = String(query).trim().toLowerCase();
+  if (q.length < 2) return [];
+
+  const allRows = CITY_AIRPORT_ROWS.concat(COUNTRY_AIRPORT_ROWS);
+  const seenCodes = new Set();
+  const out = [];
+
+  function addRow(row, tier) {
+    if (seenCodes.has(row.code)) return;
+    seenCodes.add(row.code);
+    out.push({ code: row.code, value: row.value, label: row.label, tier, isCountry: !CITY_IATA[row.key] && !METRO_AIRPORTS[row.key], primary: row.primary });
+  }
+
+  for (const row of allRows) if (row.key === q) addRow(row, 0);
+  for (const row of allRows) if (row.key !== q && row.key.startsWith(q)) addRow(row, 1);
+  if (out.length === 0 && q.length >= 4) {
+    let bestKeys = [], bestDist = Infinity;
+    for (const row of allRows) {
+      const dist = levenshtein(q, row.key);
+      if (dist > 1) continue;
+      if (dist < bestDist) { bestDist = dist; bestKeys = [row.key]; }
+      else if (dist === bestDist && !bestKeys.includes(row.key)) bestKeys.push(row.key);
+    }
+    if (bestKeys.length === 1) {
+      for (const row of allRows) if (row.key === bestKeys[0]) addRow(row, 2);
+    }
+  }
+
+  out.sort((a, b) => {
+    if (a.tier !== b.tier) return a.tier - b.tier;
+    if (a.isCountry !== b.isCountry) return a.isCountry ? 1 : -1;
+    if (a.primary !== b.primary) return a.primary ? -1 : 1;
+    return a.code < b.code ? -1 : a.code > b.code ? 1 : 0;
+  });
+  return out.slice(0, limit).map(({ code, value, label }) => ({ code, value, label }));
+}
+
+function displayCityName(nameOrCode) {
+  if (!nameOrCode) return nameOrCode;
+  const code = toIATA(nameOrCode);
+  if (!code) return nameOrCode; // unresolved input: show exactly as typed
+  return IATA_DISPLAY[code] || code.toUpperCase();
+}
+function displayCity(nameOrCode) {
+  if (!nameOrCode) return nameOrCode;
+  const code = toIATA(nameOrCode);
+  if (!code) return nameOrCode; // unresolved input: show exactly as typed
+  const city = IATA_DISPLAY[code];
+  return city ? city + " (" + code + ")" : code.toUpperCase();
+}
+
+// Direct booking sites per carrier, the "book it" handoff the audit
+// flagged as missing. Fuzzy-matched by name; unknown carriers fall back
+// to the Google Flights link in Purchase Strategy.
+const CARRIER_SITES = {
+  United: "https://www.united.com", "Air Canada": "https://www.aircanada.com", Lufthansa: "https://www.lufthansa.com",
+  "Singapore Airlines": "https://www.singaporeair.com", ANA: "https://www.ana.co.jp/en/us/", "Turkish Airlines": "https://www.turkishairlines.com",
+  American: "https://www.aa.com", "Japan Airlines": "https://www.jal.co.jp/us/en/", "British Airways": "https://www.britishairways.com", "Qatar Airways": "https://www.qatarairways.com",
+  "Cathay Pacific": "https://www.cathaypacific.com", Qantas: "https://www.qantas.com", Delta: "https://www.delta.com",
+  "Air France": "https://wwws.airfrance.us", KLM: "https://www.klm.com", "Korean Air": "https://www.koreanair.com",
+  "Alaska Airlines": "https://www.alaskaair.com", Emirates: "https://www.emirates.com", JetBlue: "https://www.jetblue.com",
+};
+
+// Susan's rule (2026-07-19): prioritize Asia-based carriers on Asia-bound
+// trips, their home-market product quality (seat, service, food) is a
+// real comfort difference the cabin+stops model can't see. Applied as a
+// +12 Comfort bonus, surfaced in the insights whenever it's active so the
+// preference is visible, never a hidden thumb on the scale.
+const ASIAN_CARRIERS = ["ANA", "All Nippon", "Japan Airlines", "JAL", "Singapore", "Cathay", "Korean Air", "Asiana", "EVA", "China Airlines", "Air China", "China Eastern", "China Southern", "Thai", "Vietnam Airlines", "Philippine Airlines", "Malaysia Airlines", "Garuda", "Air India", "Vistara", "Starlux", "Zipair"];
+const ASIA_COMFORT_BONUS = 12;
+
+// 2026-08-07 (audit backlog, 2026-08-05: "wire the six dead preference
+// fields into real scoring"): preferredAirlines, preferredAlliances,
+// preferredDepartTime, and preferredArrivalTime were saved to the
+// wallet/prefs object but never read by buildLiveCandidates, set once,
+// then silently ignored. These three bonuses close that gap the same way
+// ASIA_COMFORT_BONUS already works: a flat Comfort addition, surfaced in
+// insights whenever active, never a hidden adjustment. (preferredSeat and
+// preferredHotel are the other two of the "six", out of scope here, since
+// this model has no per-seat or lodging dimension to attach them to.)
+const PREFERRED_AIRLINE_BONUS = 10;
+const PREFERRED_ALLIANCE_BONUS = 6;
+const PREFERRED_TIME_BONUS = 8;
+
+function isAsianCarrier(name) {
+  const n = (name || "").toLowerCase();
+  return ASIAN_CARRIERS.some((c) => n.includes(c.toLowerCase()));
+}
+
+function destinationInAsia(inputs) {
+  const c = lookupCoords(inputs.destination);
+  return Boolean(c && c[1] >= 60 && c[1] <= 150 && c[0] >= -10 && c[0] <= 60);
+}
+
+// 2026-07-24: deep links that land ON THE ROUTE'S RESULTS, not a carrier
+// homepage. American's slices format was verified live against aa.com
+// (SFO<->GSP round trip) before shipping; every other carrier gets a
+// prefilled Google Flights query, which reliably resolves any IATA pair.
+// Pure function, null-safe: no URL is produced unless origin, destination
+// AND departure date all resolve, never a link to a route we can't name.
+function liveSearchUrls(inputs, carrier) {
+  const o = toIATA(inputs.preferredAirport || inputs.origin);
+  const d = toIATA(inputs.destination);
+  if (!o || !d || !inputs.departDate) return { carrierDeep: null, googleFlights: null };
+  // 2026-08-11: open-jaw (the return leg departs from a different city than
+  // `d`, e.g. fly into Victoria Falls, home from Kasane). `rf` is null for
+  // every ordinary round-trip/one-way, so nothing below changes shape for
+  // the vast majority of calls.
+  const rf = inputs.returnFromCity ? toIATA(inputs.returnFromCity) : null;
+  const gq = rf
+    ? "Flights from " + o + " to " + d + " on " + inputs.departDate +
+      (inputs.returnDate ? ", returning " + rf + " to " + o + " on " + inputs.returnDate : "")
+    : "Flights from " + o + " to " + d + " on " + inputs.departDate +
+      (inputs.returnDate ? " through " + inputs.returnDate : "");
+  const googleFlights = "https://www.google.com/travel/flights?q=" + encodeURIComponent(gq);
+  let carrierDeep = null;
+  // Open-jaw AA deep links are deliberately NOT attempted: the "MultiCity"
+  // slices type this would need was never verified live (the comment above
+  // this function is explicit -- never ship an unverified URL), unlike the
+  // OneWay/RoundTrip shapes already tested. Falls back to carrierSite()
+  // (existing behavior for every other carrier already) or the honest,
+  // best-effort Google Flights query link above.
+  if (!rf && /american/i.test(carrier || "")) {
+    const slice = (a, b, dt) => ({ orig: a, origNearby: false, dest: b, destNearby: false, date: dt });
+    const slices = [slice(o, d, inputs.departDate)];
+    let type = "OneWay";
+    if (inputs.returnDate) { slices.push(slice(d, o, inputs.returnDate)); type = "RoundTrip"; }
+    const pax = inputs.travelers || 1;
+    carrierDeep = "https://www.aa.com/booking/search?locale=en_US&pax=" + pax + "&adult=" + pax +
+      "&type=" + type + "&searchType=Revenue&cabin=&carriers=ALL&slices=" +
+      encodeURIComponent(JSON.stringify(slices));
+  }
+  return { carrierDeep, googleFlights };
+}
+
+// 2026-07-26: link scanned offers back to their source. Kayak's route deep
+// link (kayak.com/flights/O-D/depart[/return]) was verified live in Susan's
+// browser (prefilled "SFO to GBE, 5/31 - 6/10" search). Booking.com's flight
+// deep links were tested in three formats and none prefill (their challenge
+// redirect strips the route), so Booking-sourced rows return null here and
+// fall back to the universal Google Flights link. Never ship unverified URLs.
+function scanSourceUrl(inputs, src) {
+  if (!src || !/^kayak/i.test(String(src))) return null;
+  // Open-jaw (2026-08-11): Kayak's multi-city URL format was never verified
+  // live the way the plain round-trip format in the comment above this
+  // function was, so this deliberately returns null rather than guess at
+  // an unverified shape; liveSearchUrls' Google Flights link is still
+  // available as the honest fallback.
+  if (inputs.returnFromCity) return null;
+  const o = toIATA(inputs.preferredAirport || inputs.origin);
+  const d = toIATA(inputs.destination);
+  if (!o || !d || !inputs.departDate) return null;
+  return "https://www.kayak.com/flights/" + o + "-" + d + "/" + inputs.departDate +
+    (inputs.returnDate ? "/" + inputs.returnDate : "");
+}
+
+function carrierSite(name) {
+  if (!name) return null;
+  const n = name.toLowerCase();
+  for (const [key, url] of Object.entries(CARRIER_SITES)) {
+    if (n.includes(key.toLowerCase()) || key.toLowerCase().includes(n)) return url;
+  }
+  return null;
+}
+
+// 2026-07-25: Time added as a real scored dimension (Susan's report: Fastest
+// vs Cheapest returned the same pick, Risk only counts STOPS, so among
+// all-1-stop offer sets "Fastest" had nothing to rank by; duration was
+// displayed but never scored). Fastest is now dominated by Time; every
+// other lens gets a small Time term. Best Overall gets a deliberately
+// small 0.2 so the tuned ANA-vs-United value case (v-2026-07-19, Cost 1.4)
+// keeps holding, pinned by a regression test.
+const PRIORITY_WEIGHTS = {
+  Cheapest:                 { Cost: 1.0, Comfort: 0.1, Upgrade: 0.1, Award: 0.2, Flexibility: 0.1, Risk: 0.2, Time: 0.1 },
+  "Best Value":              { Cost: 0.6, Comfort: 0.4, Upgrade: 0.2, Award: 0.3, Flexibility: 0.3, Risk: 0.3, Time: 0.3 },
+  Fastest:                   { Cost: 0.1, Comfort: 0.2, Upgrade: 0.1, Award: 0.0, Flexibility: 0.1, Risk: 0.5, Time: 1.2 },
+  "Most Comfortable":        { Cost: 0.1, Comfort: 1.0, Upgrade: 0.2, Award: 0.1, Flexibility: 0.2, Risk: 0.2, Time: 0.2 },
+  "Best Upgrade Opportunity": { Cost: 0.1, Comfort: 0.3, Upgrade: 1.0, Award: 0.1, Flexibility: 0.1, Risk: 0.1, Time: 0.1 },
+  "Best Use of Miles":        { Cost: 0.1, Comfort: 0.1, Upgrade: 0.2, Award: 1.0, Flexibility: 0.1, Risk: 0.1, Time: 0.1 },
+  // Cost raised 0.3 → 1.4 (2026-07-19, Susan's call after the ANA-vs-United
+  // case): under "Best Overall", a fare at ~half price now outranks a
+  // nonstop, while modest price gaps still lose to the better-rounded
+  // itinerary. Tuned against that real case, see CLAUDE.md.
+  "Best Overall Experience":  { Cost: 1.4, Comfort: 0.5, Upgrade: 0.4, Award: 0.3, Flexibility: 0.3, Risk: 0.3, Time: 0.2 },
+};
+
+const DIMENSIONS = ["Cost", "Comfort", "Upgrade", "Award", "Flexibility", "Risk", "Time"];
+const DIM_LABEL = { Cost: "Cost", Comfort: "Comfort", Upgrade: "Upgrade Potential", Award: "Award Value", Flexibility: "Flexibility", Risk: "Risk (inverted: higher = lower risk)", Time: "Travel time (higher = faster)" };
+
+function clamp(n, lo, hi) { return Math.max(lo, Math.min(hi, n)); }
+function fmtUSD(n) { return "$" + Math.round(n).toLocaleString("en-US"); }
+
+// Route geometry for the live path: real
+// great-circle distance when both endpoints are in the city table; a
+// stated generic long-haul assumption when not.
+function routeContext(inputs) {
+  const via = (inputs.viaCity || "").trim();
+  let route;
+  if (via) {
+    // Via routing: real geometry for both legs, summed. Forces at least
+    // one stop and carries a small multi-city fare premium below.
+    const a = lookupCoords(inputs.origin), v = lookupCoords(via), b = lookupCoords(inputs.destination);
+    if (a && v && b) {
+      const leg1 = haversineKm(a, v), leg2 = haversineKm(v, b);
+      const direct = haversineKm(a, b);
+      route = { km: leg1 + leg2, known: true, via, legs: [leg1, leg2], directKm: direct };
+    } else {
+      route = { km: null, known: false, via };
+    }
+  } else {
+    route = routeDistanceKm(inputs.origin, inputs.destination);
+  }
+  const effKm = route.km || 7500;
+  // Fares scale with distance: ~0.25× base for a short domestic hop up to
+  // ~1.7× for an ultra-long-haul, anchored so base = a ~9,000 km long-haul.
+  // Via routings carry a ~6% multi-city premium on top.
+  const distFactor = clamp(0.22 + 0.78 * (effKm / 9000), 0.22, 1.7) * (via ? 1.06 : 1);
+  const milesFactor = clamp(0.4 + 0.6 * (effKm / 9000), 0.4, 1.5);
+  const airMinutesNonstop = Math.round((effKm / 850) * 60 + 45); // 850 km/h cruise + ground overhead
+  return { route, effKm, distFactor, milesFactor, airMinutesNonstop };
+}
+
+function fuzzyCarrierScore(name) {
+  if (UPGRADE_FRIENDLY[name] != null) return UPGRADE_FRIENDLY[name];
+  const n = (name || "").toLowerCase();
+  for (const key of Object.keys(UPGRADE_FRIENDLY)) {
+    if (n.includes(key.toLowerCase()) || key.toLowerCase().includes(n)) return UPGRADE_FRIENDLY[key];
+  }
+  return 50;
+}
+
+function fuzzyAlliance(name) {
+  const n = (name || "").toLowerCase();
+  for (const [al, list] of Object.entries(ALLIANCES)) {
+    if (list.some((c) => n.includes(c.toLowerCase()) || c.toLowerCase().includes(n))) return al;
+  }
+  return "Unaligned";
+}
+
+// Reads the hour out of a live-feed timestamp string, "YYYY-MM-DD HH:MM"
+// (the format offers carry on departTimeRaw/arriveTimeRaw). Returns null
+// on anything malformed or missing rather than guessing, a wrong hour
+// would silently mis-bucket a flight and either grant or withhold a
+// Comfort bonus for the wrong reason.
+function parseHourFromApiTime(raw) {
+  if (typeof raw !== "string") return null;
+  const m = raw.match(/^\d{4}-\d{2}-\d{2} (\d{2}):\d{2}$/);
+  if (!m) return null;
+  const hour = parseInt(m[1], 10);
+  if (hour < 0 || hour > 23) return null;
+  return hour;
+}
+
+// Buckets match index.html's <select id="preferredDepartTime"> /
+// <select id="preferredArrivalTime"> options exactly, so a saved
+// preference string compares directly against a bucket's return value.
+// No separate mapping table to drift out of sync. Same hour boundaries
+// for both; only the overnight-tail bucket's label differs (a 2am
+// departure is a "Red-eye" you booked on purpose, a 2am arrival is
+// "Late night" you're stuck with).
+function departTimeBucket(raw) {
+  const hour = parseHourFromApiTime(raw);
+  if (hour == null) return null;
+  if (hour >= 5 && hour <= 7) return "Early morning";
+  if (hour >= 8 && hour <= 11) return "Morning";
+  if (hour >= 12 && hour <= 16) return "Afternoon";
+  if (hour >= 17 && hour <= 20) return "Evening";
+  return "Red-eye"; // 21:00-23:59 and 00:00-04:59
+}
+
+function arriveTimeBucket(raw) {
+  const hour = parseHourFromApiTime(raw);
+  if (hour == null) return null;
+  if (hour >= 5 && hour <= 7) return "Early morning";
+  if (hour >= 8 && hour <= 11) return "Morning";
+  if (hour >= 12 && hour <= 16) return "Afternoon";
+  if (hour >= 17 && hour <= 20) return "Evening";
+  return "Late night"; // 21:00-23:59 and 00:00-04:59
+}
+
+function seasonalRisk(dateStr) {
+  const d = new Date(dateStr + "T12:00:00");
+  if (isNaN(d)) return 8;
+  const m = d.getMonth(); // 0=Jan
+  // rough, general seasonality: winter storm season + summer peak congestion
+  if (m === 11 || m === 0 || m === 1) return 22;
+  if (m === 6 || m === 5) return 16;
+  if (m === 10) return 12;
+  return 8;
+}
+
+/* ---------- live offers → scored candidates ----------
+ * Takes REAL fares (from the /api/fares Netlify Function, a proxy to
+ * SerpApi's Google Flights engine) and runs them through the exact same
+ * six-dimension scoring the model uses, the weighting framework is the
+ * product; the data source upgraded underneath it. Prices are real; the
+ * miles estimate stays a distance-scaled planning range (award SPACE is
+ * still not searched, that's labeled in the UI).
+ */
+function buildLiveCandidates(inputs, offers) {
+  const { route, effKm, milesFactor, distFactor, airMinutesNonstop } = routeContext(inputs);
+  const travelers = inputs.travelers || 1;
+  const avoid = (inputs.avoidAirlines || []).map((a) => a.toLowerCase());
+  const range = AWARD_RANGES[inputs.cabin] || AWARD_RANGES.Economy;
+  const mLow = range.milesLow * milesFactor, mHigh = range.milesHigh * milesFactor;
+
+  // 2026-07-31 (Susan: "I always want to fly nonstop if available"): the
+  // Stops pill row in index.html has always collected maxStops (0-3, 3 =
+  // "Any stops") and saved it to prefs, but this function never read it,   // the choice was recorded and then silently ignored. 3/unset both mean
+  // no limit, matching the UI's "Any stops" option and every caller that
+  // predates this filter.
+  const hasStopsLimit = inputs.maxStops != null && inputs.maxStops < 3;
+
+  // 2026-08-07 (Susan: SFO->Tallinn "failed or timed out" bug): real live
+  // offers were coming back fine (HTTP 200, real Lufthansa/American/KLM
+  // fares) but every single one had 1+ stops -- no real nonstop US-Tallinn
+  // routing exists -- so Susan's saved "Nonstop only" filter zeroed the
+  // whole set out client-side. runOptimization() then collapsed that into
+  // the exact same generic empty state as a genuine API failure, and the
+  // UI reported "the live search failed or timed out" for a search that
+  // had actually succeeded. Tracking counts at each filter stage lets the
+  // caller tell "nothing came back" apart from "real offers came back and
+  // your own filter removed all of them" and say so honestly.
+  const rawOfferCount = offers.length;
+  const afterAirlineFilter = offers.filter((o) => !avoid.some((a) => (o.carrier || "").toLowerCase().includes(a)));
+  const afterStopsFilter = afterAirlineFilter.filter((o) => !hasStopsLimit || Math.max(0, o.stops || 0) <= inputs.maxStops);
+
+  const candidates = afterStopsFilter
+    .slice(0, 12)
+    .map((o, i) => {
+      const price = Math.round(o.priceTotal / travelers); // per person, matching the model's display convention
+      const stops = Math.max(0, o.stops || 0);
+      const cabin = inputs.cabin === "Best Value" ? (o.cabins && o.cabins.includes("BUSINESS") ? "Business" : "Economy") : inputs.cabin;
+
+      const priceBand = clamp((price - (CABIN_FLOOR[cabin] || 200) * distFactor) / Math.max(1, (CABIN_BASE[cabin] || 620) * distFactor * 1.4), 0, 1);
+      const milesEst = Math.round((mLow + (mHigh - mLow) * priceBand) / 5000) * 5000 || 5000;
+      const feesEst = Math.round(range.feesLow + (range.feesHigh - range.feesLow) * priceBand);
+      const candCpp = ((price - feesEst) / Math.max(1, milesEst)) * 100;
+
+      const scores = {};
+      // 2026-07-25: lower clamp extended 4 -> -80. At the old floor, every
+      // fare beyond ~1.5x budget scored an identical 4, so Cost stopped
+      // discriminating on expensive routes and a pricier-but-faster offer
+      // could win "Best Overall" over one $500 cheaper (caught in the
+      // multi-feed e2e review). Under-budget scoring is unchanged.
+      scores.Cost = clamp(100 - (price / Math.max(1, inputs.maxBudget)) * 65, -80, 100);
+      // Preferred airline/alliance/time-of-day: same pattern as the Asia
+      // comfort bonus above, flat additions, each independently gated so
+      // they stack additively rather than overriding one another. A saved
+      // preference with no matching signal on this offer (no departTimeRaw,
+      // no alliance match, etc.) contributes 0, never a guess.
+      const preferredAirlineMatch = (inputs.preferredAirlines || []).some((a) => a && (o.carrier || "").toLowerCase().includes(String(a).toLowerCase()));
+      const preferredAllianceMatch = (inputs.preferredAlliances || []).includes(fuzzyAlliance(o.carrier));
+      const preferredDepartMatch = Boolean(inputs.preferredDepartTime && o.departTimeRaw && departTimeBucket(o.departTimeRaw) === inputs.preferredDepartTime);
+      const preferredArriveMatch = Boolean(inputs.preferredArrivalTime && o.arriveTimeRaw && arriveTimeBucket(o.arriveTimeRaw) === inputs.preferredArrivalTime);
+      scores.Comfort = clamp((CABIN_COMFORT_BASE[cabin] || 50) - stops * 11 + (stops === 0 ? 6 : 0)
+        + (destinationInAsia(inputs) && isAsianCarrier(o.carrier) ? ASIA_COMFORT_BONUS : 0)
+        + (preferredAirlineMatch ? PREFERRED_AIRLINE_BONUS : 0)
+        + (preferredAllianceMatch ? PREFERRED_ALLIANCE_BONUS : 0)
+        + (preferredDepartMatch ? PREFERRED_TIME_BONUS : 0)
+        + (preferredArriveMatch ? PREFERRED_TIME_BONUS : 0), 5, 100);
+      scores.Upgrade = clamp(fuzzyCarrierScore(o.carrier) - (cabin === "First" ? 35 : cabin === "Business" ? 12 : 0) + (cabin === "Economy" || cabin === "Best Value" ? 6 : 0), 3, 100);
+      scores.Award = clamp(candCpp * 42, 2, 100);
+      scores.Flexibility = clamp(55 + (cabin === "Business" || cabin === "First" ? 8 : 0), 5, 100);
+      scores.Risk = clamp(100 - stops * 18 - seasonalRisk(inputs.departDate), 5, 100);
+      // Time: each hour over the route's modeled nonstop air time costs 9
+      // points; a real nonstop scores ~100. Unknown duration scores a
+      // neutral 55 so it neither wins nor loses on missing data.
+      scores.Time = o.durationMinutes == null ? 55 : clamp(100 - ((o.durationMinutes - airMinutesNonstop) / 60) * 9, 5, 100);
+
+      return {
+        id: i, carrier: o.carrier || o.carrierCode, alliance: fuzzyAlliance(o.carrier), stops,
+        fareTier: "Standard", price, dateOffset: 0, cabin, scores,
+        cpp: candCpp, milesMid: milesEst, feesMid: feesEst,
+        milesEst, feesEst, candCpp, payWith: candCpp >= 1.6 ? "miles" : "cash",
+        travelMinutes: o.durationMinutes || null, // provider returns outbound (one-way) minutes
+        routeKm: route.km, routeKnown: route.known,
+        aircraft: o.aircraft || (o.bookableSeats ? `${o.bookableSeats} bookable seats` : "–"),
+        availLabel: o.aircraft ? "Aircraft" : "Availability",
+        live: true, priceTotal: Math.round(o.priceTotal), lastTicketingDate: o.lastTicketingDate || null,
+        src: o.src || null, // "Kayak (scanned 3h ago)" etc, null for the primary live feed
+        departTimeRaw: o.departTimeRaw || null, arriveTimeRaw: o.arriveTimeRaw || null,
+      };
+    });
+
+  // See the 2026-08-07 comment above, these ride along on the array
+  // (arrays are objects; this doesn't change its existing shape/contract
+  // for any caller that just iterates or reads .length) so runOptimization
+  // can distinguish a real "nothing came back" from "results existed but
+  // your own filters removed every one," without a second return type.
+  candidates.rawOfferCount = rawOfferCount;
+  candidates.stopsFilteredAllOut = hasStopsLimit && afterAirlineFilter.length > 0 && afterStopsFilter.length === 0;
+  candidates.airlineFilteredAllOut = avoid.length > 0 && rawOfferCount > 0 && afterAirlineFilter.length === 0;
+  return candidates;
+}
+
+/* ---------- priority suggestion ----------
+ * Recommends a primary + runner-up optimization lens from the trip's own
+ * characteristics, route distance, cabin, budget vs the typical modeled
+ * fare, purpose, party size, and whether the saved miles balance can
+ * realistically cover this route. Rule-based and transparent: every
+ * suggestion states its reason, and it's a suggestion the user applies
+ * with one click, never an override.
+ */
+function suggestPriorities(inputs) {
+  const { effKm, distFactor, milesFactor } = routeContext(inputs);
+  const longHaul = effKm >= 8000;
+  const typicalFare = Math.round((CABIN_BASE[inputs.cabin] || CABIN_BASE.Economy) * distFactor);
+  const tightBudget = (inputs.maxBudget || 0) > 0 && inputs.maxBudget < typicalFare * 0.9;
+  const biggestBalance = (inputs.programBalances || []).reduce((m, p) => Math.max(m, p.balance), 0);
+  const econAwardLow = Math.round(AWARD_RANGES.Economy.milesLow * milesFactor);
+  const milesUseful = biggestBalance >= econAwardLow;
+  const kmStr = effKm.toLocaleString() + " km";
+
+  if (tightBudget) {
+    return { primary: "Cheapest", secondary: longHaul ? "Best Value" : "Best Overall Experience",
+      reason: `your $${inputs.maxBudget.toLocaleString()} budget sits below the ~$${typicalFare.toLocaleString()} typical ${inputs.cabin} fare for this ${kmStr} route; price has to lead.` };
+  }
+  if ((inputs.cabin === "Economy" || inputs.cabin === "Best Value") && longHaul && milesUseful) {
+    return { primary: "Best Upgrade Opportunity", secondary: "Best Use of Miles",
+      reason: `${kmStr} in Economy is where an upgrade pays off most, and your ${biggestBalance.toLocaleString()}-mile balance clears the ~${econAwardLow.toLocaleString()}-mile bar to be in play.` };
+  }
+  if ((inputs.cabin === "Economy" || inputs.cabin === "Best Value") && longHaul) {
+    return { primary: "Best Overall Experience", secondary: "Most Comfortable",
+      reason: `${kmStr} is a long day in Economy; comfort (nonstops, better carriers) is worth weighting alongside the rounded view.` };
+  }
+  if (inputs.tripPurpose === "Business" && inputs.dateFlexibility === "Exact") {
+    return { primary: "Fastest", secondary: "Best Overall Experience",
+      reason: `a business trip on exact dates; total travel time and low disruption risk usually matter more than saving a little.` };
+  }
+  if (inputs.cabin === "Business" || inputs.cabin === "First") {
+    return { primary: "Best Value", secondary: milesUseful ? "Best Use of Miles" : "Most Comfortable",
+      reason: milesUseful
+        ? `premium cabins are where redemptions run strongest; with ${biggestBalance.toLocaleString()} miles saved, value and miles are the right two lenses.`
+        : `${inputs.cabin} fares vary wildly for near-identical products on this route; value comparison beats any single dimension.` };
+  }
+  // Saved "typical travel style" preference, applied ONLY as a fallback,
+  // after every trip-specific signal above has had a chance to fire, so a
+  // saved default never overrides what this particular trip's own numbers
+  // say. Kept as a small lookup table + pure function (travelStyleFallback)
+  // so it's testable without the rest of suggestPriorities' context.
+  const styleFallback = travelStyleFallback(inputs.travelStyle);
+  if (styleFallback) {
+    return { primary: styleFallback.primary, secondary: styleFallback.secondary,
+      reason: `${styleFallback.note}; nothing about this specific trip overrides it.` };
+  }
+
+  return { primary: "Best Overall Experience", secondary: "Best Value",
+    reason: `nothing about this trip forces a single dimension; the balanced lens with a value runner-up fits.` };
+}
+
+// 2026-07-21: saved preferences & trip memory, phase 07's fuller slice
+// (the wallet shipped first, 2026-07-14, ahead of this). Three small pure
+// functions, each reading a saved-preference field from `inputs`, never
+// touching the six-dimension scores themselves, per "radical simplicity":
+// these personalize the SUGGESTION and the INSIGHTS, not the scoring math.
+const TRAVEL_STYLE_FALLBACK = {
+  Relaxed: { primary: "Most Comfortable", secondary: "Best Overall Experience", note: `your saved travel style is "Relaxed": fewer connections and more buffer over price` },
+  Efficient: { primary: "Fastest", secondary: "Best Overall Experience", note: `your saved travel style is "Efficient": minimizing total travel time` },
+  Luxury: { primary: "Best Upgrade Opportunity", secondary: "Most Comfortable", note: `your saved travel style is "Luxury": comfort and upgrade potential over price` },
+};
+
+function travelStyleFallback(travelStyle) {
+  return TRAVEL_STYLE_FALLBACK[travelStyle] || null;
+}
+
+// Saved "airports to avoid" preference, checked against the fields that
+// are honest to check: origin, destination, preferred/nearby airports,
+// and the via city. The candidate model only generates a STOP COUNT per
+// itinerary, never a specific connection airport, so this deliberately
+// does NOT claim to catch a disliked airport used as a connection, and
+// buildInsights says so explicitly when it fires (never a silent or
+// overclaimed match).
+function flagsDislikedAirport(inputs) {
+  const disliked = (inputs.dislikedAirports || "").split(",").map((s) => s.trim().toLowerCase()).filter(Boolean);
+  if (!disliked.length) return null;
+  const rawFields = [inputs.origin, inputs.destination, inputs.preferredAirport, inputs.viaCity]
+    .concat((inputs.airportFlexibility || "").split(","))
+    .map((s) => (s || "").trim())
+    .filter(Boolean);
+  // Check both the raw text (a saved city name) and its resolved IATA code
+  // (toIATA, the same city→code table the live search uses), a saved
+  // "LHR" needs to match a trip field of "London" and vice versa.
+  const fields = rawFields.flatMap((f) => {
+    const code = toIATA(f);
+    return [f.toLowerCase(), code ? code.toLowerCase() : null].filter(Boolean);
+  });
+  for (const d of disliked) {
+    if (fields.some((f) => f.includes(d) || d.includes(f))) return d;
+  }
+  return null;
+}
+
+// Saved "upgrade wins" log, free-text history the user adds to after a
+// successful upgrade. If any past entry mentions the recommended
+// itinerary's carrier, that's surfaced as a reason to try the same play
+// again. Substring match on free text only, same fuzziness as the rest of
+// this file's carrier matching, never scored, just surfaced.
+function matchUpgradeWinCarrier(upgradeWins, carrierName) {
+  if (!Array.isArray(upgradeWins) || !carrierName) return null;
+  const c = carrierName.toLowerCase();
+  return upgradeWins.find((w) => w && typeof w.text === "string" && w.text.toLowerCase().includes(c)) || null;
+}
+
+/* ---------- weighting from the ranked priority list ---------- */
+
+function computeWeights(priorityRanks) {
+  // priorityRanks: { "Cheapest": 1, "Best Value": 2, ... } rank 1 = most important
+  const total = Object.keys(priorityRanks).length || 1;
+  const dimWeights = { Cost: 0, Comfort: 0, Upgrade: 0, Award: 0, Flexibility: 0, Risk: 0, Time: 0 };
+  for (const [priority, rank] of Object.entries(priorityRanks)) {
+    const rankWeight = (total + 1 - rank) / total; // rank 1 -> heaviest
+    const vec = PRIORITY_WEIGHTS[priority];
+    if (!vec) continue;
+    for (const dim of DIMENSIONS) dimWeights[dim] += vec[dim] * rankWeight;
+  }
+  const sum = DIMENSIONS.reduce((s, d) => s + dimWeights[d], 0) || 1;
+  for (const dim of DIMENSIONS) dimWeights[dim] = dimWeights[dim] / sum;
+  return dimWeights;
+}
+
+function weightedScore(scores, weights) {
+  return DIMENSIONS.reduce((s, d) => s + scores[d] * weights[d], 0);
+}
+
+/* ---------- purchase timing ---------- */
+
+// 2026-07-25: data-backed verdict from Google Flights' own price
+// insights (current cheapest vs the route's typical range). Pure and
+// null-safe: returns null when insights are absent, and the UI falls
+// back to the modeled purchaseTiming heuristic, clearly labeled as such.
+function priceIntelligence(insights, travelers) {
+  if (!insights || !insights.priceLevel) return null;
+  const trav = travelers || 1;
+  const perPerson = insights.lowestPrice != null ? Math.round(insights.lowestPrice / trav) : null;
+  const range = Array.isArray(insights.typicalRange) && insights.typicalRange.length === 2 &&
+    insights.typicalRange.every((v) => typeof v === "number" && isFinite(v))
+    ? insights.typicalRange.map((v) => Math.round(v / trav)) : null;
+  const level = String(insights.priceLevel).toLowerCase();
+  let verdict, cls;
+  if (level === "low") { verdict = "Below typical for this route: a real deal by Google's own price history. Booking now is defensible."; cls = "buy"; }
+  else if (level === "high") { verdict = "Above typical for this route. Unless the dates are fixed, watching for a dip beats booking today."; cls = "wait"; }
+  else { verdict = "Within the typical range for this route: no urgency signal either way; the booking-window heuristic below still applies."; cls = "monitor"; }
+  let deltaPct = null;
+  if (perPerson != null && range) {
+    const mid = (range[0] + range[1]) / 2;
+    if (mid > 0) deltaPct = Math.round(((perPerson - mid) / mid) * 100);
+  }
+  return { level, verdict, cls, perPerson, range, deltaPct, history: insights.history || null };
+}
+
+function purchaseTiming(inputs) {
+  const depart = new Date(inputs.departDate + "T12:00:00");
+  const today = new Date();
+  const daysOut = Math.round((depart - today) / 86400000);
+  if (isNaN(daysOut)) return { verdict: "monitor", days: null, reason: "No valid departure date entered; set one to get a timing read." };
+  if (daysOut < 0) return { verdict: "buy", days: daysOut, reason: "Departure date is in the past; re-check the date." };
+  if (daysOut <= 20) return { verdict: "buy", days: daysOut, reason: `Only ${daysOut} days out. Close-in fares typically climb from here; the risk of waiting outweighs any further discount.` };
+  if (daysOut <= 60) return { verdict: "buy", days: daysOut, reason: `${daysOut} days out is inside the typical low-fare window for most routes (roughly 3–8 weeks out). Prices are more likely to drift up than down from here.` };
+  if (daysOut <= 180) return { verdict: "wait", days: daysOut, reason: `${daysOut} days out: still early. Fares this far ahead are unsettled; monitor for 2–3 weeks and set a price watch rather than booking today.` };
+  return { verdict: "monitor", days: daysOut, reason: `${daysOut} days out is very early; most airlines haven't released their real pricing yet for this window. Set an alert and revisit closer to the 4–6 month mark.` };
+}
+
+/* ---------- award recommendation ---------- */
+
+// roadmap Phase 7a, "Loyalty balance integration" (2026-08-07): a
+// deliberately SEPARATE question from the cpp/"strong" verdict above.
+// "strong" judges whether miles are a good VALUE here at all, regardless
+// of what Susan actually has saved. This checks the plainer, more literal
+// question the roadmap card asks for: does her actual saved balance, in a
+// program that flies this itinerary's alliance, cover what this
+// redemption typically costs, and if not, how many more miles would she
+// need? Bar is milesLow (the generous/low end of the typical range), same
+// >= milesLow convention pickPrimaryLens already uses elsewhere in this
+// file for "milesUseful", a consistent bar across the whole app rather
+// than a second, different threshold invented just for this. Pure
+// function, no DOM/network, same testability pattern as everything else
+// in this section.
+function loyaltyBalanceCheck(range, relevantPrograms) {
+  if (!relevantPrograms.length) {
+    return { status: "none", biggestBalance: 0, program: null, shortfall: range.milesLow, needed: range.milesLow };
+  }
+  const top = relevantPrograms.slice().sort((a, b) => b.balance - a.balance)[0];
+  if (top.balance >= range.milesLow) {
+    return { status: "enough", biggestBalance: top.balance, program: top.program, surplus: top.balance - range.milesLow, needed: range.milesLow };
+  }
+  return { status: "short", biggestBalance: top.balance, program: top.program, shortfall: range.milesLow - top.balance, needed: range.milesLow };
+}
+
+function awardRecommendation(best, inputs, programBalances) {
+  const range = AWARD_RANGES[best.cabin] || AWARD_RANGES[inputs.cabin] || AWARD_RANGES.Economy;
+  const milesMid = Math.round((range.milesLow + range.milesHigh) / 2);
+  const feesMid = Math.round((range.feesLow + range.feesHigh) / 2);
+  // ONE verdict per itinerary: the candidate's own cpp (best.candCpp) is
+  // the single source of truth for pay-with everywhere, exec summary,
+  // hero, and this card must never disagree (audit finding). The chart
+  // range is shown as a range of possible cpp outcomes, not a second
+  // verdict.
+  const cpp = best.candCpp != null ? best.candCpp : ((best.price - feesMid) / milesMid) * 100;
+  const cppBestCase = ((best.price - range.feesLow) / Math.max(1, range.milesLow)) * 100;
+  const cppWorstCase = ((best.price - range.feesHigh) / Math.max(1, range.milesHigh)) * 100;
+  const alliance = best.alliance;
+  // 2026-08-08 fix (Phase 7a spot-check): this used to be
+  // `programBalances.filter((p) => p.balance > 0)`, no alliance check at
+  // all, directly contradicting this function's own header comment ("a
+  // program that flies this itinerary's alliance") and the identical
+  // filter buildInsights already applies via programMatchesAlliance for
+  // its own cross-alliance warning. Real-world effect of the bug: the
+  // Award Strategy card could report "Your Delta SkyMiles balance covers
+  // this" for a Star Alliance itinerary Delta doesn't fly, just because
+  // Delta happened to be the biggest nonzero balance in the wallet.
+  const relevantPrograms = programBalances.filter((p) => p.balance > 0 && programMatchesAlliance(p.program, alliance));
+  const strong = cpp >= 1.6;
+  const balanceCheck = loyaltyBalanceCheck(range, relevantPrograms);
+  return { milesLow: range.milesLow, milesHigh: range.milesHigh, milesMid, feesMid, cpp, cppBestCase, cppWorstCase, strong, alliance, relevantPrograms, balanceCheck, cabin: best.cabin };
+}
+
+/* ---------- upgrade tactics ----------
+ * Concrete, ordered plays to land the cabin you actually want, the
+ * "do this creative thing to get what you want" layer. Grounded in the
+ * bid-upgrade mechanics documented by TPG and Going (July 2026): bid
+ * 20–40% of the fare gap, slightly above the minimum; most bid windows
+ * close 48–72h out (Virgin Atlantic opens 7 days out); typical winning
+ * long-haul business bids run $300–600; if the bid loses, ask at
+ * check-in, counter-offers there are common.
+ */
+
+function fmtDateShort(d) {
+  return isNaN(d) ? null : d.toLocaleDateString("en-US", { weekday: "short", month: "short", day: "numeric" });
+}
+function daysBefore(dateStr, days) {
+  const d = new Date(dateStr + "T12:00:00");
+  if (isNaN(d)) return null;
+  d.setDate(d.getDate() - days);
+  return d;
+}
+
+// An ACTION PLAN, not a description: each step says when to do it (real
+// dates computed from the departure date), what exactly to do, and with
+// what numbers (bid amounts computed from this itinerary's modeled fare
+// gap). Ordered as a timeline from booking day to the gate.
+//
+// When the booked cabin is Economy, the plan targets BUSINESS, the most
+// common real goal, and opens with the three priced routes to get there
+// (the Premium Economy ladder, the direct bid, miles + copay), because
+// "upgrade one cabin" advice buries what the traveler actually wants.
+function upgradeTactics(best, inputs) {
+  const tactics = [];
+  const fromEconomy = best.cabin === "Economy" || best.cabin === "Best Value";
+  const cabinAbove = fromEconomy ? "Business" : { "Premium Economy": "Business", Business: "First" }[best.cabin];
+  if (!cabinAbove) {
+    tactics.push({ when: "Now", title: "You're booking top cabin: the play is price, not position", detail: "No upgrade path above First. Action: price Business on the same flights before paying; it's typically ~55% of the First fare for most of the experience." });
+    return tactics;
+  }
+
+  if (fromEconomy) {
+    // Economy → Business: price all three routes for THIS trip. Cabin
+    // multipliers come from the same hand-maintained CABIN_BASE table the
+    // fare model uses; applied to the (live or modeled) Economy price.
+    const econ = best.price;
+    const pePrice = Math.round(econ * (CABIN_BASE["Premium Economy"] / CABIN_BASE.Economy));      // ~2×
+    const bizPrice = Math.round(econ * (CABIN_BASE.Business / CABIN_BASE.Economy));               // ~5.8×
+    const ladderBidLow = Math.round(((bizPrice - pePrice) * 0.2) / 10) * 10;
+    const ladderBidHigh = Math.round(((bizPrice - pePrice) * 0.4) / 10) * 10;
+    const ladderLow = pePrice + ladderBidLow, ladderHigh = pePrice + ladderBidHigh;
+    const directBidLow = Math.round(((bizPrice - econ) * 0.2) / 10) * 10;
+    const directBidHigh = Math.round(((bizPrice - econ) * 0.4) / 10) * 10;
+    // Upgrade-award reference range (round-trip, one cabin jump at ticketing
+    // time), scaled to route distance, hand-maintained, not a live chart.
+    const kmScale = clamp(0.4 + 0.6 * ((best.routeKm || 7500) / 9000), 0.4, 1.5);
+    const upMilesLow = Math.round((40000 * kmScale) / 5000) * 5000;
+    const upMilesHigh = Math.round((120000 * kmScale) / 5000) * 5000;
+    const biggestBalance = (inputs.programBalances || []).reduce((m, p) => Math.max(m, p.balance), 0);
+    const ladderSavings = Math.max(0, Math.round((1 - ladderHigh / bizPrice) * 100));
+
+    tactics.push({
+      when: "Your goal",
+      title: `Economy → Business: three routes, priced for this trip`,
+      detail: `Business outright runs ~${fmtUSD(bizPrice)} vs your ${fmtUSD(econ)} Economy fare. ` +
+        `<strong>Route 1, the ladder (usually cheapest reliable):</strong> book Premium Economy at ~${fmtUSD(pePrice)}, then bid ${fmtUSD(ladderBidLow)}–${fmtUSD(ladderBidHigh)} for the PE→Business jump; that lands Business for ~${fmtUSD(ladderLow)}–${fmtUSD(ladderHigh)} all-in, roughly ${ladderSavings}% under booking it outright, and PE is your worst case, not a middle seat. ` +
+        `<strong>Route 2, the direct bid:</strong> stay in Economy and bid ${fmtUSD(directBidLow)}–${fmtUSD(directBidHigh)}; cheapest when it clears, but Economy→Business bids lose more often than PE→Business ones, and your fallback is the Economy seat. ` +
+        `<strong>Route 3, miles + copay:</strong> typically ~${(upMilesLow / 1000).toFixed(0)}k–${(upMilesHigh / 1000).toFixed(0)}k miles round-trip plus a cash copay for this distance${biggestBalance >= upMilesLow ? `; your ${biggestBalance.toLocaleString()}-mile balance covers the low end, so check it first` : biggestBalance > 0 ? `; your ${biggestBalance.toLocaleString()}-mile balance falls short of the typical range` : ""}; requires an upgradeable (non-Basic) fare and award space, so confirm before ticketing.`,
+    });
+  }
+
+  // Fare gap to the target cabin, and the 20–40% bid band from it.
+  const ratio = (CABIN_BASE[cabinAbove] || 3600) / (CABIN_BASE[best.cabin] || 620);
+  const gap = Math.max(150, Math.round(best.price * (ratio - 1)));
+  const bidLow = Math.round((gap * 0.2) / 10) * 10;
+  const bidHigh = Math.round((gap * 0.4) / 10) * 10;
+  const bidDate = fmtDateShort(daysBefore(inputs.departDate, 4));
+  const seatMapDate = fmtDateShort(daysBefore(inputs.departDate, 3));
+  const checkInDate = fmtDateShort(daysBefore(inputs.departDate, 1));
+
+  tactics.push({
+    when: "At booking",
+    title: fromEconomy ? `Commit to a route, then book the fare that keeps it open` : `Book Standard, not Basic: it's the entry ticket`,
+    detail: fromEconomy
+      ? `Ladder route: book Premium Economy (Standard tier) directly. Bid or miles route: book Economy at the Standard tier or above; Basic fares are excluded from bids, mileage upgrades, and complimentary lists alike. Either way, immediately check two things on ${best.carrier}'s booking page: "upgrade with miles" pricing, and whether an upgrade-bid invitation appears.`
+      : `Basic/deep-discount buckets are excluded from most upgrade paths entirely. On ${best.carrier}, book at least the Standard tier, then immediately check two things on the booking page: "upgrade with miles" pricing, and whether an upgrade-bid invitation is offered.`,
+  });
+  tactics.push({
+    when: "Same week",
+    title: `Price the miles + copay upgrade first`,
+    detail: `Before any cash bid: check what ${best.carrier} charges in miles + copay to move this booking to ${cabinAbove}. It's often the best redemption rate in the whole program and beats a cash bid of the same value. If the miles + copay package values out under ~${fmtUSD(gap * 0.35)} all-in, take it and skip the rest of this list.`,
+  });
+  tactics.push({
+    when: bidDate ? `By ${bidDate}` : "T−4 days",
+    title: `Place your bid: $${bidLow.toLocaleString()}–$${bidHigh.toLocaleString()} for ${cabinAbove}`,
+    detail: `That's 20–40% of this itinerary's modeled ~$${gap.toLocaleString()} fare gap. Bid 5–10% above the stated minimum; most people bid the exact minimum, so a small premium wins disproportionately often. Windows close 48–72h out on most carriers. Bids are per segment, per passenger.`,
+  });
+  tactics.push({
+    when: seatMapDate ? seatMapDate : "T−3 days",
+    title: `Check the ${cabinAbove} seat map before the window closes`,
+    detail: `Open ${best.carrier}'s seat map for your flight: mostly-empty ${cabinAbove} → your low bid likely clears, leave it. Nearly full → cancel or lower the bid (most carriers allow changes until ~72h out) and pivot to the check-in play instead.`,
+  });
+  tactics.push({
+    when: checkInDate ? `${checkInDate} (T−24h)` : "T−24h, at check-in",
+    title: `Check in the minute it opens and look for the counter-offer`,
+    detail: `Rejected bids are routinely followed by a cheaper flat-price upgrade offer at online check-in. If none appears, ask the desk agent, specifically: "Are paid upgrades to ${cabinAbove} available on this flight?" Note the price; it's sometimes below your losing bid.`,
+  });
+  tactics.push({
+    when: "Departure day",
+    title: `Last ask at the gate`,
+    detail: `If ${cabinAbove} still shows open seats, ask the gate agent once, early in boarding prep. Undersold cabins get cleared at the gate at the steepest discounts; this costs nothing to ask.`,
+  });
+  if (inputs.tripPurpose === "Business" || inputs.tripPurpose === "Both" || (inputs.travelers || 1) > 1) {
+    tactics.push({
+      when: "Creative play",
+      title: `Split the cabin across your party`,
+      detail: `Book ONE ${cabinAbove} seat and the rest in ${best.cabin}, then trade off in-flight. For ${inputs.travelers || 2} travelers that's roughly $${Math.round(gap / (inputs.travelers || 2)).toLocaleString()} per person for everyone to get time up front: a fraction of upgrading every seat.`,
+    });
+  }
+  tactics.push({
+    when: "Creative play",
+    title: `Price ${cabinAbove} outright from your alternate airports`,
+    detail: `Before paying ~$${gap.toLocaleString()} to upgrade, price ${cabinAbove} as a fresh booking from ${(inputs.airportFlexibility || "your alternates").split(",").map((s) => s.trim()).filter(Boolean).join(" / ") || "nearby airports"}; a different origin or one positioning hop is sometimes cheaper than the upgrade itself.`,
+  });
+  return tactics;
+}
+
+/* ---------- best-points answers ----------
+ * Direct answers to "which airlines offer the best points" and "what are
+ * my transfer options", driven by the dated TPG table above, never
+ * presented as timeless truth.
+ */
+
+function bestPointsAnswers(inputs) {
+  const airlines = Object.entries(POINT_VALUATIONS.airlines).sort((a, b) => b[1] - a[1]);
+  const cards = Object.entries(POINT_VALUATIONS.cards).sort((a, b) => b[1] - a[1]);
+  const held = (inputs.creditCards || []).filter((c) => TRANSFER_PARTNERS[c]);
+  return { asOf: POINT_VALUATIONS.asOf, topAirlines: airlines.slice(0, 6), allAirlines: airlines, topCards: cards, heldCards: held, bonuses: TRANSFER_BONUSES };
+}
+
+/* ---------- insights ---------- */
+
+function buildInsights(inputs, candidates, best, weights, timing, usingLive) {
+  const insights = [];
+  const sorted = candidates.slice().sort((a, b) => b.scores.Cost - a.scores.Cost);
+  const cheapest = sorted[0];
+
+  if (inputs.dateFlexibility !== "Exact" && cheapest.dateOffset !== 0) {
+    const savings = Math.round((best.price - cheapest.price) > 0 ? best.price - cheapest.price : Math.abs(cheapest.price * 0.08));
+    const dir = cheapest.dateOffset > 0 ? "later" : "earlier";
+    insights.push(`Shifting your departure ${Math.abs(cheapest.dateOffset)} day${Math.abs(cheapest.dateOffset) === 1 ? "" : "s"} ${dir} tracks toward the lowest fare in this set; worth checking a live calendar view before locking in exact dates.`);
+  }
+
+  if (best.stops === 0 && candidates.some((c) => c.stops >= 1)) {
+    insights.push(`${best.carrier} nonstop is the highest-scoring option here despite not being the cheapest; the stop-free itinerary meaningfully reduces both Risk and time cost, which matters more than a small fare gap for most travelers.`);
+  }
+
+  const upgradeSorted = candidates.slice().sort((a, b) => b.scores.Upgrade - a.scores.Upgrade);
+  if (upgradeSorted[0].id !== best.id && upgradeSorted[0].scores.Upgrade - best.scores.Upgrade > 15) {
+    insights.push(`${upgradeSorted[0].carrier} scores meaningfully higher on upgrade potential than ${best.carrier} on this shortlist; worth a look if a complimentary or mileage upgrade matters more to you than the small price difference.`);
+  }
+
+  if ((inputs.cabin === "Business" || inputs.cabin === "First") && inputs.cabin !== "Economy") {
+    insights.push(`Booking Premium Economy or a lower "upgradeable" fare bucket and buying up at check-in or via a mileage upgrade is often cheaper than booking ${inputs.cabin} outright; check ${best.carrier}'s upgrade fare rules before paying full freight.`);
+  }
+
+  if (best.fareTier === "Basic") {
+    insights.push(`The top-scoring fare is a Basic/restricted fare; expect no free changes and possibly no seat selection or overhead-bin space. If your plans could shift, the Standard fare a bit higher up may be the better real value.`);
+  }
+
+  const award = programBalancesFromInputs(inputs);
+  const relevant = award.filter((p) => p.balance > 0 && ALLIANCES[best.alliance] && ALLIANCES[best.alliance].some((c) => programMatchesAlliance(p.program, best.alliance)));
+  if (relevant.length === 0 && award.some((p) => p.balance > 20000)) {
+    insights.push(`You're carrying a meaningful mile balance, but none of it is in a ${best.alliance} program that flies this itinerary directly; a transferable-point transfer (see Award Strategy) is likely your best path to using it here.`);
+  }
+
+  if (destinationInAsia(inputs) && candidates.some((c) => isAsianCarrier(c.carrier))) {
+    insights.push(`Asia route: Asia-based carriers (ANA, JAL, Singapore, Cathay, EVA…) receive a +${ASIA_COMFORT_BONUS} Comfort bonus here: your standing preference for their home-market product quality, set 2026-07-19. It's visible in the Comfort scores, not a hidden adjustment.`);
+  }
+
+  // 2026-08-07: preferred airline/alliance/time-of-day, same visible-not-hidden
+  // treatment as the Asia bonus above, only announced when it actually fired
+  // on the winning candidate, so the insight always matches what's in the score.
+  if ((inputs.preferredAirlines || []).some((a) => a && (best.carrier || "").toLowerCase().includes(String(a).toLowerCase()))) {
+    insights.push(`${best.carrier} is one of your saved preferred airlines: it receives a +${PREFERRED_AIRLINE_BONUS} Comfort bonus here, visible in the score, not a hidden adjustment.`);
+  }
+  if ((inputs.preferredAlliances || []).includes(best.alliance)) {
+    insights.push(`${best.carrier} flies in ${best.alliance}, one of your saved preferred alliances: it receives a +${PREFERRED_ALLIANCE_BONUS} Comfort bonus here, visible in the score, not a hidden adjustment.`);
+  }
+  if (inputs.preferredDepartTime && best.departTimeRaw && departTimeBucket(best.departTimeRaw) === inputs.preferredDepartTime) {
+    insights.push(`This departure falls in your saved preferred "${inputs.preferredDepartTime}" window: it receives a +${PREFERRED_TIME_BONUS} Comfort bonus here, visible in the score, not a hidden adjustment.`);
+  }
+  if (inputs.preferredArrivalTime && best.arriveTimeRaw && arriveTimeBucket(best.arriveTimeRaw) === inputs.preferredArrivalTime) {
+    insights.push(`This arrival falls in your saved preferred "${inputs.preferredArrivalTime}" window: it receives a +${PREFERRED_TIME_BONUS} Comfort bonus here, visible in the score, not a hidden adjustment.`);
+  }
+
+  const dislikedMatch = flagsDislikedAirport(inputs);
+  if (dislikedMatch) {
+    insights.push(`You've saved "${dislikedMatch}" as an airport to avoid, and it shows up in this trip's origin/destination/via/nearby-airport fields; double-check the itinerary. (Stop count is modeled here, not specific connection airports, so this can't check a mid-trip connection, only the fields above.)`);
+  }
+
+  const upgradeWinMatch = matchUpgradeWinCarrier(inputs.upgradeWins, best.carrier);
+  if (upgradeWinMatch) {
+    insights.push(`You've logged a past upgrade win mentioning ${best.carrier}; worth trying the same play again: "${upgradeWinMatch.text}"`);
+  }
+
+  // Purchase timing is covered by its own Purchase Strategy card, no
+  // duplicate insight here (audit finding: verbatim repetition).
+
+  if (inputs.airportFlexibility && inputs.airportFlexibility.split(",").map((s) => s.trim()).filter(Boolean).length > 1) {
+    insights.push(`Only your primary airport was searched live; the nearby airports you listed (${inputs.airportFlexibility}) weren't. Nearby-airport comparisons routinely beat date-shifting alone, so price the alternates on Google Flights before booking.`);
+  }
+
+  if (best.routeKnown === false) {
+    insights.push(`Heads up: ${best.via ? `at least one of "${inputs.origin}" / "${best.via}" / "${inputs.destination}"` : `"${inputs.origin}" → "${inputs.destination}"`} isn't in the hand-maintained city table, so flight times and distance-scaled fares assume a generic 7,500 km long-haul. Add the city to CITY_COORDS in app.js for a real great-circle estimate.`);
+  } else if (best.via && best.routeLegs) {
+    insights.push(`Routed via ${best.via}: ${best.routeLegs[0].toLocaleString()} km + ${best.routeLegs[1].toLocaleString()} km = ${best.routeKm.toLocaleString()} km each way, vs ~${(best.directKm || 0).toLocaleString()} km direct: about ${Math.max(0, Math.round(((best.routeKm - (best.directKm || best.routeKm)) / Math.max(1, best.directKm || 1)) * 100))}% extra flying for the stopover. Book it as one multi-city ticket, not two one-ways: it's usually cheaper and protects the connection if the first leg delays.`);
+  } else if (best.routeKm) {
+    insights.push(`Route distance: roughly ${best.routeKm.toLocaleString()} km great-circle each way; flight times and the distance scaling on fares are computed from this geometry, not fabricated per-flight.`);
+  }
+
+  insights.push(`Prices in this shortlist are live quotes (Google Flights feed and/or your own Kayak scans, as labeled); mileage figures remain distance-scaled planning ranges (award space isn't searched yet). See guide.html for exactly what's live vs. estimated.`);
+
+  return insights.slice(0, 8);
+}
+
+/* ---------- date-range score sweep (roadmap Phase 5c, "Date-range score
+ * sweep", 2026-08-07) ----------
+ * "See the cheapest date in one chart, not ten re-runs." Pure date math
+ * only, no network, no scoring; the caller (index.html's runDateSweep)
+ * does the actual per-date /api/fares calls and runOptimization() runs,
+ * reusing the exact same live pipeline a normal search uses so a swept
+ * date's score/price can never drift from what re-running that one date
+ * by hand would show.
+ *
+ * maxSamples exists to protect the shared DAILY_SEARCH_CAP (fares.mjs,
+ * 20 real SerpApi calls/day across the whole site), a naive 60-day
+ * window at 3-day intervals is 21 samples, which alone would burn the
+ * entire day's cap in one click. When the requested window/interval
+ * would exceed maxSamples, the interval is widened (never the window
+ * silently shrunk) just enough to fit, and that widening is reported
+ * back so the UI can say so honestly rather than pretend it swept what
+ * was actually asked for.
+ */
+function addDaysIsoStr(dateStr, days) {
+  const d = new Date(dateStr + "T12:00:00");
+  if (isNaN(d)) return dateStr;
+  d.setDate(d.getDate() + days);
+  return d.toISOString().slice(0, 10);
+}
+
+function buildSweepDates(departDate, returnDate, windowDays, intervalDays, maxSamples) {
+  const naiveCount = Math.floor(windowDays / intervalDays) + 1;
+  const effectiveInterval = naiveCount > maxSamples ? Math.ceil(windowDays / (maxSamples - 1)) : intervalDays;
+  const samples = [];
+  for (let offset = 0; offset <= windowDays && samples.length < maxSamples; offset += effectiveInterval) {
+    samples.push({
+      offset,
+      departDate: addDaysIsoStr(departDate, offset),
+      returnDate: returnDate ? addDaysIsoStr(returnDate, offset) : null,
+    });
+  }
+  return { samples, effectiveIntervalDays: effectiveInterval, widened: effectiveInterval !== intervalDays };
+}
+
+function programMatchesAlliance(programName, alliance) {
+  const map = {
+    "Star Alliance": ["United", "Air Canada", "Lufthansa", "Singapore", "ANA", "Turkish"],
+    "Oneworld": ["American", "British Airways", "Qatar", "Cathay Pacific", "Qantas"],
+    "SkyTeam": ["Delta", "Air France", "Flying Blue", "KLM", "Korean Air"],
+    "Unaligned": ["Alaska", "Emirates", "JetBlue", "Etihad"],
+  };
+  return (map[alliance] || []).some((n) => programName.toLowerCase().includes(n.toLowerCase()));
+}
+
+function programBalancesFromInputs(inputs) {
+  return inputs.programBalances || [];
+}
+
+/* ---------- main entry point ---------- */
+
+function runOptimization(inputs, liveOffers) {
+  // 2026-07-26 (radical simplicity): the seeded-RNG model path was
+  // deleted. Real offers or an honest "no data", never synthetic figures.
+  const usingLive = Array.isArray(liveOffers) && liveOffers.length > 0;
+  const candidates = usingLive ? buildLiveCandidates(inputs, liveOffers) : [];
+  if (!candidates.length) {
+    // No live offers at all, or every offer was filtered out (e.g. all on
+    // avoided airlines, or all had more stops than the saved Stops filter
+    // allows). routeKnown:false routes the UI to its no-real-data empty
+    // state; noLiveData distinguishes "nothing came back" for copy.
+    // 2026-08-07: rawOfferCount/stopsFilteredAllOut/airlineFilteredAllOut
+    // (set by buildLiveCandidates when it ran at all) ride through here so
+    // the UI can tell "the live search genuinely found nothing" apart from
+    // "real fares came back and a saved filter zeroed them out", see that
+    // function's own 2026-08-07 comment for the Tallinn bug this fixes.
+    return { candidates: [], best: null, alternatives: [], usingLive: false, routeKnown: false,
+             noLiveData: true,
+             rawOfferCount: candidates.rawOfferCount || 0,
+             stopsFilteredAllOut: !!candidates.stopsFilteredAllOut,
+             airlineFilteredAllOut: !!candidates.airlineFilteredAllOut,
+             weights: computeWeights(inputs.priorityRanks) };
+  }
+  const weights = computeWeights(inputs.priorityRanks);
+  candidates.forEach((c) => (c.weighted = weightedScore(c.scores, weights)));
+  candidates.sort((a, b) => b.weighted - a.weighted);
+  const best = candidates[0];
+  const alternatives = candidates.slice(0, 5);
+  const timing = purchaseTiming(inputs);
+  const award = awardRecommendation(best, inputs, inputs.programBalances || []);
+  const insights = buildInsights(inputs, candidates, best, weights, timing, usingLive);
+  const tactics = upgradeTactics(best, inputs);
+  const pointsIntel = bestPointsAnswers(inputs);
+  // 2026-07-24: routeKnown lets the UI refuse to present modeled figures
+  // for an UNRESOLVED city as if they were a bookable itinerary (the
+  // SFO->Greenville incident: unknown dest -> generic 7,500 km default ->
+  // an invented "nonstop on American, 9h 34m, A330" card with a real
+  // booking link). Live results are real by definition.
+  const routeKnown = usingLive || routeContext(inputs).route.known;
+  return { candidates, weights, best, alternatives, timing, award, insights, tactics, pointsIntel, usingLive, routeKnown };
+}
+
+if (typeof window !== "undefined") {
+  window.TravelIntel = {
+    runOptimization, computeWeights, upgradeTactics, bestPointsAnswers, toIATA, carrierSite, liveSearchUrls, scanSourceUrl, displayCity, displayCityName, priceIntelligence, suggestPriorities,
+    levenshtein, fuzzyMatchKey, suggestCities, lookupCoords,
+    ALLIANCES, ALL_CARRIERS, TRANSFER_PARTNERS, POINT_VALUATIONS, TRANSFER_BONUSES,
+    DIMENSIONS, DIM_LABEL, fmtUSD,
+    // exposed 2026-07-20 for tests/app.test.js, these were already pure,
+    // just not on the public surface (nothing here is DOM-touching).
+    awardRecommendation, buildLiveCandidates, ASIA_COMFORT_BONUS, ASIAN_CARRIERS,
+    // exposed 2026-08-07 for tests/app.test.js, roadmap Phase 7a,
+    // "Loyalty balance integration."
+    loyaltyBalanceCheck,
+    // exposed 2026-08-07 for tests/app.test.js, roadmap Phase 5c,
+    // "Date-range score sweep."
+    buildSweepDates, addDaysIsoStr,
+    // exposed 2026-07-21 for tests/app.test.js, saved preferences & trip
+    // memory (phase 07's fuller slice, after the wallet).
+    travelStyleFallback, flagsDislikedAirport, matchUpgradeWinCarrier,
+    // exposed 2026-08-07 for tests/app.test.js, preferred airline/alliance/
+    // time-of-day Comfort bonuses (audit backlog, 2026-08-05: "wire the six
+    // dead preference fields into real scoring").
+    parseHourFromApiTime, departTimeBucket, arriveTimeBucket,
+    PREFERRED_AIRLINE_BONUS, PREFERRED_ALLIANCE_BONUS, PREFERRED_TIME_BONUS,
+    // exposed 2026-08-06: tests/watched-trips.test.mjs's sync-check test
+    // (added 2026-08-05, Incident #2's fix) reads window.TravelIntel.
+    // CITY_COORDS via a CommonJS require() of this file to diff it against
+    // lib/city-coords.mjs, but CITY_COORDS was never actually added to
+    // this object, so that test has been silently asserting against an
+    // empty {} the whole time (appKeys always [], so the assertion only
+    // happened not to fire before lib/city-coords.mjs existed with real
+    // keys to diff against). Found while adding a CORS-header regression
+    // test to that same file and running the suite locally, the sync
+    // test threw before ever reaching the point requiring it to be
+    // possible. Exposing the real table here is the fix; it's purely
+    // additive to this object, nothing reads window.TravelIntel and
+    // expects CITY_COORDS to be absent.
+    CITY_COORDS,
+  };
+}

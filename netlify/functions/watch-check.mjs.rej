@@ -1,0 +1,56 @@
+@@ -39,6 +39,9 @@
+ }
+ 
+ // Pure: build the SerpApi query params for one trip's re-search.
++// NOT used for open-jaw trips (see isOpenJaw/buildMultiCitySearchParams
++// below) -- kept exactly as-is so every existing assertion here keeps
++// meaning what it always meant.
+ export function buildSearchParams(trip, key) {
+   const q = new URLSearchParams({
+     engine: "google_flights",
+@@ -48,6 +51,35 @@
+     currency: "USD", hl: "en", api_key: key,
+   });
+   if (trip.returnDate) { q.set("return_date", trip.returnDate); q.set("type", "1"); } else { q.set("type", "2"); }
++  if (CABIN_CLASS[trip.cabin]) q.set("travel_class", CABIN_CLASS[trip.cabin]);
++  return q;
++}
++
++// Pure: does this trip's return leg depart from a different city than the
++// outbound destination? (2026-08-11, open-jaw support, see watch.mjs's
++// validateTripInput for the storage-side validation that guarantees
++// returnFromIata is only ever set alongside a real returnDate.)
++export function isOpenJaw(trip) {
++  return Boolean(trip && trip.returnFromIata);
++}
++
++// Pure: build the SerpApi query params for an open-jaw trip's re-search,
++// a real 2-leg multi-city itinerary (type=3), the exact same
++// departure_id/arrival_id/date shape fares.mjs's `legs` path already
++// sends for via/stopover routing -- not a new request format, just this
++// function's own trip fields mapped onto it.
++export function buildMultiCitySearchParams(trip, key) {
++  const legs = [
++    { departure_id: trip.originIata, arrival_id: trip.destIata, date: trip.departDate },
++    { departure_id: trip.returnFromIata, arrival_id: trip.originIata, date: trip.returnDate },
++  ];
++  const q = new URLSearchParams({
++    engine: "google_flights",
++    type: "3",
++    multi_city_json: JSON.stringify(legs),
++    adults: String(trip.travelers || 1),
++    currency: "USD", hl: "en", api_key: key,
++  });
+   if (CABIN_CLASS[trip.cabin]) q.set("travel_class", CABIN_CLASS[trip.cabin]);
+   return q;
+ }
+@@ -116,7 +148,8 @@
+     if (!shouldRecheck(trip, now)) continue;
+ 
+     try {
+-      const res = await fetch("https://serpapi.com/search?" + buildSearchParams(trip, key));
++      const params = isOpenJaw(trip) ? buildMultiCitySearchParams(trip, key) : buildSearchParams(trip, key);
++      const res = await fetch("https://serpapi.com/search?" + params);
+       if (!res.ok) continue;
+       const j = await res.json();
+       const cheapest = pickCheapestOffer(j);
