@@ -50,6 +50,7 @@
           <div class="form-field"><label for="viaNights">Nights at the stopover</label><input type="number" id="viaNights" value="1" min="0" max="30"></div>
           <div class="form-field"><label for="departDate">Departure date</label><input type="date" id="departDate"></div>
           <div class="form-field"><label for="returnDate">Return date</label><input type="date" id="returnDate"></div>
+          <div class="form-field"><label for="returnFromCity">Return from a different city (open-jaw, optional)</label><input type="text" id="returnFromCity" placeholder="e.g. Kasane (fly home from a different city than you flew into)"></div>
           <div class="form-field">
             <label for="priorityPrimary">Optimize for</label>
             <select id="priorityPrimary">
@@ -396,7 +397,7 @@
     input.addEventListener("blur", () => setTimeout(close, 120));
     input.addEventListener("focus", () => { if (input.value.trim().length >= 2) open(input.value); });
   }
-  ["origin", "destination", "viaCity", "preferredAirport"].forEach(attachCityAutocomplete);
+  ["origin", "destination", "viaCity", "returnFromCity", "preferredAirport"].forEach(attachCityAutocomplete);
 
   // accessible names for the 13 wallet inputs
   document.querySelectorAll(".prog-bal").forEach((el) => el.setAttribute("aria-label", el.dataset.program + " miles balance"));
@@ -699,6 +700,7 @@
       destination: document.getElementById("destination").value || "Destination",
       viaCity: document.getElementById("viaCity").value.trim(),
       viaStopoverNights: Math.max(0, parseInt(document.getElementById("viaNights").value, 10) || 0),
+      returnFromCity: document.getElementById("returnFromCity").value.trim(),
       preferredAirport: document.getElementById("preferredAirport").value,
       airportFlexibility: document.getElementById("airportFlexibility").value,
       departDate: departEl.value,
@@ -754,20 +756,40 @@
     if (!o) return { data: null, reason: "unknown-origin" };
     if (!inputs.departDate) return { data: null, reason: "no-date" };
 
-    // Via/stopover routing (2026-07-30): a real multi-city search, not a
-    // model. /api/fares' `legs` path (SerpApi's own multi-city support,
-    // type=3) covers origin->via, via->destination, and -- if a return
-    // date is set -- destination->origin as a third leg. Same "live feed
-    // or honest no-data" rule as the single-route path below.
+    // Open-jaw (2026-08-11): the return leg departs from a different city
+    // than the outbound destination (e.g. fly into Victoria Falls, home
+    // from Kasane after an overland safari leg). Only meaningful paired
+    // with a real return date, same rule watch.mjs's validateTripInput
+    // enforces server-side for watched trips (kept honest here too rather
+    // than silently ignoring the field on a one-way search).
+    let returnFromIata = null;
+    if (inputs.returnFromCity) {
+      returnFromIata = T.toIATA(inputs.returnFromCity);
+      if (!returnFromIata) return { data: null, reason: "unknown-return-from" };
+      if (!inputs.returnDate) return { data: null, reason: "return-from-needs-date" };
+    }
+
+    // Via/stopover routing (2026-07-30) and open-jaw returns (2026-08-11)
+    // both go through the same real multi-city search, not a model. /api/
+    // fares' `legs` path (SerpApi's own multi-city support, type=3) covers
+    // origin->via, via->destination, and -- if a return date is set --
+    // the return leg (destination->origin normally, or returnFromIata-
+    // >origin for an open-jaw return) as a final leg. Same "live feed or
+    // honest no-data" rule as the single-route path below. The two
+    // features compose: a stopover on the way out AND a different city
+    // coming home both fit within fares.mjs's 2-4 leg cap.
     let q;
-    if (inputs.viaCity) {
-      const v = T.toIATA(inputs.viaCity);
-      if (!v) return { data: null, reason: "unknown-via" };
-      const legs = [
-        { origin: o, destination: v, date: inputs.departDate },
-        { origin: v, destination: d, date: addDaysIso(inputs.departDate, inputs.viaStopoverNights || 0) },
-      ];
-      if (inputs.returnDate) legs.push({ origin: d, destination: o, date: inputs.returnDate });
+    if (inputs.viaCity || returnFromIata) {
+      const legs = [];
+      if (inputs.viaCity) {
+        const v = T.toIATA(inputs.viaCity);
+        if (!v) return { data: null, reason: "unknown-via" };
+        legs.push({ origin: o, destination: v, date: inputs.departDate });
+        legs.push({ origin: v, destination: d, date: addDaysIso(inputs.departDate, inputs.viaStopoverNights || 0) });
+      } else {
+        legs.push({ origin: o, destination: d, date: inputs.departDate });
+      }
+      if (inputs.returnDate) legs.push({ origin: returnFromIata || d, destination: o, date: inputs.returnDate });
       q = new URLSearchParams({ legs: JSON.stringify(legs), adults: String(inputs.travelers || 1), cabin: inputs.cabin });
     } else {
       q = new URLSearchParams({ origin: o, destination: d, depart: inputs.departDate, adults: String(inputs.travelers || 1), cabin: inputs.cabin });
@@ -860,7 +882,9 @@
     // on its own), so this message only fires for names it genuinely
     // doesn't recognize, not a one-letter slip.
     "unknown-via": (inputs) => `"${inputs.viaCity}" isn't in the city table, even allowing for a typo or two; check the spelling or use a 3-letter airport code.`,
-    "via-bad-request": () => `the via routing didn't form a valid itinerary -- check that the return date is after the stopover leg (departure date + nights at the stopover).`,
+    "via-bad-request": () => `the multi-city routing didn't form a valid itinerary -- check that the return date is on or after the outbound (and stopover, if set) leg's date.`,
+    "unknown-return-from": (inputs) => `"${inputs.returnFromCity}" isn't in the city table, even allowing for a typo or two; check the spelling or use a 3-letter airport code.`,
+    "return-from-needs-date": () => `an open-jaw return (a different city for the way home) needs a return date set too.`,
     "unknown-dest": (inputs) => `"${inputs.destination}" isn't in the city table, even allowing for a typo or two; check the spelling or use a 3-letter airport code.`,
     "unknown-origin": (inputs) => `"${inputs.preferredAirport || inputs.origin}" isn't a recognized origin, even allowing for a typo or two; use a city from the table or a 3-letter airport code.`,
     "no-date": () => `no departure date set; add one to search live fares.`,
@@ -1247,7 +1271,7 @@
       <div class="rec-hero">
         <div class="rec-hero-top">
           <div>
-            <div class="rec-route">${T.displayCity(inputs.origin)} → ${inputs.viaCity ? T.displayCity(inputs.viaCity) + " → " : ""}${T.displayCity(inputs.destination)}</div>
+            <div class="rec-route">${T.displayCity(inputs.origin)} → ${inputs.viaCity ? T.displayCity(inputs.viaCity) + " → " : ""}${T.displayCity(inputs.destination)}${inputs.returnFromCity ? ` (returns from ${T.displayCity(inputs.returnFromCity)})` : ""}</div>
             <div class="rec-airline">${best.carrier} · ${best.alliance} · ${best.aircraft}${best.src ? ` · <span class="rec-src">${best.src}</span>` : ""}</div><div class="rec-links">${(() => { const urls = T.liveSearchUrls(inputs, best.carrier); const parts = []; if (urls.carrierDeep) { parts.push(`<a class="pick-open" href="${urls.carrierDeep}" target="_blank" rel="noopener">Book this route on ${best.carrier} ↗</a>`); } else { const site = T.carrierSite(best.carrier); if (site) parts.push(`<a class="pick-open" href="${site}" target="_blank" rel="noopener">Book on ${best.carrier} ↗</a>`); } const kay = T.scanSourceUrl(inputs, best.src); if (kay) { parts.push(`<a class="pick-open" href="${kay}" target="_blank" rel="noopener">See the scanned fare on Kayak \u2197</a>`); } if (urls.googleFlights) parts.push(`<a class="pick-open" href="${urls.googleFlights}" target="_blank" rel="noopener">Live results on Google Flights ↗</a>`); return parts.join(""); })()}<button type="button" class="ti-toggle rec-watch" onclick="tiWatchTrip(this)">⭑ Watch this trip</button></div>
           </div>
           <div class="rec-price-block">
@@ -1441,6 +1465,15 @@
       btn.textContent = "Can't watch: return date is before departure";
       return;
     }
+    // Open-jaw (2026-08-11): mirrors the same validation fetchLiveOffers
+    // and watch.mjs's validateTripInput both enforce, kept here too so a
+    // malformed watch request never even reaches the server.
+    let returnFromIata = null;
+    if (inputs.returnFromCity) {
+      returnFromIata = T.toIATA(inputs.returnFromCity);
+      if (!returnFromIata) { btn.textContent = "Can't watch: unknown return-from city"; return; }
+      if (!inputs.returnDate) { btn.textContent = "Can't watch: open-jaw return needs a return date"; return; }
+    }
     const editKey = getEditSecret();
     if (!editKey) { btn.textContent = "⭑ Watch this trip"; return; }
     const best = window.__tiLastBest;
@@ -1453,6 +1486,7 @@
           originIata: o, destIata: d, origin: inputs.origin, destination: inputs.destination,
           departDate: inputs.departDate, returnDate: inputs.returnDate, cabin: inputs.cabin,
           travelers: inputs.travelers || 1,
+          returnFromIata, returnFromCity: returnFromIata ? inputs.returnFromCity : null,
           baseline: best ? { price: best.priceTotal || best.price * (inputs.travelers || 1), carrier: best.carrier } : null,
         } }),
       });
@@ -1525,13 +1559,16 @@
       const histVals = checks.map((c) => c && c.price).filter((v) => typeof v === "number" && isFinite(v));
       const spark = histVals.length >= 2 ? `<span class="watched-spark" title="${histVals.length} checks">${sparkline(histVals, 90, 22)}</span>` : "";
       const oCode = T.toIATA(t.origin), dCode = T.toIATA(t.destination);
-      const codeChip = oCode && dCode ? ` <span class="watched-codes">${oCode}–${dCode}</span>` : "";
+      // 2026-08-11: open-jaw trips carry a returnFromIata (validated
+      // server-side, see watch.mjs); shown as a second O-D pair so the
+      // card doesn't imply a plain round trip back through dCode.
+      const codeChip = oCode && dCode ? ` <span class="watched-codes">${oCode}–${dCode}${t.returnFromIata ? ` / ${t.returnFromIata}–${oCode}` : ""}</span>` : "";
       const travLabel = `${t.travelers} traveler${String(t.travelers) === "1" ? "" : "s"}`;
       // 2026-07-26 (Susan): every watched trip links out to buy. American
       // rows get the verified aa.com deep link; everything else gets the
       // route+dates-prefilled Google Flights search.
       const wCarrier = (checks.length && checks[checks.length - 1] && checks[checks.length - 1].carrier) || (t.baseline && t.baseline.carrier) || "";
-      const wUrls = T.liveSearchUrls({ origin: t.origin, destination: t.destination, departDate: t.departDate, returnDate: t.returnDate, travelers: t.travelers }, /american|\bAA\b/i.test(wCarrier) ? "American" : "");
+      const wUrls = T.liveSearchUrls({ origin: t.origin, destination: t.destination, departDate: t.departDate, returnDate: t.returnDate, travelers: t.travelers, returnFromCity: t.returnFromCity }, /american|\bAA\b/i.test(wCarrier) ? "American" : "");
       const wBook = wUrls.carrierDeep || wUrls.googleFlights;
       // 2026-07-31: origin/destination/cabin/id all come straight from the
       // POST /api/watch body a visitor submits, so every one of them gets
@@ -1541,10 +1578,14 @@
       const safeDest = escapeHtml(T.displayCityName(t.destination));
       const safeCabin = escapeHtml(t.cabin);
       const safeId = escapeHtml(t.id);
+      // t.returnFromCity is user-submitted (POST /api/watch body), same
+      // stored-XSS rule as origin/destination/cabin/id above: escaped
+      // before it's interpolated into markup (2026-08-11).
+      const safeReturnFrom = t.returnFromCity ? escapeHtml(T.displayCityName(t.returnFromCity)) : "";
       return `<div class="watched-item" data-id="${safeId}">
         <div class="watched-route-card">
           <span class="watched-route-main">${safeOrigin} → ${safeDest}${codeChip}</span>
-          <span class="watched-route-meta">${fmtWatchRange(t.departDate, t.returnDate)} · ${safeCabin} · ${travLabel}</span>
+          <span class="watched-route-meta">${fmtWatchRange(t.departDate, t.returnDate)} · ${safeCabin} · ${travLabel}${safeReturnFrom ? ` · returns from ${safeReturnFrom}` : ""}</span>
         </div>
         <div class="watched-side" style="display:flex;align-items:center;gap:12px;">
           ${spark}
@@ -1740,7 +1781,7 @@
       dt.setDate(dt.getDate() - offset);
       return dt.toISOString().slice(0, 10).replace(/-/g, "");
     };
-    const route = `${T.displayCity(inputs.origin)} → ${inputs.viaCity ? T.displayCity(inputs.viaCity) + " → " : ""}${T.displayCity(inputs.destination)}`;
+    const route = `${T.displayCity(inputs.origin)} → ${inputs.viaCity ? T.displayCity(inputs.viaCity) + " → " : ""}${T.displayCity(inputs.destination)}${inputs.returnFromCity ? ` (returns from ${T.displayCity(inputs.returnFromCity)})` : ""}`;
     const esc = (s) => String(s).replace(/<[^>]+>/g, "").replace(/[\\;,]/g, " ").replace(/\n/g, " ");
     const events = [
       { date: d(4), title: `Place upgrade bid · ${route}`, desc: "Bid 20–40% of the fare gap, slightly above the minimum. Windows close 48–72h out on most carriers." },
