@@ -1,0 +1,54 @@
+name: Weekly concert match check
+
+# Added 2026-08-15, following the same precedent established for
+# vinyl-scout's scripts/scheduled-sweep.mjs / scheduled-sweep.yml
+# (2026-08-14). Runs entirely inside Actions -- no Netlify compute, no
+# Blobs client, no credential of any kind beyond the built-in
+# GITHUB_TOKEN (used only for git commit/push). Both endpoints this
+# script calls (this site's own /api/watched-trips and Vinyl Scout's
+# /api/artists-playing) are already-public reads.
+#
+# TRANSITION PERIOD: additive alongside the existing Netlify-scheduled
+# concert-match-check.mjs, not a replacement yet. netlify/functions/
+# watched-trips.mjs needs its own separate, reviewed v2 update before
+# this committed file actually reaches the live site's newMatches field
+# -- see that migration's own PR for the read-side cutover.
+#
+# Scheduled Mondays 12:05 UTC -- 5 minutes after the existing Netlify
+# scheduled function's own Monday 12:00 UTC firing, so the two don't race
+# on reading /api/watched-trips during the transition window.
+
+on:
+  schedule:
+    - cron: "5 12 * * 1"
+  workflow_dispatch: {}
+
+permissions:
+  contents: write
+
+jobs:
+  concert-match-check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      - name: Check watched trips for new concert matches
+        id: check
+        run: node scripts/concert-match-check.mjs
+
+      - name: Commit log if changed
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add "${{ steps.check.outputs.log_path }}"
+          if git diff --cached --quiet; then
+            echo "No changes to commit (match log matches last run)."
+          else
+            git commit -m "concert-match-check: ${{ steps.check.outputs.log_path }} (${{ steps.check.outputs.checked_count }} of ${{ steps.check.outputs.trip_count }} trips, via GitHub Actions)"
+            git push
+          fi

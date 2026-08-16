@@ -1,15 +1,28 @@
 // netlify/functions/watched-trips.mjs
-// version: 1
+// version: 2
 // Phase 10, Concert Radar hooks (2026-08-05). Travel Intelligence's half
-// of the bidirectional integration with Vinyl Scout's Concert Radar,
-// drafted 2026-08-04 (this repo's CLAUDE.md, "Concert Radar (Vinyl Scout)
-// <-> Travel Intelligence" entry) and built the next day after Susan's
-// three resolved answers: fixed ~25mi radius, full catalog + wishlist +
-// venue-scrape matching scope, and (that day) documentation only, this is
-// the actual build.
+// of the bidirectional integration with Vinyl Scout's Concert Radar.
+// Updated 2026-08-15 as the second half of the concert-match-check
+// GitHub Actions migration (see scripts/concert-match-check.mjs and
+// .github/workflows/concert-match-check.yml, added same day): the
+// newMatches merge now reads the git-committed data/concert-match-
+// log.json the Actions workflow writes every Monday, instead of the
+// 'concert-match-log' Blobs store the OLD Netlify-scheduled concert-
+// match-check.mjs writes to. Falls back to Blobs if the committed file
+// is missing or fails to parse -- a deliberate safety net, mirroring
+// vinyl-scout's catalog-cache.mjs v2 exactly. Once the git-committed
+// source has a solid track record, the Blobs fallback path and the old
+// Netlify-scheduled concert-match-check.mjs + backing store can be
+// removed together -- not yet, this deploy.
+//
+// EVERYTHING BELOW THIS POINT IS UNCHANGED FROM v1 except the
+// newMatches-merge block inside the default handler (search for "v2"
+// below) -- the core job of this endpoint (privacy-scoped destination/
+// lat/lon/dates per watched trip, GET-only, CORS-enabled for Vinyl
+// Scout) is untouched.
 //
 // GET /api/watched-trips
-// Returns ONLY destination city + lat/lon + date range per watched trip, 
+// Returns ONLY destination city + lat/lon + date range per watched trip,
 // deliberately never originIata, cabin, travelers, baseline price, or the
 // nightly `checks` history. This is the privacy-scoping commitment this
 // repo's own CLAUDE.md already documented before this file existed: Vinyl
@@ -19,58 +32,34 @@
 // path, per this repo's "radical simplicity" rule.
 //
 // lat/lon come from netlify/functions/lib/city-coords.mjs, a verified-
-// in-sync duplicate of app.js's own CITY_COORDS table, see that file's
-// header comment for why this is a real static import rather than the
-// createRequire("../../app.js") trick the first version of this file
-// used: that worked in every local test but 502'd in production, because
-// Netlify's function bundler only packages files reachable through
-// static imports, and a dynamic require to a path outside this function's
-// own directory tree is invisible to it. Fixed 2026-08-05, the same day
-// it shipped. tests/watched-trips.test.mjs still cross-checks this file's
-// table against app.js's own (loaded via createRequire, which is safe in
-// a Node test process, just not in the deployed function) so the two
-// can never silently drift apart.
+// in-sync duplicate of app.js's own CITY_COORDS table -- see that file's
+// header comment for why this is a real static import.
 //
-// One-way trips (no returnDate) report dateStart === dateEnd === departDate
-//, an honest simplification: this repo has no signal for how long a
+// One-way trips (no returnDate) report dateStart === dateEnd === departDate,
+// an honest simplification: this repo has no signal for how long a
 // one-way traveler stays, so the match window is scoped to just the depart
 // day rather than guessing a trip length.
 //
 // PURE READ. Never writes. Not gated, same rationale as the rest of this
-// integration's read endpoints: the data exposed (a destination city name
-// and travel dates) is materially less sensitive than what watch.mjs
-// already returns unauthenticated today (origin/destination/cabin/
-// travelers/baseline price), so this isn't a new exposure, it's a strict
-// subset of one that already exists.
+// integration's read endpoints.
 //
-// 2026-08-06, later: also merges in `newMatches` per trip, artists
-// concert-match-check.mjs's weekly scheduled sweep saw for the FIRST time
-// as of its last run (state lives in a separate 'concert-match-log' store,
-// read-only here, same store-isolation discipline as everything else in
-// this integration). Best-effort: a read failure or a trip concert-match-
-// check.mjs hasn't gotten to yet just yields an empty array, never a
-// broken response, this endpoint's core job (trip coordinates/dates) must
-// never depend on a second store being healthy. checkConcertMatches() in
-// index.html uses this to badge a match "new this week" instead of
-// presenting every live match as freshly discovered on every single visit.
+// Also merges in `newMatches` per trip -- see the v2 block below for
+// where that data now comes from. Best-effort: any failure here just
+// yields an empty array per trip, never a broken response; this
+// endpoint's core job (trip coordinates/dates) must never depend on a
+// second data source being healthy.
 //
-// 2026-08-06, same-week fix: this endpoint is called cross-origin two
-// separate ways, Travel Intelligence's OWN checkConcertMatches() (same
-// origin, no CORS needed) and, it turns out, Vinyl Scout's
-// concert-radar.html fetching this URL directly from vinylscout.org (a
-// second real cross-origin caller nobody had traced through until Susan
-// reported "no change" on BOTH sites and a browser console check on
-// vinylscout.org/concert-radar.html showed the exact same class of bug
-// this repo already fixed once, on the OTHER endpoint, in the OTHER repo:
-// "No 'Access-Control-Allow-Origin' header is present on the requested
-// resource." json() below only ever set Content-Type/Cache-Control, never
-// that header, so every direct/same-origin/tool check of this endpoint
-// kept returning a correct 200 (exactly the same false-negative pattern
-// that hid vinyl-scout-repo's artists-playing.mjs bug), while the one real
-// cross-site caller silently got nothing. Fixed the same way: an explicit
-// Access-Control-Allow-Origin header, allow-listed to the real caller.
+// This endpoint is called cross-origin two separate ways: Travel
+// Intelligence's OWN checkConcertMatches() (same origin, no CORS needed)
+// and Vinyl Scout's concert-radar.html fetching this URL directly from
+// vinylscout.org (a real cross-origin caller, fixed 2026-08-06 with an
+// explicit Access-Control-Allow-Origin header, allow-listed to the real
+// caller). That fix is unchanged by this update.
 
 import { getStore } from "@netlify/blobs";
+import { readFile } from "node:fs/promises";
+import { fileURLToPath } from "node:url";
+import path from "node:path";
 import { CITY_COORDS } from "./lib/city-coords.mjs";
 
 // The real cross-origin caller (Vinyl Scout's concert-radar.html fetching
@@ -92,18 +81,16 @@ function json(body, status) {
 
 export const config = { path: "/api/watched-trips" };
 
-// Static import (see the import above and lib/city-coords.mjs's header
-// comment), kept as a function, not an inline reference, only so the
+// Static import, kept as a function, not an inline reference, only so the
 // existing test suite and the handler below don't need to change shape.
 export function loadCityCoords() {
   return CITY_COORDS;
 }
 
 // Pure: given the raw trips list (watch.mjs's normalizeTrip() shape), the
-// CITY_COORDS table, and an optional id->newMatches map (concert-match-
-// check.mjs's weekly output, omit or pass {} and every trip just gets an
-// empty array), build the privacy-scoped output. Exported for the unit
-// test, no Blobs or app.js load needed to exercise this directly.
+// CITY_COORDS table, and an optional id->newMatches map, build the
+// privacy-scoped output. Exported for the unit test, no Blobs or app.js
+// load needed to exercise this directly. UNCHANGED from v1.
 export function buildWatchedTripsView(trips, cityCoords, newMatchesById) {
   const out = [];
   const unmapped = [];
@@ -131,6 +118,34 @@ export function buildWatchedTripsView(trips, cityCoords, newMatchesById) {
   return { trips: out, unmapped };
 }
 
+// v2, new: reads the GitHub Actions-committed match log. Returns a plain
+// {tripId: {newThisWeek: [...], ...}} map matching the shape
+// buildWatchedTripsView already expects (it only reads .newThisWeek per
+// entry via the caller below, same as it read the Blobs record's
+// .newThisWeek in v1).
+async function readCommittedMatchLog() {
+  const here = path.dirname(fileURLToPath(import.meta.url));
+  const jsonPath = path.join(here, "..", "..", "data", "concert-match-log.json");
+  const raw = await readFile(jsonPath, "utf-8");
+  const parsed = JSON.parse(raw);
+  if (!parsed || typeof parsed !== "object") {
+    throw new Error("committed concert-match-log.json is not an object");
+  }
+  return parsed;
+}
+
+// v1's original Blobs read, kept verbatim as the fallback path.
+async function readBlobsMatchLog(tripIds) {
+  const matchStore = getStore({ name: "concert-match-log", consistency: "strong" });
+  const entries = await Promise.all(
+    tripIds.map(async (id) => {
+      const rec = await matchStore.get(id, { type: "json" });
+      return [id, rec && Array.isArray(rec.newThisWeek) ? rec.newThisWeek : []];
+    })
+  );
+  return Object.fromEntries(entries);
+}
+
 export default async (req) => {
   if (req.method !== "GET") {
     return json({ error: "Method not allowed: watched-trips is read-only" }, 405);
@@ -138,22 +153,27 @@ export default async (req) => {
   const store = getStore({ name: "watched-trips", consistency: "strong" });
   const rawTrips = (await store.get("list", { type: "json" })) || [];
   const cityCoords = loadCityCoords();
+  const tripIds = (rawTrips || []).filter((t) => t && t.id).map((t) => t.id);
 
-  // Best-effort merge of concert-match-check.mjs's weekly output, a
-  // separate store, read-only here. Any failure (store empty, a trip never
-  // swept yet, a transient error) just yields {} / empty arrays; this
-  // endpoint's core job must never depend on the weekly job having run.
+  // v2: try the committed file first, fall back to Blobs. Any failure in
+  // EITHER path just yields {} / empty arrays per trip -- this endpoint's
+  // core job must never depend on either match-log source being healthy.
   let newMatchesById = {};
   try {
-    const matchStore = getStore({ name: "concert-match-log", consistency: "strong" });
-    const entries = await Promise.all(
-      (rawTrips || []).filter((t) => t && t.id).map(async (t) => {
-        const rec = await matchStore.get(t.id, { type: "json" });
-        return [t.id, rec && Array.isArray(rec.newThisWeek) ? rec.newThisWeek : []];
-      })
+    const committed = await readCommittedMatchLog();
+    // Reshape to the {id: newThisWeek[]} form buildWatchedTripsView
+    // expects, same as the Blobs path already returns.
+    newMatchesById = Object.fromEntries(
+      tripIds.map((id) => [id, Array.isArray(committed[id] && committed[id].newThisWeek) ? committed[id].newThisWeek : []])
     );
-    newMatchesById = Object.fromEntries(entries);
-  } catch (e) { /* weekly-check data is a bonus, never a blocker, see header comment */ }
+  } catch (committedErr) {
+    console.warn("watched-trips.mjs: committed match log read failed, falling back to Blobs:", committedErr.message);
+    try {
+      newMatchesById = await readBlobsMatchLog(tripIds);
+    } catch (blobsErr) {
+      console.warn("watched-trips.mjs: Blobs match-log fallback also failed:", blobsErr.message);
+    }
+  }
 
   const { trips, unmapped } = buildWatchedTripsView(rawTrips, cityCoords, newMatchesById);
   return json({ trips, meta: { count: trips.length, unmapped } });
