@@ -32,18 +32,18 @@
 <main>
   <div class="wrap">
     <p class="eyebrow">About · an agentic project</p>
-    <h1 class="page-title">A travel decision framework, not a fare search tool.</h1>
-    <p class="lede">This tool evaluates the full decision behind a trip: cost, comfort, upgrade potential, award value, flexibility, risk, and time, each weighted by what matters most to you on that specific trip. It does not simply find the cheapest fare. Give it the trip and what's in your wallet, from miles and points to cards, and it tells you what to book, and why.</p>
+    <h1 class="page-title">A travel decision framework that shows its work.</h1>
+    <p class="lede">Give it the trip and what's in your wallet, from cards to miles and points, and it tells you what to book and why. Seven things get scored: cost, comfort, upgrade potential, award value, flexibility, risk, and time. Each one carries the weight you assigned it for this particular trip, which is why the cheapest fare loses more often than you'd expect. The engine shows the arithmetic.</p>
 
     <p class="callout" style="margin:0 0 1.4rem;">
-      <strong>This page is the reference:</strong> what this tool computes today, its data sources, and its stack. For the method behind it, plus the prompt to build one for your own decisions, read the <a href="/guide">Guide</a> instead.
+      <strong>This page is the reference:</strong> what the tool computes today, where its data comes from, what it runs on. The method behind it, and the prompt to build one for your own decisions, live in the <a href="/guide">Guide</a>.
     </p>
 
     <div class="stat-strip">
       <div class="stat-tile"><div class="stat-tile__num">7</div><div class="stat-tile__label">scored dimensions</div></div>
       <div class="stat-tile"><div class="stat-tile__num">7</div><div class="stat-tile__label">weighted priorities</div></div>
       <div class="stat-tile"><div class="stat-tile__num">0</div><div class="stat-tile__label">accounts or logins</div></div>
-      <div class="stat-tile"><div class="stat-tile__num">v2</div><div class="stat-tile__label">live Google Flights fares</div></div>
+      <div class="stat-tile"><div class="stat-tile__num">6</div><div class="stat-tile__label">trips watched for you</div></div>
     </div>
 
     <nav class="pill-nav">
@@ -56,13 +56,14 @@
 
     <div class="about-section" id="what-it-is">
       <div class="about-section-head"><span class="about-num-badge">01</span><h3>what it is</h3></div>
-      <p>You provide the trip: origin, destination, dates, cabin, budget, loyalty balances, and a ranked list of what matters most, whether that is lowest cost, most comfort, best chance at an upgrade, best use of miles, or some balance of these. The engine scores every candidate itinerary on seven dimensions: Cost, Comfort, Upgrade Potential, Award Value, Flexibility, Risk, and Time. It weights each one by your ranking and shows the reasoning behind the recommended choice, not just its price.</p>
-      <p>No single dimension decides the outcome on its own. An itinerary that costs less but scores lower on your top-ranked priorities will not outrank a better-balanced option. Every result shows the exact weight assigned to each dimension, so that trade-off is never hidden.</p>
+      <p>You provide the trip: origin, destination, dates, cabin, budget, loyalty balances, and a ranked list of what matters most, whether that's lowest cost, most comfort, the best shot at an upgrade, the best use of miles, or some balance of those. The engine scores every candidate itinerary on seven dimensions: Cost, Comfort, Upgrade Potential, Award Value, Flexibility, Risk, and Time. Each is weighted by your ranking. What comes back is the reasoning, with the price attached to it.</p>
+      <p>No single dimension decides the outcome. An itinerary that costs less but scores lower on your top-ranked priorities will not outrank a better-balanced one, and every result shows the exact weight each dimension received, so the trade-off stays visible.</p>
     </div>
 
     <div class="about-section" id="the-stack">
       <div class="about-section-head"><span class="about-num-badge">02</span><h3>the stack</h3></div>
-      <p>Under the hood, this is a simple site: plain web pages that run the same scoring engine in your browser every time, so the same trip and the same fares always produce the same answer, never a random guess. Six small pieces of server code handle what a browser can't do alone: one searches live fares (<code>/api/fares</code>), one saves a route you ask it to watch (protected by a shared edit key, so only you can add or remove one), one re-checks those watched routes every other day, one stores fares you scan yourself from Kayak or Booking, one exposes a privacy-scoped read of your watched trips (destination, coordinates, and dates only) for Vinyl Scout's Concert Radar to check against, and one runs a weekly sweep for newly matching shows on trips you're already watching. Trip details reach the fare search only when you run one; your saved wallet never leaves your browser. Mileage and award figures remain hand-maintained, distance-scaled planning ranges; award availability is not yet searched, and the UI labels them as such wherever they appear. Here's what that adds up to today:</p>
+      <p>Plain web pages, running the same scoring engine in your browser every time, so the same trip and the same fares always produce the same answer. Six small pieces of server code handle what a browser can't do alone. One searches live fares (<code>/api/fares</code>). A second saves a route you ask it to watch, protected by a shared edit key so only you can add or remove one, and a third re-checks those watched routes every other day. The last three store fares you scan yourself from Kayak or Booking, expose a privacy-scoped read of your watched trips (destination, coordinates, and dates only) for Vinyl Scout's Concert Radar, and sweep once a week for newly matching shows on trips you're already watching.</p>
+      <p>Trip details reach the fare search only when you run one. Cabin and traveler count go with them. Your saved wallet, the cards and balances, never leaves your browser. Mileage and award figures are hand-maintained, distance-scaled planning ranges, because award availability isn't searched yet, and the screen labels them that way wherever they appear.</p>
 
       <div class="stack-col this-site">
         <h4>This site, today</h4>
@@ -76,7 +77,7 @@
         </ul>
       </div>
 
-      <p>The remaining data gap on the roadmap is live award-space search: seats.aero-style availability. Until it ships, mileage figures are labeled planning ranges, never presented as bookable award quotes.</p>
+      <p>The one gap left on the roadmap is live award-space search, seats.aero style. Until that ships, no mileage figure here is a bookable quote.</p>
     </div>
 
     <div class="about-section" id="on-the-page">
@@ -92,27 +93,27 @@
         </div>
         <div class="page-card">
           <h4 class="page-card__title">Decision Framework</h4>
-          <p class="page-card__desc">The seven scored dimensions, each shown with the exact weight your priority ranking assigned to it. The weighting is never hidden.</p>
+          <p class="page-card__desc">The seven scored dimensions, each shown with the exact weight your priority ranking assigned it. Nothing about the weighting is hidden.</p>
         </div>
         <div class="page-card">
           <h4 class="page-card__title">Strategy blocks</h4>
-          <p class="page-card__desc">Upgrade, Award, and Purchase Timing guidance, plus five to eight recommendations specific to your inputs.</p>
+          <p class="page-card__desc">Upgrade, Award, and Purchase Timing guidance, plus up to eight recommendations specific to your inputs.</p>
         </div>
       </div>
     </div>
 
     <div class="about-section" id="roadmap-link">
       <div class="about-section-head"><span class="about-num-badge">04</span><h3>roadmap</h3></div>
-      <p>Built in phases, matching the rest of the portfolio. The scoring framework, the full page set, the live fare backend, and the custom domain (travelintelligence.org) are live. Award-space search is what's next. See the full <a href="/roadmap" style="text-decoration:underline;">roadmap</a> and the <a href="/guide" style="text-decoration:underline;">guide</a> for exactly what's computed today versus planned.</p>
+      <p>Built in phases, matching the rest of the portfolio. The scoring framework, the full page set, the live fare backend, the custom domain, the fare watcher, and the Concert Radar cross-check are all live. Award-space search is next. The full <a href="/roadmap" style="text-decoration:underline;">roadmap</a> and the <a href="/guide" style="text-decoration:underline;">guide</a> spell out what's computed today versus planned.</p>
     </div>
 
     <div class="about-section" id="wont-do">
       <div class="about-section-head"><span class="about-num-badge">05</span><h3>what it won't do</h3></div>
       <ul class="wont-list">
         <li>Will not present a reference-range price or mileage figure as a live quote. Every number on this site is labeled for what it is.</li>
-        <li>Will not recommend redeeming miles unless the computed value clears a genuinely strong threshold, about 1.6 cents per mile. See the Award Strategy section for the underlying logic.</li>
-        <li>Will not optimize for a single variable. A lower price does not win if it costs too much on the dimensions you ranked higher.</li>
-        <li>No accounts, no passwords, no analytics or third-party tracking. Your saved wallet never leaves your device.</li>
+        <li>Miles get recommended only when the computed value clears a genuinely strong bar, about 1.6 cents per mile. The Award Strategy section shows that math on every run.</li>
+        <li>Will not optimize for a single variable. A lower price doesn't win if it costs too much on the dimensions you ranked higher.</li>
+        <li>No accounts, no passwords, no analytics, no third-party tracking. Your saved wallet never leaves your device.</li>
       </ul>
     </div>
   </div>

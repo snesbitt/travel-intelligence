@@ -1,18 +1,18 @@
 # Travel Intelligence
 
-Personal Travel Optimization Agent for Susan. Not a flight search tool,
-but a system that optimizes the whole travel decision (cost, comfort,
-upgrade potential, award value, flexibility, risk, time) against a ranked
-list of what actually matters on a given trip.
+Personal Travel Optimization Agent for Susan. It scores the whole travel
+decision (cost, comfort, upgrade potential, award value, flexibility,
+risk, time) against a ranked list of what actually matters on a given
+trip. Fare search is one input to that, not the product.
 
 Sibling project to [The Fitness Log](https://thefitnesslog.org), [The
-Streaming Scout](https://streamingscout.org), and Vinyl Scout, sharing the
-same house style, the same phased-roadmap discipline, and the same "label
-every number for what it is" ethic. Meant to hold the same bar as the
-other three: a flagship example of what an agentic build looks like, not
-a one-off demo.
+Streaming Scout](https://streamingscout.org), and [Vinyl
+Scout](https://vinylscout.org). It shares their house style and their
+phased-roadmap discipline, plus one rule the four of them enforce on each
+other: label every number for what it is. It's built to hold the same bar
+they do.
 
-## What's real today (Phase 1)
+## What's real today
 
 - The full Input Card: trip, flight preferences, optimization priority
   (primary + optional secondary dropdown), credit cards, 13 airline
@@ -82,7 +82,7 @@ a one-off demo.
 - Upgrade plan → calendar: one click exports the dated upgrade timeline
   (bid deadline, seat-map check, check-in, gate ask) as an `.ics` file.
 - Booking handoffs: the winning itinerary links directly to the
-  carrier's own site ("Book on United ↗") for 18 known carriers.
+  carrier's own site ("Book on United ↗") for 19 known carriers.
 - Offline shell: a service worker caches the pages and engine so the
   installed PWA opens without a connection (API calls are never cached;
   live stays live or fails honestly).

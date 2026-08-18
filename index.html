@@ -3,7 +3,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Travel Intelligence · Personal Travel Optimization Agent</title>
-<meta name="description" content="Optimizes every flight decision in a trip, not just the airfare: balancing cost, comfort, upgrade potential, and award value.">
+<meta name="description" content="Scores every flight decision in a trip against cost, comfort, upgrade potential, award value, flexibility, risk, and time, weighted by what matters to you.">
 <link rel="manifest" href="manifest.json">
 <link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
 <link rel="icon" href="icons/favicon-32.png" sizes="32x32">
@@ -33,7 +33,7 @@
 
 <main>
   <div class="wrap">
-    <h1 class="page-title" style="margin-bottom:0.4rem;">Every flight decision, optimized. Not just the fare.</h1>
+    <h1 class="page-title" style="margin-bottom:0.4rem;">Every flight decision in the trip, scored and weighted.</h1>
 
     <section class="block card ti-hidden" id="watched" aria-live="polite">
       <h2 class="card-title">Watched trips</h2>
@@ -140,7 +140,7 @@
 
       <section class="block card" id="preferences">
         <h2 class="card-title">Flight preferences <span class="form-hint" id="prefs-status" style="font-weight:400;"></span></h2>
-        <p class="form-hint" style="margin-bottom:10px;">Everything in this card auto-saves to this browser and reloads next visit; nothing leaves your device. Cabin, airlines, alliances, times, and travel style all feed the optimizer and its suggestions; preferred seat and hotel brand are saved for reference only (this site doesn't score seats or hotels). Checked bags and carry-on-only are collected for context too, not scored: live fare data doesn't include baggage fees, so inventing a bag-fee estimate would be a guess dressed up as a number. Stops now lives on the main Trip card, next to Date flexibility, same saved preference, just promoted.</p>
+        <p class="form-hint" style="margin-bottom:10px;">Everything here auto-saves to this browser and reloads next visit. None of it is stored on a server. One field does travel: cabin goes out with the fare search when you run one, along with the route, dates, and traveler count. Cabin, airlines, alliances, times, and travel style all feed the optimizer and its suggestions. Preferred seat and hotel brand are saved for reference only, since this site scores neither. Same for checked bags and carry-on-only: live fare data carries no baggage fees, and inventing one would be a guess dressed up as a number. Stops lives on the Trip card now, next to Date flexibility.</p>
         <div class="form-field">
           <label>Cabin</label>
           <div class="pill-toggle" data-group="cabin">
@@ -198,7 +198,7 @@
 
       <section class="block card" id="wallet">
         <h2 class="card-title">Your wallet <span class="form-hint" id="wallet-status" style="font-weight:400;"></span></h2>
-        <p class="form-hint" style="margin-bottom:10px;">Cards and loyalty balances auto-save to this browser as you edit and reload automatically next session (Save wallet is just the explicit confirm). Nothing leaves your device.</p>
+        <p class="form-hint" style="margin-bottom:10px;">Cards and loyalty balances auto-save to this browser as you type, and reload next session. Save wallet is just the explicit confirm. Nothing in this card ever leaves your device.</p>
         <div class="check-grid">
           <label class="check-row"><input type="checkbox" class="cc-check" value="American Express Membership Rewards"> American Express Membership Rewards</label>
           <label class="check-row"><input type="checkbox" class="cc-check" value="Chase Ultimate Rewards"> Chase Ultimate Rewards</label>
@@ -240,13 +240,13 @@
 
     <section class="block" id="results" style="margin-top:0.9rem;" aria-live="polite">
       <div class="empty-state es-idle">
-        <p>✈&nbsp; Fill in your trip and run the optimization to get the executive summary, best pick, and the five alternatives it beat.</p>
+        <p>✈&nbsp; Fill in your trip and run the optimization. You'll get an executive summary, the best pick, and the five alternatives it beat.</p>
       </div>
     </section>
 
     <section class="block card ti-hidden" id="date-sweep" style="margin-top:0.9rem;" aria-live="polite">
       <h2 class="card-title">Date-range score sweep</h2>
-      <p class="form-hint" style="margin-bottom:10px;">See the cheapest date in one chart instead of re-running the optimizer by hand. Samples this same trip length across a window of dates and charts price + score, using the exact same live pipeline a normal search uses.</p>
+      <p class="form-hint" style="margin-bottom:10px;">See the cheapest date in one chart instead of re-running the optimizer by hand. This samples the same trip length across a window of dates and charts price against score, through the exact live pipeline a normal search uses. Up to 6 real searches per click.</p>
       <div class="form-grid">
         <div class="form-field"><label for="sweep-window">Window</label>
           <select id="sweep-window"><option value="30">30 days</option><option value="45">45 days</option><option value="60">60 days</option></select>
@@ -883,13 +883,13 @@
     // on its own), so this message only fires for names it genuinely
     // doesn't recognize, not a one-letter slip.
     "unknown-via": (inputs) => `"${inputs.viaCity}" isn't in the city table, even allowing for a typo or two; check the spelling or use a 3-letter airport code.`,
-    "via-bad-request": () => `the multi-city routing didn't form a valid itinerary -- check that the return date is on or after the outbound (and stopover, if set) leg's date.`,
+    "via-bad-request": () => `the multi-city routing didn't form a valid itinerary; check that the return date is on or after the outbound (and stopover, if set) leg's date.`,
     "unknown-return-from": (inputs) => `"${inputs.returnFromCity}" isn't in the city table, even allowing for a typo or two; check the spelling or use a 3-letter airport code.`,
     "return-from-needs-date": () => `an open-jaw return (a different city for the way home) needs a return date set too.`,
     "unknown-dest": (inputs) => `"${inputs.destination}" isn't in the city table, even allowing for a typo or two; check the spelling or use a 3-letter airport code.`,
     "unknown-origin": (inputs) => `"${inputs.preferredAirport || inputs.origin}" isn't a recognized origin, even allowing for a typo or two; use a city from the table or a 3-letter airport code.`,
     "no-date": () => `no departure date set; add one to search live fares.`,
-    "not-configured": () => `demo mode: the live backend awaits its API credential.`,
+    "not-configured": () => `the live fare backend has no API credential configured, so there are no real fares to show.`,
     "no-offers": () => `the live search returned no offers for this route/date.`,
     "api-fail": () => `the live search failed or timed out; re-run to retry.`,
     // 2026-08-05: fares.mjs's two abuse guards (an Origin/Referer allowlist
@@ -1142,7 +1142,7 @@
     if (!result.routeKnown) {
       const oCode = T.toIATA(inputs.preferredAirport || inputs.origin);
       const dCode = T.toIATA(inputs.destination);
-      const badField = !dCode ? `destination “${inputs.destination}”` : (!oCode ? `origin “${inputs.preferredAirport || inputs.origin}”` : null);
+      const badField = !dCode ? `destination "${inputs.destination}"` : (!oCode ? `origin "${inputs.preferredAirport || inputs.origin}"` : null);
       const beyondHorizon = ["api-fail", "no-offers"].includes(window.__tiLiveReason) && daysOut(inputs.departDate) > BOOKING_HORIZON_DAYS;
       // 2026-08-07 (Susan: SFO->Tallinn "failed or timed out" bug): when
       // buildLiveCandidates() (app.js) reports that real fares came back
@@ -1153,8 +1153,8 @@
       const rawN = result.rawOfferCount || 0;
       const why = filteredOut
         ? (result.stopsFilteredAllOut
-            ? `${rawN} real fare${rawN === 1 ? "" : "s"} came back for this route, but every one had more stops than your saved “Stops” filter allows.`
-            : `${rawN} real fare${rawN === 1 ? "" : "s"} came back for this route, but every one was on an airline in your “Avoid” list.`)
+            ? `${rawN} real fare${rawN === 1 ? "" : "s"} came back for this route, but every one had more stops than your saved "Stops" filter allows.`
+            : `${rawN} real fare${rawN === 1 ? "" : "s"} came back for this route, but every one was on an airline in your "Avoid" list.`)
         : beyondHorizon ? horizonMessage(inputs)
         : (FALLBACK_REASONS[window.__tiLiveReason] || FALLBACK_REASONS["api-fail"])(inputs);
       const u = T.liveSearchUrls(inputs, "");
@@ -1176,8 +1176,8 @@
           ${kay ? `<a class="es-link" href="${kay}" target="_blank" rel="noopener">Kayak ↗</a>` : ""}
         </div>`;
       resultsEl.innerHTML = `<div class="empty-state es-error"><div class="es-icon">⚠</div>
-        <p><strong>${badField ? `The ${badField} didn’t resolve to a known city or airport.` : `No real fares to score for ${oCode} → ${dCode}: ${why}`}</strong></p>
-        <p class="form-hint">${badField ? "Check the spelling or use a 3-letter airport code (e.g. GSP for Greenville, SC), then re-run." : (filteredOut ? "Nothing synthetic is ever shown -- real fares exist for this route, just outside your saved filter." : "Nothing synthetic is ever shown. Retry, or check the live route yourself:")}</p>
+        <p><strong>${badField ? `The ${badField} didn't resolve to a known city or airport.` : `No real fares to score for ${oCode} → ${dCode}: ${why}`}</strong></p>
+        <p class="form-hint">${badField ? "Check the spelling or use a 3-letter airport code (e.g. GSP for Greenville, SC), then re-run." : (filteredOut ? "Nothing synthetic is ever shown. Real fares exist for this route; they just fall outside a filter you saved." : "Nothing synthetic is ever shown. Retry, or check the live route yourself:")}</p>
         ${actions}</div>`;
       document.getElementById("results").scrollIntoView({ behavior: "smooth", block: "start" });
       return;

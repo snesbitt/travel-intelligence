@@ -39,11 +39,11 @@
 
 <main>
   <div class="wrap">
-    <p class="eyebrow">How it's built · an agentic project · July 2026</p>
+    <p class="eyebrow">How it's built · an agentic project · 2026</p>
     <h1 class="page-title">A scoring engine, built and run by an AI agent</h1>
 
     <p class="callout" style="margin:0 0 1.4rem;">
-      <strong>This page is the how-to:</strong> the method and the exact prompt to build a tool like this yourself, for any decision. For what this tool computes today, its stack, its data sources, read <a href="/about">About</a> instead.
+      <strong>This page is the how-to:</strong> the method, and the exact prompt to build a tool like this yourself, for any decision you care about. What this particular tool computes today, and where its data comes from, is on <a href="/about">About</a>.
     </p>
 
     <nav class="pill-nav">
@@ -59,13 +59,13 @@
 
     <div class="step" id="tools">
       <div><span class="step-num">01</span><span class="step-title">Tools &amp; mode</span></div>
-      <p class="step-body">Built in Cowork, by design. The Input Card, scoring engine, and every output section run as plain JavaScript in your browser. Two things leave it, both stated plainly: a fare search sends the route, dates, cabin, and traveler count to the site's own <code>/api/fares</code> function, and watching a trip stores that route server-side so the daily check can run. Your wallet, cards and balances, never leaves the browser.</p>
+      <p class="step-body">Built in Cowork, by design. The Input Card, the scoring engine, and every output section run as plain JavaScript in your browser. Two things leave it, and both are stated on screen where they happen: a fare search sends the route, dates, cabin, and traveler count to the site's own <code>/api/fares</code> function, and watching a trip stores that route server-side so the scheduled re-check has something to check. Your wallet stays put. Cards and balances never leave the browser.</p>
 
       <div class="mode-grid">
         <div class="mode-card mode-card--a">
           <div class="mode-card__name">Chat</div>
           <div class="mode-card__role">decide</div>
-          <ul><li>weighting model for the 7 priorities</li><li>reference-range values (fares, miles)</li><li>what "genuinely strong" means for a redemption</li></ul>
+          <ul><li>the weighting model behind all 7 priorities, and the reference-range mileage values</li><li>what "genuinely strong" means for a redemption</li></ul>
         </div>
         <div class="mode-card mode-card--b">
           <div class="mode-card__name">Cowork</div>
@@ -80,17 +80,18 @@
         <div class="mode-card mode-card--d">
           <div class="mode-card__name">Backend (live)</div>
           <div class="mode-card__role">fetch &amp; watch</div>
-          <ul><li>real Google Flights fares</li><li>daily watched-trip checks</li><li>award space: still the gap</li></ul>
+          <ul><li>real Google Flights fares</li><li>watched trips re-checked every other day</li><li>a weekly Concert Radar sweep</li><li>award space: still the gap</li></ul>
         </div>
       </div>
 
-      <p class="mode-caption">No terminal in this stack: Cowork carries the build role, the browser carries the run role.</p>
+      <p class="mode-caption">No terminal in this stack. Cowork builds it; your browser runs it.</p>
     </div>
 
     <div class="step" id="data">
-      <div><span class="step-num">02</span><span class="step-title">Reference ranges, not a live search, and labeled as such</span></div>
-      <p class="step-body">Fares have exactly one mode: real. Every run pulls live Google Flights fares through the site's own backend, merges in any fares scanned from your own Kayak or Booking searches (each carries a labeled source pill), and scores them with the engine below. If nothing real comes back, the site says so and shows no figures at all: the old synthetic fallback model was deleted in July 2026, on the principle that a plausible invented number is worse than an honest empty state. Flight-time estimates for offers that omit a duration come from real great-circle geometry (a hand-maintained city coordinates table). Mileage figures are hand-maintained, distance-scaled planning ranges, since award availability is not searched yet. Upgrade-friendliness scores are a general reputation judgment per carrier, not a live seat map.</p>
-      <p class="step-body">One class of numbers is different, and labeled differently: the Points Intelligence panel. Point valuations (which airline's miles are worth the most in cents per point) and active transfer bonuses are real published figures from The Points Guy's monthly valuations, hand-copied with their date shown in the UI, and refreshed by hand each month. They're facts with a timestamp, not a model output, and not a live feed either, which is why the as-of date is always displayed next to them.</p>
+      <div><span class="step-num">02</span><span class="step-title">Fares are real or absent, never invented</span></div>
+      <p class="step-body">Fares have exactly one mode: real. Every run pulls live Google Flights prices through the site's own backend, merges in anything you scanned yourself from Kayak or Booking (each one carries a labeled source pill), and scores the lot with the engine below. When nothing real comes back, the site says so and shows no figures at all. The old synthetic fallback model was deleted on 2026-07-26, on the principle that a plausible invented number is worse than an honest empty state.</p>
+      <p class="step-body">A few other numbers are estimates, and they say so on screen. Flight times for offers that arrive without a duration get computed from great-circle geometry against a hand-maintained city coordinates table. Mileage figures are distance-scaled planning ranges, because award availability isn't searched yet. Upgrade friendliness is the softest of them: a per-carrier reputation judgment, nowhere near a live seat map.</p>
+      <p class="step-body">The Points Intelligence panel carries a different kind of number again. Point valuations (which airline's miles are worth the most, in cents per point) and active transfer bonuses are published figures from The Points Guy's monthly valuations, hand-copied with their date shown on screen and refreshed by hand each month. They're facts with a timestamp. Not a model output, and not a live feed either, which is why that as-of date always sits right next to them.</p>
     </div>
 
     <div class="step" id="scoring">
@@ -117,13 +118,13 @@ score        = &Sigma; (dimensionScore[d] &times; dimWeight[d])  for d in the 7 
     </div>
 
     <div class="step" id="snapshot">
-      <div><span class="step-num">04</span><span class="step-title">One class of numbers is still a model</span></div>
-      <p class="step-body">This site states plainly what's real. Fare prices are always real, either the live Google Flights feed and/or your own Kayak/Booking scans (as labeled), or absent. Mileage and award figures are NOT live: they're hand-maintained, distance-scaled planning ranges, because award availability isn't searched yet. And the scoring itself is deterministic: the same inputs and the same fares produce the same result, by design, not randomized.</p>
+      <div><span class="step-num">04</span><span class="step-title">Same inputs, same answer, every time</span></div>
+      <p class="step-body">The scoring is deterministic. Run the same trip against the same fares tomorrow and you get the identical answer, down to the weights. Nothing is randomized and nothing calls a language model at recommendation time, which is what makes the weight breakdown on the results page worth reading: it's the arithmetic that actually produced the pick, not a rationalization written afterward.</p>
     </div>
 
     <div class="step" id="deploy">
       <div><span class="step-num">05</span><span class="step-title">Push to main, Netlify deploys: six small Functions, nothing more</span></div>
-      <p class="step-body">Every push to main auto-publishes, no manual step. The backend is six small functions and nothing else: <code>fares</code> for the live search, <code>watch</code> for the watched-trip list, <code>watch-check</code> for the daily re-check, <code>scan-offers</code> for fares scanned by hand, <code>watched-trips</code> for the privacy-scoped read Vinyl Scout's Concert Radar checks against, and <code>concert-match-check</code> for the weekly sweep for newly matching shows. No framework, no build step, no database beyond one storage service.</p>
+      <p class="step-body">Every push to main auto-publishes, with no manual step. The backend is six small functions and nothing else. <code>fares</code> runs the live search; <code>scan-offers</code> holds the fares you scanned by hand. <code>watch</code> keeps the watched-trip list and <code>watch-check</code> re-searches it every other day. The last two exist for the Concert Radar link: <code>watched-trips</code> serves the privacy-scoped read, and <code>concert-match-check</code> sweeps weekly for shows that have just started matching. No framework, no build step, no database beyond one storage service.</p>
 
       <figure class="diagram">
         <svg viewBox="0 0 800 220" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Claude and Cowork build the static site and push to GitHub, Netlify auto-deploys, and the live site runs the scoring engine entirely in the visitor's browser">
@@ -162,14 +163,16 @@ score        = &Sigma; (dimensionScore[d] &times; dimWeight[d])  for d in the 7 
 
     <div class="step" id="manual">
       <div><span class="step-num">06</span><span class="step-title">What's still manual, and what's still missing</span></div>
-      <p class="step-body">Award-space search is the largest remaining data gap: mileage figures are planning ranges, never availability checks. The watcher now does the fare-watching automatically, re-checking each trip roughly every other day (capped at six trips, raised from three on 2026-08-11, because each check spends one metered search; raising the cap further, or adding email/push alerts, needs a new credential or quota decision and therefore Susan's explicit approval, the same rule as all real spend). Saved memory covers the wallet and watched trips; other inputs still reset each session. The TPG valuation and transfer-bonus tables remain a manual monthly refresh, copied by hand with their date shown, so a stale month is visible rather than silent.</p>
+      <p class="step-body">Award-space search is the biggest gap left. Mileage figures are planning ranges, never availability checks.</p>
+      <p class="step-body">The watcher does the fare-watching on its own now, re-checking each saved trip roughly every other day, capped at six trips (raised from three on 2026-08-11). Each check spends one metered search against a 100-search monthly quota, which is why the cap exists. Raising it further, or adding email and push alerts, needs a new credential or a quota decision, so it waits for Susan's explicit yes, the same rule that governs every other real cost here.</p>
+      <p class="step-body">Saved memory covers the wallet, the preferences, and the watched trips. Other inputs still reset each session. The Points Guy valuation and transfer-bonus tables are a manual monthly refresh, copied by hand with their date on screen, so a stale month shows rather than hides.</p>
     </div>
 
     <div class="step-divider"></div>
 
     <p class="eyebrow" id="build-your-own">Build your own · a starting point</p>
     <h2 style="margin:0 0 8px;">Copy this prompt to start</h2>
-    <p class="step-body">This engine started from one written request to Claude, then grew in stages: a live fares feed, a watcher, a real domain, every irreversible step held for explicit approval along the way. Below is a version of that starting request. Copy it, adapt it to what you're actually comparing, and paste it into a new Claude conversation.</p>
+    <p class="step-body">This engine started from one written request to Claude. It grew in stages after that: a live fares feed, a real domain, a watcher, saved preferences, the Concert Radar cross-check, with every irreversible step held for explicit approval along the way. Below is a version of that first request. Copy it, adapt it to whatever you're actually comparing, and paste it into a new Claude conversation.</p>
 
     <div class="prompt-box">
       <button class="prompt-copy" id="tiCopyBtn" onclick="tiCopyPrompt()">Copy</button>
@@ -205,7 +208,7 @@ Please help me scope this into a first small version we can finish today, tell m
       <div class="next-card">
         <div class="next-card__n">04</div>
         <h4>It grows in later sessions</h4>
-        <p>The live fares feed, the domain, the daily watcher: all arrived after the first version, not in it. See the <a href="/roadmap">Roadmap</a> for the real order it happened in.</p>
+        <p>The live fares feed, the domain, the fare watcher: none of that was in the first version. The <a href="/roadmap">Roadmap</a> has the real order it happened in.</p>
       </div>
     </div>
 
@@ -215,8 +218,7 @@ Please help me scope this into a first small version we can finish today, tell m
     <p class="eyebrow" style="margin-top:0.4rem;">What it takes on your end</p>
     <ul class="need-list">
       <li>A Claude account with access to Cowork.</li>
-      <li>A few short check-ins over the following days or weeks. This kind of tool improves in passes, not one sitting.</li>
-      <li>A willingness to say yes or no when Claude asks. It will hold at anything with a real-world consequence rather than guess.</li>
+      <li>A few short check-ins over the following days or weeks, plus a willingness to answer yes or no when Claude asks. It holds at anything with a real-world consequence rather than guessing, and a tool like this improves in passes, not in one sitting.</li>
     </ul>
 
   </div>
