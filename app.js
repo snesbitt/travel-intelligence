@@ -32,7 +32,7 @@ const ALL_CARRIERS = Object.values(ALLIANCES).flat();
 // nothing here updates on its own. Rendered by renderMyBalances() below
 // into the #myBalances section index.html reserves for this.
 const MY_BALANCES = {
-  lastUpdated: "2026-08-16",
+  lastUpdated: "08-16-2026",
   airline: { program: "United MileagePlus", balance: 13000 },
   transferable: [
     { name: "Chase Ultimate Rewards", balance: 90000, note: "transfers 1:1 to United MileagePlus and five other programs -- real value, but not spendable on a flight until manually transferred, so it's shown separately rather than added into the airline balance above" },
@@ -42,15 +42,16 @@ const MY_BALANCES = {
 function renderMyBalances() {
   const el = document.getElementById('myBalances');
   if (!el) return;
-  const transferLines = MY_BALANCES.transferable
-    .map(t => t.balance.toLocaleString() + ' ' + t.name + ' (' + t.note + ')')
-    .join('; ');
   el.innerHTML =
     '<h2 class="card-title">My Balances</h2>' +
-    '<p>' + MY_BALANCES.airline.program + ': <strong>' + MY_BALANCES.airline.balance.toLocaleString() + '</strong></p>' +
-    '<p class="field-hint">Also have: ' + transferLines + '.</p>' +
-    '<p class="field-hint">Last updated ' + MY_BALANCES.lastUpdated + '.</p>';
+    '<p>United MileagePlus: <strong>' + MY_BALANCES.airline.balance.toLocaleString() + '</strong></p>' +
+    MY_BALANCES.transferable.map(t =>
+      '<p>' + t.name + ': <strong>' + t.balance.toLocaleString() + '</strong></p>'
+    ).join('') +
+    '<p class="field-hint">Last updated ' + MY_BALANCES.lastUpdated +
+    ' &middot; <a href="javascript:location.reload()">Refresh</a></p>';
 }
+
 if (typeof document !== 'undefined') {
   document.addEventListener('DOMContentLoaded', renderMyBalances);
 }
