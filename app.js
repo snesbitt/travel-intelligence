@@ -26,6 +26,33 @@ const ALLIANCES = {
 
 const ALL_CARRIERS = Object.values(ALLIANCES).flat();
 
+// Susan's saved loyalty balances -- hand-entered, never live-synced (no
+// bank/card account access exists or ever will for this feature). Update
+// the numbers and lastUpdated below whenever Susan reports a new balance;
+// nothing here updates on its own. Rendered by renderMyBalances() below
+// into the #myBalances section index.html reserves for this.
+const MY_BALANCES = {
+  lastUpdated: "2026-08-16",
+  airline: { program: "United MileagePlus", balance: 13000 },
+  transferable: [
+    { name: "Chase Ultimate Rewards", balance: 90000, note: "transfers 1:1 to United MileagePlus and five other programs -- real value, but not spendable on a flight until manually transferred, so it's shown separately rather than added into the airline balance above" },
+  ],
+};
+
+function renderMyBalances() {
+  const el = document.getElementById('myBalances');
+  if (!el) return;
+  const transferLines = MY_BALANCES.transferable
+    .map(t => t.balance.toLocaleString() + ' ' + t.name + ' (' + t.note + ')')
+    .join('; ');
+  el.innerHTML =
+    '<h2 class="card-title">My Balances</h2>' +
+    '<p>' + MY_BALANCES.airline.program + ': <strong>' + MY_BALANCES.airline.balance.toLocaleString() + '</strong></p>' +
+    '<p class="field-hint">Also have: ' + transferLines + '.</p>' +
+    '<p class="field-hint">Last updated ' + MY_BALANCES.lastUpdated + '.</p>';
+}
+document.addEventListener('DOMContentLoaded', renderMyBalances);
+
 // General reputation for complimentary/mileage upgrade generosity, 0-100.
 // This is a hand-maintained editorial judgment, not a live seat-map read.
 // See about.html for how this differs from a real inventory check.
