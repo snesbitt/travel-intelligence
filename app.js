@@ -51,7 +51,9 @@ function renderMyBalances() {
     '<p class="field-hint">Also have: ' + transferLines + '.</p>' +
     '<p class="field-hint">Last updated ' + MY_BALANCES.lastUpdated + '.</p>';
 }
-document.addEventListener('DOMContentLoaded', renderMyBalances);
+if (typeof document !== 'undefined') {
+  document.addEventListener('DOMContentLoaded', renderMyBalances);
+}
 
 // General reputation for complimentary/mileage upgrade generosity, 0-100.
 // This is a hand-maintained editorial judgment, not a live seat-map read.
