@@ -178,6 +178,19 @@
       </div>
     </section>
 
+
+    <section class="phase phase--live" id="phase-11">
+      <div class="phase__rail">11</div>
+      <div class="phase__body">
+        <div class="phase__head">
+          <h3 class="phase__name">Exact-match city fields</h3>
+          <span class="phase__status phase__status--live">Live</span>
+        </div>
+        <p class="phase__focus">Pick the airport, not just the city</p>
+        <p class="phase__covers">Shipped 2026-08-21. Clicking a suggestion, or picking one with the keyboard, now fills the field with the airport as well as the city, so Origin reads &ldquo;Paris&ndash;Orly (ORY)&rdquo; rather than a bare &ldquo;Paris&rdquo; that could mean any of three. That surfaced a real correctness bug underneath: the resolver matched on the city name and threw the code away, so every secondary airport quietly became its metro&rsquo;s primary. Choosing Orly searched Charles de Gaulle, LaGuardia searched JFK, Midway searched O&rsquo;Hare, Gatwick searched Heathrow. A trailing code is now read as a literal and settled before any typo-matching runs, so the pick is exactly what it says. Two things followed from making those airports reachable at all: they needed real names, since results and watched trips had been rendering them as a bare &ldquo;ORY&rdquo;, and they needed to be searchable by name, since typing &ldquo;orly&rdquo; or &ldquo;laguardia&rdquo; had found nothing at all. Typo tolerance, country lookups, and the ranking that keeps Paris ahead of Paraguay are all unchanged.</p>
+      </div>
+    </section>
+
   </div>
 </main>
 

@@ -1122,3 +1122,63 @@ Susan's request: search and watch a trip like "SFO to VFA, home from BBK to SFO"
 **Booking deep links, deliberately conservative.** `liveSearchUrls`'s Google Flights link now describes the real open-jaw itinerary in its natural-language query ("Flights from SFO to VFA on ..., returning BBK to SFO on ..."), same honest-best-effort tier the plain Google Flights link already was. The American Airlines `aa.com` deep link is deliberately NOT attempted for open-jaw trips: its "MultiCity" slices shape was never verified live the way the existing OneWay/RoundTrip shapes were, and this file's own standing rule is to never ship an unverified URL; falls back to `carrierSite()` or the Google Flights link instead. `scanSourceUrl`'s Kayak deep link is skipped the same way, for the same reason.
 
 Test coverage added: `tests/watch.test.mjs` (open-jaw `validateTripInput`/`buildWatchId` cases), `tests/watch-check.test.mjs` (`isOpenJaw`, `buildMultiCitySearchParams`), `tests/app.test.js` (`liveSearchUrls`/`scanSourceUrl` open-jaw behavior). Full `npm test` green after every change (added assertions, zero regressions in any existing test). Nothing committed or pushed from this session; Susan applies the patch, reviews the diff, and runs `git add`/`commit`/`push` herself.
+
+---
+
+## 2026-08-21 — Exact-match city fields (roadmap Phase 11)
+
+**Susan:** *"fix the fuzzy matching feature in Travel Intel — when i type in a city
+and it matches, i want to be able to click on the suggestion and have it add the
+city and airport code to the field to make it an exact match. update and do better"*
+
+### What she asked for
+`select()` in index.html's `attachCityAutocomplete` committed `it.value` ("Seattle"),
+not `it.label` ("Seattle (SEA)"). One-line ask.
+
+### What the one-line fix would have broken
+`toIATA` had no notion of a trailing code. Its whole-word fallback matched the city
+name and discarded the parenthesised code, so committing the label would have
+silently searched the WRONG airport for every non-primary one:
+
+| committed value | resolved to (before) | correct |
+|---|---|---|
+| `Paris (ORY)` | CDG | ORY |
+| `New York (LGA)` | JFK | LGA |
+| `London (LGW)` | LHR | LGW |
+| `Chicago (MDW)` | ORD | MDW |
+| `Washington (DCA)` | IAD | DCA |
+
+A wrong airport presented as an exact match is the same class of failure as the
+synthetic fares removed in Phase 9 — a guess wearing a real value's clothes.
+
+### What actually shipped
+1. **`parseIataSuffix` / `stripIataSuffix`** (app.js). A trailing `(XXX)` is a
+   literal code, checked in `toIATA` immediately after the bare-3-letter rule and
+   **above every fuzzy layer**. Exact by construction, not by luck.
+2. **`select()` commits `it.label`** (index.html).
+3. **`IATA_DISPLAY` extended from `METRO_AIRPORTS`.** Built from `CITY_IATA` alone,
+   which is one code per metro, so secondary codes had no display name and rendered
+   as a bare "ORY" in results, watched trips, and calendar exports. Invisible while
+   toIATA still collapsed them; making the suffix authoritative is what exposed it.
+4. **`suggestCities` matches airport NAME as well as metro key.** Two bugs at once:
+   refocusing a field committed to a secondary airport returned zero rows (strip
+   leaves "Paris–Orly", which is not a key), and airport names were entirely
+   unsearchable — "orly", "laguardia", "midway", "gatwick" all found nothing.
+   Token-prefix matched at word starts so short fragments don't match mid-word.
+5. **`close()` clears `list.innerHTML`**, so a hidden list holds no stale rows.
+
+### How it was verified
+`npm test` — 107 in app.test.js (up from 97), full suite green, content-drift clean.
+Then a **headless browser pass** driving the real DOM: click-commit, keyboard-commit,
+secondary-airport pick, refocus, and typo path.
+
+**The refocus bug was found only in the browser.** The unit test used
+`"Seattle (SEA)"`, which strips to `"Seattle"` and matches a key, so it passed while
+the real case was broken. Lesson: for anything the autocomplete commits, test a
+SECONDARY airport, not just a primary — they take different code paths. Both are now
+covered in tests/app.test.js.
+
+### Untouched, and confirmed so by test
+Typo tolerance (`bankok` → BKK), country lookups (`Estonia` → TLL), whole-word
+matching (`greenville, south carolina` → GSP), and suggestion ranking (`par` → CDG,
+never Paraguay/ASU).

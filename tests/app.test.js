@@ -785,6 +785,103 @@ test("levenshtein: basic edit-distance sanity, incl. adjacent transposition at c
   assert.equal(T.levenshtein("", "abc"), 3);
 });
 
+test("toIATA (Susan 2026-08-21: click a suggestion to make it an exact match): a trailing (XXX) is a literal code, so SECONDARY airports stop collapsing to their metro's primary", () => {
+  // Before this pass toIATA's whole-word fallback matched the city name and
+  // discarded the code, so every one of these returned the metro primary:
+  // ORY->CDG, LGA/EWR->JFK, LGW->LHR, MDW->ORD, DCA->IAD. Committing the
+  // autocomplete's label would have silently searched the wrong airport.
+  assert.equal(T.toIATA("Paris (ORY)"), "ORY");
+  assert.equal(T.toIATA("Paris (BVA)"), "BVA");
+  assert.equal(T.toIATA("New York (LGA)"), "LGA");
+  assert.equal(T.toIATA("New York (EWR)"), "EWR");
+  assert.equal(T.toIATA("London (LGW)"), "LGW");
+  assert.equal(T.toIATA("Chicago (MDW)"), "MDW");
+  assert.equal(T.toIATA("Reagan National (DCA)"), "DCA");
+});
+
+test("toIATA: the (XXX) suffix path leaves every existing resolution route untouched", () => {
+  assert.equal(T.toIATA("Paris (CDG)"), "CDG");   // primary, still itself
+  assert.equal(T.toIATA("Seattle (SEA)"), "SEA");
+  assert.equal(T.toIATA("Seattle"), "SEA");        // bare city
+  assert.equal(T.toIATA("SEA"), "SEA");            // bare code
+  assert.equal(T.toIATA("Bankok"), "BKK");         // typo layer
+  assert.equal(T.toIATA("Estonia"), "TLL");        // country layer
+  assert.equal(T.toIATA("greenville, south carolina"), "GSP"); // whole-word
+  assert.equal(T.toIATA(""), null);
+  assert.equal(T.toIATA("(SEA)"), "SEA");          // suffix with no city
+});
+
+test("parseIataSuffix / stripIataSuffix: only a real trailing 3-letter code counts", () => {
+  assert.equal(T.parseIataSuffix("Seattle (SEA)"), "SEA");
+  assert.equal(T.parseIataSuffix("Paris (ory)"), "ORY");        // case-insensitive
+  assert.equal(T.parseIataSuffix("Seattle"), null);
+  assert.equal(T.parseIataSuffix("Washington (DC)"), null);      // 2 letters, not a code
+  assert.equal(T.parseIataSuffix("Rio (BRAZIL)"), null);         // too long
+  assert.equal(T.parseIataSuffix("(SEA) Seattle"), null);        // must be trailing
+  assert.equal(T.stripIataSuffix("Seattle (SEA)"), "Seattle");
+  assert.equal(T.stripIataSuffix("Paris–Orly (ORY)"), "Paris–Orly");
+  assert.equal(T.stripIataSuffix("Seattle"), "Seattle");
+});
+
+test("suggestCities (Susan 2026-08-21): refocusing an already-committed field still returns its list", () => {
+  // The field now holds "Seattle (SEA)". suggestCities keys on "seattle", so
+  // without the strip a refocus returned zero rows and the list never reopened.
+  const filled = T.suggestCities("Seattle (SEA)", 8);
+  assert.ok(filled.length > 0, "a committed value should still suggest");
+  assert.equal(filled[0].code, "SEA");
+  assert.equal(filled[0].label, "Seattle (SEA)");
+});
+
+test("suggestCities (Susan 2026-08-21): a committed SECONDARY airport still reopens its list on refocus", () => {
+  // The unit tests originally only covered "Seattle (SEA)", which strips to
+  // "Seattle" and matches a key. A secondary airport strips to its own NAME
+  // ("Paris–Orly"), which is not a key, so the list came back empty and never
+  // reopened. Caught in a browser, not here, hence this test.
+  assert.deepEqual(T.suggestCities("Paris–Orly (ORY)", 8).map((r) => r.code), ["ORY"]);
+  assert.deepEqual(T.suggestCities("LaGuardia (LGA)", 8).map((r) => r.code), ["LGA"]);
+  assert.deepEqual(T.suggestCities("Seattle (SEA)", 8).map((r) => r.code), ["SEA"]);
+});
+
+test("suggestCities (Susan 2026-08-21): airport names are searchable, not just metro names", () => {
+  assert.ok(T.suggestCities("orly", 8).some((r) => r.code === "ORY"));
+  assert.ok(T.suggestCities("laguardia", 8).some((r) => r.code === "LGA"));
+  assert.ok(T.suggestCities("midway", 8).some((r) => r.code === "MDW"));
+  assert.ok(T.suggestCities("gatwick", 8).some((r) => r.code === "LGW"));
+});
+
+test("suggestCities: name matching does not disturb the existing ranking", () => {
+  assert.equal(T.suggestCities("paris", 8)[0].code, "CDG");   // primary still leads
+  assert.equal(T.suggestCities("par", 8)[0].code, "CDG");     // not Paraguay/ASU
+  assert.equal(T.suggestCities("seattle", 8)[0].code, "SEA");
+  assert.equal(T.suggestCities("bankok", 8)[0].code, "BKK");  // typo tier intact
+});
+
+test("suggestCities: every row's label round-trips through toIATA to that row's own code", () => {
+  // The contract the click depends on: whatever the list shows, committing it
+  // must resolve back to the SAME airport. Guards the whole metro table.
+  for (const q of ["paris", "new york", "london", "chicago", "washington", "seattle", "tokyo", "milan"]) {
+    for (const row of T.suggestCities(q, 8)) {
+      assert.equal(T.toIATA(row.label), row.code, `${row.label} should resolve to ${row.code}`);
+    }
+  }
+});
+
+test("displayCity (Susan 2026-08-21): secondary airport codes have real display names, not a bare code", () => {
+  assert.equal(T.displayCity("Paris (ORY)"), "Paris–Orly (ORY)");
+  assert.equal(T.displayCity("New York (LGA)"), "LaGuardia (LGA)");
+  assert.equal(T.displayCity("Chicago (MDW)"), "Chicago–Midway (MDW)");
+  // primaries and the hand-written overrides are unaffected
+  assert.equal(T.displayCity("Paris"), "Paris (CDG)");
+  assert.equal(T.displayCity("gsp"), "Greenville, SC (GSP)");
+  assert.equal(T.displayCity("hnd"), "Tokyo (HND)");
+});
+
+test("displayCity: committing a suggestion is idempotent, re-display never compounds the suffix", () => {
+  for (const s of ["Seattle (SEA)", "Paris (ORY)", "New York (LGA)"]) {
+    assert.equal(T.displayCity(T.displayCity(s)), T.displayCity(s));
+  }
+});
+
 test("toIATA (Susan 2026-07-31: 'improve city fields to handle misspellings'): common typos still resolve", () => {
   // the exact typo the old FALLBACK_REASONS copy used to just describe
   assert.equal(T.toIATA("Bankok"), "BKK");

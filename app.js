@@ -489,10 +489,45 @@ for (const [key, airports] of Object.entries(METRO_AIRPORTS)) {
   }
 }
 
+// 2026-08-21 (Susan: "when i type in a city and it matches, i want to be
+// able to click on the suggestion and have it add the city and airport code
+// to the field to make it an exact match" / "update and do better"): the
+// autocomplete now commits suggestCities' full label ("Paris (ORY)") rather
+// than its bare city value ("Paris"), so the field records WHICH airport was
+// picked instead of only the metro. That only works if the parenthesised code
+// is authoritative, which it was not: toIATA's whole-word fallback matched the
+// city name and threw the code away, so every non-primary airport silently
+// resolved to its metro's primary one:
+//
+//   toIATA("Paris (ORY)")     -> CDG      toIATA("New York (LGA)")  -> JFK
+//   toIATA("London (LGW)")    -> LHR      toIATA("Chicago (MDW)")   -> ORD
+//   toIATA("Washington (DCA)")-> IAD
+//
+// A wrong airport presented as an exact match is precisely the "reference
+// value dressed up as a real one" this project refuses elsewhere, so the
+// suffix gets its own exact-match path ABOVE every fuzzy layer. Same shape as
+// the bare-3-letter rule directly above it: a trailing (XXX) is a literal
+// code and wins outright.
+const IATA_SUFFIX_RE = /\s*\(([A-Za-z]{3})\)\s*$/;
+function parseIataSuffix(name) {
+  if (!name) return null;
+  const m = IATA_SUFFIX_RE.exec(String(name).trim());
+  return m ? m[1].toUpperCase() : null;
+}
+// The inverse, for anything that needs the plain city back out of a committed
+// field value: suggestCities keys on "paris", not "paris (ory)", so a refocus
+// on an already-filled field would otherwise return zero rows.
+function stripIataSuffix(name) {
+  if (!name) return name;
+  return String(name).replace(IATA_SUFFIX_RE, "").trim();
+}
+
 function toIATA(name) {
   if (!name) return null;
   const n = name.trim().toLowerCase();
   if (/^[a-z]{3}$/.test(n)) return n.toUpperCase();
+  const suffixed = parseIataSuffix(name);
+  if (suffixed) return suffixed;
   if (COUNTRY_TO_IATA[n]) return COUNTRY_TO_IATA[n];
   if (CITY_IATA[n]) return CITY_IATA[n];
   if (ALT_AIRPORT_IATA[n]) return ALT_AIRPORT_IATA[n];
@@ -524,6 +559,18 @@ function toIATA(name) {
 const IATA_DISPLAY = {};
 for (const [name, code] of Object.entries(CITY_IATA)) {
   if (!IATA_DISPLAY[code]) IATA_DISPLAY[code] = name.replace(/(^|[\s-])[a-z]/g, (m) => m.toUpperCase());
+}
+// 2026-08-21 (Susan, same pass as the exact-match suffix above): IATA_DISPLAY
+// was built from CITY_IATA alone, which holds one code per metro, so every
+// SECONDARY airport code had no display name and rendered as a bare "ORY" in
+// results, watched trips, and calendar exports. That was invisible while
+// toIATA still collapsed those codes to their primary; making the suffix
+// authoritative is what put them in reach, so they need names to match.
+for (const airports of Object.values(METRO_AIRPORTS)) {
+  for (const a of airports) {
+    if (a.primary || !a.value) continue;
+    if (!IATA_DISPLAY[a.code]) IATA_DISPLAY[a.code] = a.value;
+  }
 }
 // 2026-07-26 (Susan): ambiguous or lesser-known city names display with
 // their state/country so a watched row reads unambiguously.
@@ -580,7 +627,9 @@ const COUNTRY_AIRPORT_ROWS = Object.entries(COUNTRY_TO_IATA).map(([key, code]) =
 function suggestCities(query, limit) {
   limit = limit || 8;
   if (!query) return [];
-  const q = String(query).trim().toLowerCase();
+  // Strip a committed "(XXX)" suffix so refocusing an already-filled field
+  // reopens its list instead of coming back empty.
+  const q = stripIataSuffix(String(query)).trim().toLowerCase();
   if (q.length < 2) return [];
 
   const allRows = CITY_AIRPORT_ROWS.concat(COUNTRY_AIRPORT_ROWS);
@@ -593,8 +642,21 @@ function suggestCities(query, limit) {
     out.push({ code: row.code, value: row.value, label: row.label, tier, isCountry: !CITY_IATA[row.key] && !METRO_AIRPORTS[row.key], primary: row.primary });
   }
 
-  for (const row of allRows) if (row.key === q) addRow(row, 0);
-  for (const row of allRows) if (row.key !== q && row.key.startsWith(q)) addRow(row, 1);
+  // 2026-08-21 (Susan, same pass): match a row's own AIRPORT NAME as well as
+  // its metro key. Two things were broken without it. Refocusing a field
+  // committed to a secondary airport returned nothing, since "Paris–Orly" is
+  // not a key ("paris" is), so the list never reopened. And the airport names
+  // themselves were unsearchable, typing "orly", "laguardia" or "midway" found
+  // nothing at all, even though each is a real bookable airport already in the
+  // table. Tokens are matched at word starts so "orly" reaches "Paris–Orly"
+  // without short fragments matching mid-word.
+  const nameOf = (row) => String(row.value || "").toLowerCase();
+  const tokensOf = (row) => nameOf(row).split(/[^a-z0-9]+/).filter(Boolean);
+  const exactName = (row) => nameOf(row) === q;
+  const prefixName = (row) => nameOf(row).startsWith(q) || tokensOf(row).some((tok) => tok.startsWith(q));
+
+  for (const row of allRows) if (row.key === q || exactName(row)) addRow(row, 0);
+  for (const row of allRows) if (row.key !== q && (row.key.startsWith(q) || prefixName(row))) addRow(row, 1);
   if (out.length === 0 && q.length >= 4) {
     let bestKeys = [], bestDist = Infinity;
     for (const row of allRows) {
@@ -1519,7 +1581,7 @@ function runOptimization(inputs, liveOffers) {
 if (typeof window !== "undefined") {
   window.TravelIntel = {
     runOptimization, computeWeights, upgradeTactics, bestPointsAnswers, toIATA, carrierSite, liveSearchUrls, scanSourceUrl, displayCity, displayCityName, priceIntelligence, suggestPriorities,
-    levenshtein, fuzzyMatchKey, suggestCities, lookupCoords,
+    levenshtein, fuzzyMatchKey, suggestCities, lookupCoords, parseIataSuffix, stripIataSuffix,
     ALLIANCES, ALL_CARRIERS, TRANSFER_PARTNERS, POINT_VALUATIONS, TRANSFER_BONUSES,
     DIMENSIONS, DIM_LABEL, fmtUSD,
     // exposed 2026-07-20 for tests/app.test.js, these were already pure,
