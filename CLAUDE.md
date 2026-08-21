@@ -1182,3 +1182,22 @@ covered in tests/app.test.js.
 Typo tolerance (`bankok` → BKK), country lookups (`Estonia` → TLL), whole-word
 matching (`greenville, south carolina` → GSP), and suggestion ranking (`par` → CDG,
 never Paraguay/ASU).
+
+## 2026-08-21 — Stopover field defaults
+
+**Susan:** *"change Nights at the stopover to default to 0. also remove the via:
+stopover field suggestion just leave it blank (its rarely used)"*
+
+- `#viaNights` `value="1"` → `value="0"`.
+- `#viaCity` placeholder `"e.g. Osaka (routes the trip through it)"` removed.
+
+Both are index.html only. Checked before changing: `viaNights` is **not** in
+`savePreferences()`'s field list — trip-specific fields deliberately never persist
+— so the HTML attribute is the only default and no stale localStorage value can
+override it. `collectInputs()` already reads it as
+`Math.max(0, parseInt(...) || 0)`, and the leg builder uses
+`addDaysIso(departDate, viaStopoverNights || 0)`, so 0 was always a supported
+value; it just wasn't the default. A 0-night stopover routes through the city on
+the same day rather than overnighting.
+
+The autocomplete stays attached to `#viaCity` — only the placeholder hint went.
