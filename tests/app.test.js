@@ -1175,4 +1175,95 @@ test("buildSweepDates: the cheapest-in-cap-safe defaults (30 days / 5-day interv
   assert.ok(r.samples.length <= 12, "default sweep should always fit comfortably inside a 20/day cap, leaving headroom for everything else");
 });
 
+/* ---------- transfer-bonus expiry (2026-08-21) ----------
+ * Both rows in TRANSFER_BONUSES ended "Jul 31, 2026" and were still being
+ * printed under the heading "Active transfer bonuses" on 2026-08-21,
+ * because nothing filtered on `ends`. activeTransferBonuses() is the
+ * filter; the table itself deliberately keeps expired rows as a record of
+ * what was copied and when, so these tests inject their own fixtures
+ * rather than leaning on whatever the real table holds today.
+ */
+
+const AUG_21 = Date.UTC(2026, 7, 21, 12, 0, 0); // 2026-08-21, midday UTC
+
+test("activeTransferBonuses: a bonus that ends in the future still renders", () => {
+  const list = [{ from: "Chase Ultimate Rewards", to: "Air Canada Aeroplan", bonus: "20%", ends: "Sep 30, 2026" }];
+  const active = T.activeTransferBonuses(AUG_21, list);
+  assert.equal(active.length, 1);
+  assert.equal(active[0].ends, "Sep 30, 2026");
+});
+
+test("activeTransferBonuses: a bonus that has already ended does NOT render", () => {
+  const list = [{ from: "Capital One", to: "EVA Air Infinity MileageLands", bonus: "30%", ends: "Jul 31, 2026" }];
+  assert.deepEqual(T.activeTransferBonuses(AUG_21, list), []);
+});
+
+test("activeTransferBonuses: boundary, a bonus ending TODAY is still active all day", () => {
+  const list = [{ from: "American Express Membership Rewards", to: "Virgin Atlantic Flying Club", bonus: "30%", ends: "Aug 21, 2026" }];
+  // start of the day, midday, and one millisecond before midnight all count
+  assert.equal(T.activeTransferBonuses(Date.UTC(2026, 7, 21, 0, 0, 0), list).length, 1);
+  assert.equal(T.activeTransferBonuses(AUG_21, list).length, 1);
+  assert.equal(T.activeTransferBonuses(Date.UTC(2026, 7, 21, 23, 59, 59, 999), list).length, 1);
+  // the very next day it is gone
+  assert.equal(T.activeTransferBonuses(Date.UTC(2026, 7, 22, 0, 0, 0), list).length, 0);
+});
+
+test("activeTransferBonuses: filters a mixed list down to only the live rows, order preserved", () => {
+  const list = [
+    { from: "A", to: "B", bonus: "30%", ends: "Jul 31, 2026" },  // expired
+    { from: "C", to: "D", bonus: "25%", ends: "Aug 21, 2026" },  // ends today
+    { from: "E", to: "F", bonus: "20%", ends: "Dec 1, 2026" },   // future
+  ];
+  assert.deepEqual(T.activeTransferBonuses(AUG_21, list).map((b) => b.from), ["C", "E"]);
+});
+
+test("activeTransferBonuses: an unparseable end date is kept visible, not silently dropped", () => {
+  // A typo in the hand-copied table is a data-entry error, not an expiry.
+  // The row keeps rendering with its date on screen, and
+  // scripts/check-content-drift.mjs fails on it so it gets fixed.
+  const list = [{ from: "A", to: "B", bonus: "30%", ends: "sometime in July" }];
+  assert.equal(T.activeTransferBonuses(AUG_21, list).length, 1);
+  assert.equal(T.parseBonusEnd("sometime in July"), null);
+});
+
+test("activeTransferBonuses: defaults to the real table and the real clock, and nothing expired survives it", () => {
+  const active = T.activeTransferBonuses();
+  const now = Date.now();
+  active.forEach((b) => {
+    const end = T.parseBonusEnd(b.ends);
+    assert.ok(end === null || end >= now, `"${b.from} -> ${b.to}" ends ${b.ends}, which is past; it must not be rendered as active`);
+  });
+});
+
+test("bestPointsAnswers: the bonuses it hands the UI are the filtered list, not the raw table", () => {
+  const bonuses = T.bestPointsAnswers({ creditCards: [] }).bonuses;
+  assert.deepEqual(bonuses, T.activeTransferBonuses());
+});
+
+/* ---------- valuation staleness (2026-08-21) ----------
+ * POINT_VALUATIONS is a hand-copied monthly table. copiedOn + valuationAge
+ * put its age on screen; scripts/check-content-drift.mjs is what fails the
+ * build once it passes staleAfterDays.
+ */
+
+test("valuationAge: reports whole days since copiedOn", () => {
+  const copied = Date.parse(T.POINT_VALUATIONS.copiedOn + "T00:00:00Z");
+  assert.equal(T.valuationAge(copied).days, 0);
+  assert.equal(T.valuationAge(copied + 10 * 86400000).days, 10);
+});
+
+test("valuationAge: not stale at the threshold, stale one day past it", () => {
+  const copied = Date.parse(T.POINT_VALUATIONS.copiedOn + "T00:00:00Z");
+  const limit = T.POINT_VALUATIONS.staleAfterDays;
+  assert.equal(T.valuationAge(copied + limit * 86400000).stale, false);
+  assert.equal(T.valuationAge(copied + (limit + 1) * 86400000).stale, true);
+});
+
+test("valuationAge: copiedOn and the human-readable asOf string describe the same date", () => {
+  assert.ok(
+    T.POINT_VALUATIONS.asOf.includes(T.POINT_VALUATIONS.copiedOn),
+    `POINT_VALUATIONS.asOf ("${T.POINT_VALUATIONS.asOf}") must contain copiedOn ("${T.POINT_VALUATIONS.copiedOn}") so the two can never drift apart`
+  );
+});
+
 console.log(`\n${passed} passed`);

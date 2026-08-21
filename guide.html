@@ -127,7 +127,7 @@ score        = &Sigma; (dimensionScore[d] &times; dimWeight[d])  for d in the 7 
       <p class="step-body">Every push to main auto-publishes, with no manual step. The backend is six small functions and nothing else. <code>fares</code> runs the live search; <code>scan-offers</code> holds the fares you scanned by hand. <code>watch</code> keeps the watched-trip list and <code>watch-check</code> re-searches it every other day. The last two exist for the Concert Radar link: <code>watched-trips</code> serves the privacy-scoped read, and <code>concert-match-check</code> sweeps weekly for shows that have just started matching. No framework, no build step, no database beyond one storage service.</p>
 
       <figure class="diagram">
-        <svg viewBox="0 0 800 220" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Claude and Cowork build the static site and push to GitHub, Netlify auto-deploys, and the live site runs the scoring engine entirely in the visitor's browser">
+        <svg viewBox="0 0 800 220" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Claude and Cowork build the static site and push to GitHub, Netlify auto-deploys, and the live site runs the scoring engine entirely in the visitor's browser. The server side is six small functions: the fare search, the hand-scanned fare store, watch, the every-other-day re-check, a weekly concert sweep, and the public watched-trips read vinylscout.org consumes.">
           <defs>
             <marker id="tiArr2" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="9" markerHeight="9" orient="auto">
               <path d="M0,0 L10,5 L0,10 z" fill="#8f8c7e"/>
@@ -154,7 +154,9 @@ score        = &Sigma; (dimensionScore[d] &times; dimWeight[d])  for d in the 7 
             <line x1="388" y1="74" x2="412" y2="74" stroke="#8f8c7e" stroke-width="2" marker-end="url(#tiArr2)"/>
             <line x1="592" y1="74" x2="616" y2="74" stroke="#8f8c7e" stroke-width="2" marker-end="url(#tiArr2)"/>
 
-            <text x="400" y="172" text-anchor="middle" font-size="15" fill="#4b4e5c">the engine ships in the static bundle: the only server calls are the fare search and the watcher</text>
+            <text x="400" y="160" text-anchor="middle" font-size="14" fill="#4b4e5c">the engine ships in the static bundle; the server side is six small functions:</text>
+            <text x="400" y="181" text-anchor="middle" font-size="14" fill="#4b4e5c">the fare search, the hand-scanned fare store, watch, and the every-other-day re-check,</text>
+            <text x="400" y="202" text-anchor="middle" font-size="14" fill="#4b4e5c">plus a weekly concert sweep and the public watched-trips read vinylscout.org consumes</text>
           </g>
         </svg>
         <figcaption>The real deploy path today.</figcaption>

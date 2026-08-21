@@ -1405,6 +1405,7 @@
   function renderPointsIntel(heldCards) {
     const T = window.TravelIntel;
     const V = T.POINT_VALUATIONS;
+    const vAge = T.valuationAge(); // age of the hand-copied table, shown on screen (2026-08-21)
     const held = heldCards || Array.from(document.querySelectorAll(".cc-check:checked")).map((el) => el.value);
     const airlines = Object.entries(V.airlines).sort((a, b) => b[1] - a[1]);
     const cards = Object.entries(V.cards).sort((a, b) => b[1] - a[1]);
@@ -1431,15 +1432,33 @@
       ? heldTransfer.map((cc) => `<div class="strategy-block"><h4>${cc} <span class="form-hint">(${T.TRANSFER_PARTNERS[cc].ratio} · TPG ${T.TRANSFER_PARTNERS[cc].value}¢)</span></h4><p>${T.TRANSFER_PARTNERS[cc].note}.</p></div>`).join("")
       : `<div class="strategy-block"><p>Check the cards you hold in Your Wallet above and this section shows the transfer map for exactly those currencies.</p></div>`;
 
-    const bonusRows = T.TRANSFER_BONUSES.map((b) => `
+    // 2026-08-21: renders T.activeTransferBonuses(), NOT T.TRANSFER_BONUSES.
+    // Nothing filtered on `ends` before, so two bonuses that expired on
+    // Jul 31, 2026 were still printing under "Active transfer bonuses"
+    // three weeks later. Expired rows stay in the table in app.js as the
+    // record of what was copied; they just don't render.
+    const bonusRows = T.activeTransferBonuses().map((b) => `
       <div class="strategy-block"><h4>${b.from} → ${b.to} <span class="tag" style="background:var(--good-dim);color:var(--good);">+${b.bonus}</span></h4><p>Ends ${b.ends}. A 30% bonus turns 100k points into 130k miles; if a redemption below was borderline, an active bonus is usually what tips it.</p></div>`).join("");
+
+    // Empty state, same rule as the fares: say what's actually known
+    // rather than imply "no bonus exists anywhere". The table is a manual
+    // monthly copy, so an empty list means nothing current has been
+    // copied in, which is a different fact and the reader needs it.
+    const lastEnded = T.TRANSFER_BONUSES
+      .slice()
+      .sort((a, b) => (T.parseBonusEnd(b.ends) || 0) - (T.parseBonusEnd(a.ends) || 0))[0];
+    const noBonuses = `<div class="strategy-block"><p>No bonus in the hand-copied table is still running${lastEnded ? `; the most recent one recorded ended ${lastEnded.ends}` : ""}. This table is copied by hand from The Points Guy's current-transfer-bonuses page each month, so an empty list means nothing current has been copied in, not that no bonus exists. Check TPG directly before assuming there's none on your route.</p></div>`;
 
     document.getElementById("points-intel").innerHTML = `
       <h3 class="eyebrow" style="margin:0 0 0.5rem;">Points intelligence</h3>
       <div class="card block">
         <div class="strategy-block">
           <h4>Which airline's points are worth the most right now</h4>
-          <p class="form-hint">Source: The Points Guy monthly valuations, ${V.asOf}. Hand-copied, dated, refreshed monthly, not a live feed.</p>
+          <p class="form-hint">Source: The Points Guy monthly valuations, ${V.asOf}. Hand-copied, dated, refreshed monthly, not a live feed. ${vAge.days == null
+            ? `The copy date on this table can't be read, so its age can't be shown here; re-copy it from TPG.`
+            : vAge.stale
+              ? `That copy is <strong>${vAge.days} days old</strong>, past the ${V.staleAfterDays}-day mark this table is held to, so read these as indicative until they're re-copied.`
+              : `That copy is ${vAge.days} days old.`}</p>
         </div>
         <div class="score-grid">${airlineRows}</div>
         <button type="button" class="ti-toggle" aria-expanded="false" onclick="var ex=this.parentElement.querySelectorAll('.pi-extra');var hidden=ex[0]&&ex[0].classList.contains('ti-hidden');ex.forEach(e=>e.classList.toggle('ti-hidden',!hidden));this.setAttribute('aria-expanded',hidden?'true':'false');this.textContent=hidden?'Show top 6 only ▴':'Show all ${airlines.length} programs ▾';">Show all ${airlines.length} programs ▾</button>
@@ -1450,7 +1469,7 @@
         <div class="strategy-block" style="margin-top:14px;"><h4>Your transfer options</h4></div>
         ${transferBlock}
         <div class="strategy-block" style="margin-top:14px;"><h4>Active transfer bonuses</h4></div>
-        ${bonusRows || '<div class="strategy-block"><p>No live bonuses recorded this month.</p></div>'}
+        ${bonusRows || noBonuses}
       </div>`;
   }
   renderPointsIntel();

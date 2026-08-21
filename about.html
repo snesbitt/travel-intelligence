@@ -43,7 +43,7 @@
       <div class="stat-tile"><div class="stat-tile__num">7</div><div class="stat-tile__label">scored dimensions</div></div>
       <div class="stat-tile"><div class="stat-tile__num">7</div><div class="stat-tile__label">weighted priorities</div></div>
       <div class="stat-tile"><div class="stat-tile__num">0</div><div class="stat-tile__label">accounts or logins</div></div>
-      <div class="stat-tile"><div class="stat-tile__num">6</div><div class="stat-tile__label">trips watched for you</div></div>
+      <div class="stat-tile"><div class="stat-tile__num">6</div><div class="stat-tile__label">watched-trip slots</div></div>
     </div>
 
     <nav class="pill-nav">
@@ -58,6 +58,7 @@
       <div class="about-section-head"><span class="about-num-badge">01</span><h3>what it is</h3></div>
       <p>You provide the trip: origin, destination, dates, cabin, budget, loyalty balances, and a ranked list of what matters most, whether that's lowest cost, most comfort, the best shot at an upgrade, the best use of miles, or some balance of those. The engine scores every candidate itinerary on seven dimensions: Cost, Comfort, Upgrade Potential, Award Value, Flexibility, Risk, and Time. Each is weighted by your ranking. What comes back is the reasoning, with the price attached to it.</p>
       <p>No single dimension decides the outcome. An itinerary that costs less but scores lower on your top-ranked priorities will not outrank a better-balanced one, and every result shows the exact weight each dimension received, so the trade-off stays visible.</p>
+      <p>The trip doesn't have to be a plain there-and-back. Two optional fields on the Trip card change its shape. <strong>Via</strong> routes the search through a stopover city; it starts blank and its nights field defaults to 0, which connects through that city the same day rather than overnighting, because most searches don't want a stopover at all. <strong>Return from a different city</strong> is an open-jaw: fly into one city, home from another, which is what you want when the middle of the trip happens overland. Either one turns the live fare search into a real multi-city query rather than two separate one-ways, and they compose, so a stopover on the way out and a different city home can be priced as one itinerary. The open-jaw carries into a watched trip too, so the every-other-day re-check prices the same shape you searched; a stopover doesn't, and watching one of those watches the plain route instead.</p>
     </div>
 
     <div class="about-section" id="the-stack">
@@ -77,15 +78,23 @@
         </ul>
       </div>
 
-      <p>The one gap left on the roadmap is live award-space search, seats.aero style. Until that ships, no mileage figure here is a bookable quote.</p>
+      <p>The one gap left is live award-space search, seats.aero style. Until that ships, no mileage figure here is a bookable quote.</p>
     </div>
 
     <div class="about-section" id="on-the-page">
       <div class="about-section-head"><span class="about-num-badge">03</span><h3>what's on the page</h3></div>
       <div class="page-card-grid">
         <div class="page-card">
+          <h4 class="page-card__title">Watched Trips</h4>
+          <p class="page-card__desc">Routes you asked the site to keep an eye on, up to six, each re-searched every other day. Shows the live fare floor and how far it has moved from the price on the day you started watching. Adding or removing one needs the shared edit key.</p>
+        </div>
+        <div class="page-card">
+          <h4 class="page-card__title">My Balances</h4>
+          <p class="page-card__desc">Your loyalty balances and transferable card points, with the date they were last updated. Typed in by hand, never synced from an account, and read straight back out of the page.</p>
+        </div>
+        <div class="page-card">
           <h4 class="page-card__title">Input Card</h4>
-          <p class="page-card__desc">Trip details, flight preferences, ranked priorities, credit cards, loyalty balances, and airport flexibility: everything the engine weighs.</p>
+          <p class="page-card__desc">Trip details, flight preferences, ranked priorities, credit cards, loyalty balances, and airport flexibility: everything the engine weighs. Optional Via and open-jaw fields turn it into a multi-city search.</p>
         </div>
         <div class="page-card">
           <h4 class="page-card__title">Executive Summary &amp; Best Recommendation</h4>
@@ -99,12 +108,20 @@
           <h4 class="page-card__title">Strategy blocks</h4>
           <p class="page-card__desc">Upgrade, Award, and Purchase Timing guidance, plus up to eight recommendations specific to your inputs.</p>
         </div>
+        <div class="page-card">
+          <h4 class="page-card__title">Date-Range Score Sweep</h4>
+          <p class="page-card__desc">Re-prices the same trip across a 30 to 60 day window at 3 to 5 day intervals and charts price and score per departure date, so the cheapest date shows up in one pass instead of ten re-runs. Every sample is a real live search, so the number of samples is capped per click and the interval widens, and says it widened, rather than quietly sweeping less than you asked for.</p>
+        </div>
+        <div class="page-card">
+          <h4 class="page-card__title">Points Intelligence</h4>
+          <p class="page-card__desc">Which airline programs and card currencies are worth the most per point, the transfer map for the cards you actually hold, and any transfer bonus still running. The valuations are hand-copied from The Points Guy with their copy date and age shown; a bonus whose end date has passed drops off the list rather than sitting there labeled active.</p>
+        </div>
       </div>
     </div>
 
     <div class="about-section" id="roadmap-link">
       <div class="about-section-head"><span class="about-num-badge">04</span><h3>roadmap</h3></div>
-      <p>Built in phases, matching the rest of the portfolio. The scoring framework, the full page set, the live fare backend, the custom domain, the fare watcher, and the Concert Radar cross-check are all live. Award-space search is next. The full <a href="/roadmap" style="text-decoration:underline;">roadmap</a> and the <a href="/guide" style="text-decoration:underline;">guide</a> spell out what's computed today versus planned.</p>
+      <p>Built in phases, matching the rest of the portfolio. Every phase on the roadmap is live, from the scoring framework and the full page set through the live fare backend, the custom domain, the date-range sweep, the fare watcher, the Concert Radar cross-check, and exact-match city fields. Nothing on it is pending. Award-space search is the one thing missing, and it isn't a phase yet, because it needs an availability source this project doesn't have. The full <a href="/roadmap" style="text-decoration:underline;">roadmap</a> and the <a href="/guide" style="text-decoration:underline;">guide</a> spell out what each shipped phase actually computes.</p>
     </div>
 
     <div class="about-section" id="wont-do">

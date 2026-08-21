@@ -159,7 +159,7 @@ export function planAddTrip(trips, t) {
   const id = buildWatchId(t);
   if (trips.some((x) => x.id === id)) return { action: "duplicate", trips };
   if (trips.length >= MAX_TRIPS) {
-    return { action: "error", error: `Watch cap is ${MAX_TRIPS} trips (each costs one live search per day, quota discipline). Stop watching one first.`, status: 409 };
+    return { action: "error", error: `Watch cap is ${MAX_TRIPS} trips (each costs one live search every other day, quota discipline). Stop watching one first.`, status: 409 };
   }
   return { action: "add", trips: trips.concat([normalizeTrip(t, id)]) };
 }

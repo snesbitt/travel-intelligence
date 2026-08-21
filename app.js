@@ -103,6 +103,15 @@ const TRANSFER_PARTNERS = {
 // most" answer, straight from the source Susan asked to pull in.
 const POINT_VALUATIONS = {
   asOf: "July 2026 (TPG monthly valuations, copied 2026-07-18)",
+  // 2026-08-21: asOf was a prose string only, so nothing on screen and
+  // nothing in the test suite could tell a two-week-old copy from a
+  // six-month-old one against a stated monthly refresh. copiedOn is the
+  // same date in a machine-readable form; the panel shows the age next
+  // to the figures (valuationAge below) and scripts/check-content-drift.
+  // mjs fails once it passes staleAfterDays, so this can't drift quietly
+  // again. Bump BOTH strings when the table is re-copied from TPG.
+  copiedOn: "2026-07-18",
+  staleAfterDays: 45, // a monthly refresh plus two weeks of slack
   cards: {
     "Bilt Rewards": 2.2, "Chase Ultimate Rewards": 2.05, "American Express Membership Rewards": 2.0,
     "Citi ThankYou": 1.9, "Capital One": 1.85, "Wells Fargo": 1.75,
@@ -117,13 +126,61 @@ const POINT_VALUATIONS = {
   },
 };
 
-// Active transfer bonuses, hand-copied 2026-07-18 from TPG's current-
-// transfer-bonuses page; these expire and change monthly, so each entry
-// carries its end date and the UI must always show it.
+// Transfer bonuses, hand-copied 2026-07-18 from TPG's current-transfer-
+// bonuses page; these expire and change monthly, so each entry carries
+// its end date and the UI must always show it.
+//
+// 2026-08-21: entries are NEVER deleted when they expire -- the table is
+// the record of what was copied and when. Expired rows are filtered out
+// at render time by activeTransferBonuses() below instead. Before that
+// filter existed, both rows below (ends "Jul 31, 2026") were still being
+// printed under the heading "Active transfer bonuses" three weeks after
+// they ended: a stale value presented as live, the exact failure Phase 9
+// exists to prevent.
 const TRANSFER_BONUSES = [
   { from: "American Express Membership Rewards", to: "Virgin Atlantic Flying Club", bonus: "30%", ends: "Jul 31, 2026" },
   { from: "Capital One", to: "EVA Air Infinity MileageLands", bonus: "30%", ends: "Jul 31, 2026" },
 ];
+
+const BONUS_MONTHS = { jan: 0, feb: 1, mar: 2, apr: 3, may: 4, jun: 5, jul: 6, aug: 7, sep: 8, oct: 9, nov: 10, dec: 11 };
+
+// Parses the "Jul 31, 2026" shape TPG prints and the table copies
+// verbatim. Returns the LAST instant of that day in UTC, because a bonus
+// runs through the end of its end date: one ending today is still active
+// today. Returns null for anything it can't parse, which is a data-entry
+// error rather than an expiry -- the caller keeps such a row visible (its
+// date is printed next to it either way) and check-content-drift.mjs
+// fails on it so it gets fixed instead of silently vanishing.
+function parseBonusEnd(ends) {
+  const m = /^([A-Za-z]{3,9})\s+(\d{1,2}),\s*(\d{4})$/.exec(String(ends == null ? "" : ends).trim());
+  if (!m) return null;
+  const mo = BONUS_MONTHS[m[1].slice(0, 3).toLowerCase()];
+  if (mo === undefined) return null;
+  return Date.UTC(Number(m[3]), mo, Number(m[2]), 23, 59, 59, 999);
+}
+
+// The only list any UI should render. `now` and `bonuses` are injectable
+// for the tests; both default to real-now and the real table above.
+function activeTransferBonuses(now, bonuses) {
+  const list = bonuses || TRANSFER_BONUSES;
+  const t = now === undefined || now === null ? Date.now() : (now instanceof Date ? now.getTime() : Number(now));
+  return list.filter((b) => {
+    const end = parseBonusEnd(b && b.ends);
+    return end === null ? true : end >= t;
+  });
+}
+
+// Whole days since the valuations table was hand-copied, plus whether
+// that is past POINT_VALUATIONS.staleAfterDays. Surfaced next to the
+// figures themselves, so the age is on screen rather than inferrable
+// from a prose as-of string.
+function valuationAge(now) {
+  const t = now === undefined || now === null ? Date.now() : (now instanceof Date ? now.getTime() : Number(now));
+  const copied = Date.parse(POINT_VALUATIONS.copiedOn + "T00:00:00Z");
+  if (!Number.isFinite(copied)) return { days: null, stale: true };
+  const days = Math.floor((t - copied) / 86400000);
+  return { days, stale: days > POINT_VALUATIONS.staleAfterDays };
+}
 
 // Hand-maintained coordinates for common origin/destination cities and
 // airport codes, used to compute a real great-circle distance per route.
@@ -1393,7 +1450,7 @@ function bestPointsAnswers(inputs) {
   const airlines = Object.entries(POINT_VALUATIONS.airlines).sort((a, b) => b[1] - a[1]);
   const cards = Object.entries(POINT_VALUATIONS.cards).sort((a, b) => b[1] - a[1]);
   const held = (inputs.creditCards || []).filter((c) => TRANSFER_PARTNERS[c]);
-  return { asOf: POINT_VALUATIONS.asOf, topAirlines: airlines.slice(0, 6), allAirlines: airlines, topCards: cards, heldCards: held, bonuses: TRANSFER_BONUSES };
+  return { asOf: POINT_VALUATIONS.asOf, topAirlines: airlines.slice(0, 6), allAirlines: airlines, topCards: cards, heldCards: held, bonuses: activeTransferBonuses() };
 }
 
 /* ---------- insights ---------- */
@@ -1583,6 +1640,11 @@ if (typeof window !== "undefined") {
     runOptimization, computeWeights, upgradeTactics, bestPointsAnswers, toIATA, carrierSite, liveSearchUrls, scanSourceUrl, displayCity, displayCityName, priceIntelligence, suggestPriorities,
     levenshtein, fuzzyMatchKey, suggestCities, lookupCoords, parseIataSuffix, stripIataSuffix,
     ALLIANCES, ALL_CARRIERS, TRANSFER_PARTNERS, POINT_VALUATIONS, TRANSFER_BONUSES,
+    // exposed 2026-08-21: the points panel must render
+    // activeTransferBonuses(), never TRANSFER_BONUSES directly, or expired
+    // rows print as active again. valuationAge/parseBonusEnd are here for
+    // tests/app.test.js and scripts/check-content-drift.mjs.
+    activeTransferBonuses, parseBonusEnd, valuationAge,
     DIMENSIONS, DIM_LABEL, fmtUSD,
     // exposed 2026-07-20 for tests/app.test.js, these were already pure,
     // just not on the public surface (nothing here is DOM-touching).

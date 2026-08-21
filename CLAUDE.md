@@ -1201,3 +1201,107 @@ value; it just wasn't the default. A 0-night stopover routes through the city on
 the same day rather than overnighting.
 
 The autocomplete stays attached to `#viaCity` — only the placeholder hint went.
+
+## 2026-08-21, later still — expired transfer bonuses rendering as "Active", plus a stale-docs sweep and five new drift checks
+
+Started as a documentation pass and turned up one real data bug first.
+
+### The bug: two dead bonuses printing under "Active transfer bonuses"
+
+Both rows in `TRANSFER_BONUSES` (app.js) carry `ends: "Jul 31, 2026"`. Nothing
+anywhere filtered on `ends`, so on 2026-08-21 the Points Intelligence panel was
+still printing both under the heading **Active transfer bonuses** — 21 days after
+they ended. Same class of failure as the synthetic fares deleted in Phase 9 and the
+wrong-airport resolution fixed this morning: a dead value wearing a live one's
+clothes.
+
+- `parseBonusEnd()` reads the `"Jul 31, 2026"` shape the table copies verbatim and
+  returns the **last instant of that day in UTC** — a bonus ending today is active
+  all of today. An unparseable date returns `null` and the row stays visible (a
+  typo is a data-entry error, not an expiry); the drift check fails on it so it
+  gets fixed rather than silently vanishing.
+- `activeTransferBonuses(now, bonuses)` is the filter, both arguments injectable
+  for tests. `bestPointsAnswers()` and index.html's `renderPointsIntel()` both go
+  through it. **The expired rows are NOT deleted from the table** — the table is
+  the record of what was copied and when.
+- Empty state, which is what the panel shows today: it says no bonus in the
+  hand-copied table is still running, names the date the most recent one ended, and
+  says that an empty list means nothing current has been copied in, not that no
+  bonus exists. Same rule as the fares: state what is actually known.
+- 8 new tests in tests/app.test.js (active renders, expired doesn't, ends-today
+  boundary at three times of day plus the day after, mixed list, unparseable kept,
+  and the real table against the real clock). 107 → 117 in that file.
+
+### Valuation staleness made self-reporting
+
+`POINT_VALUATIONS.asOf` was prose only ("July 2026 … copied 2026-07-18") against a
+stated monthly refresh, so nothing could tell a two-week-old copy from a six-month
+one. Added `copiedOn: "2026-07-18"` and `staleAfterDays: 45` (monthly plus two
+weeks of slack) and `valuationAge()`. The panel now prints the age next to the
+figures, and past 45 days says to read them as indicative. The build-failing half
+lives in the drift check, so **this will start failing on 2026-09-02 unless the
+table is re-copied from TPG** — that is the point, not a bug. Bump `asOf` and
+`copiedOn` together; a test asserts `asOf` contains `copiedOn`.
+
+### Stale user-facing copy fixed
+
+| where | was | now |
+|---|---|---|
+| roadmap.html Phase 8 | "a metered **daily** search" | "a metered live search **every other day**" |
+| watch.mjs cap error | "each costs one live search **per day**" | "…**every other day**" |
+| guide.html SVG caption | "the only server calls are the fare search and the watcher" | three lines naming all six functions, including the public `watched-trips` read vinylscout.org consumes, which the caption had omitted entirely |
+| about.html stat tile | `6` / "trips watched for you" | `6` / "watched-trip slots" (6 is `MAX_TRIPS`, a cap, never a live count — the real count in data/concert-match-log.json is 2) |
+| about.html §04 | "spell out what's computed today versus planned" | every phase is live and nothing is planned; award-space search is named as missing and explicitly *not* a phase |
+| about.html §02 | "The one gap left **on the roadmap**" | "The one gap left" — it was never a roadmap item |
+
+**Item 5 judgment call:** the choice was to correct the sentence or add an
+award-space roadmap entry. Corrected the sentence. Adding a phase would assert a
+commitment to a paid availability source (seats.aero) that Susan has not signed off
+on, and the standing rule here is that anything needing a new credential or spend
+waits for her explicit yes. Deleting a false claim needs no such approval; making a
+promise on the roadmap does.
+
+Also: about.html's "what's on the page" listed 4 sections and omitted 4 live ones —
+Watched Trips, My Balances, the Date-Range Score Sweep, and Points Intelligence.
+All four added as `page-card`s, in page order. And open-jaw/stopover routing, live
+since 2026-07-30 and 2026-08-11, appeared **nowhere** public; described now in §01,
+including today's defaults (Via blank, 0 nights) and the honest limit that an
+open-jaw carries into a watched trip while a stopover does not.
+
+### Five new checks in scripts/check-content-drift.mjs
+
+It loads app.js the same way the tests do (window stub + `createRequire`), so it
+checks real behavior, not just regexes over source:
+
+3. No bonus `activeTransferBonuses()` returns may be past its `ends`; every
+   `ends` must parse; index.html must not map `T.TRANSFER_BONUSES` directly again.
+4. `POINT_VALUATIONS` age vs `staleAfterDays`, and `asOf` vs `copiedOn`.
+5. "N small functions" prose in guide/about/roadmap vs the real
+   `netlify/functions/*.mjs` listing (6).
+6. **Every cadence word describing a scheduled job**, in all three pages, against
+   the real crons. Prose is split into clauses (tags → newlines, then sentence
+   punctuation and ", and "-style joins) because one sentence routinely describes
+   two different jobs. A clause about the concert sweep must say weekly
+   (`0 12 * * 1`); a clause about the fare watcher must match the **44-hour floor
+   in watch-check.mjs, not its daily cron** — the check derives "every other day"
+   from that floor, so changing the floor changes what the pages are required to
+   say. "monthly" is exempted in a clause about the SerpApi quota, which is a real
+   monthly number and not a cadence.
+7. `MAX_TRIPS` (watch.mjs, source of truth) vs the about.html stat tile and vs
+   "capped at N trips" / "holds up to N trips" in prose.
+
+### Verified
+
+`npm test` green — 234 assertions across the suite, drift check clean. Each of the
+five new checks was then **deliberately broken one at a time and confirmed to fail
+with a message that names the fix** (roadmap back to "daily", concert sweep called
+"daily", function count set to five, tile set to 3, render path reverted to the raw
+table, `copiedOn` pushed 90 days back, and the filter's comparison neutered), then
+restored and the suite re-run.
+
+### One correction to the brief that prompted this
+
+Commit `040b799` ("Fix stale docs: fare-watching cadence…") touched **about.html
+only**, not guide.html. guide.html's prose was already correct by other means; the
+only thing wrong in it was the SVG caption, which that commit could not have missed
+because it never opened the file.
