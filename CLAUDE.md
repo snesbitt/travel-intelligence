@@ -1305,3 +1305,26 @@ Commit `040b799` ("Fix stale docs: fare-watching cadence…") touched **about.ht
 only**, not guide.html. guide.html's prose was already correct by other means; the
 only thing wrong in it was the SVG caption, which that commit could not have missed
 because it never opened the file.
+
+## 2026-08-21 (later still) — deploy-freshness check
+
+Added portfolio-wide after vinylscout.org was found serving a **2026-08-14**
+deploy, 8 days stale. Cause: `locked: true` on the published deploy. Netlify pins
+a locked deploy as the live one, so builds run and nothing publishes over them.
+Netlify's API said `state: "ready"` the whole time and was correct — that deploy
+was ready, it just wasn't the one being served.
+
+What made it invisible: every check across these sites watches whether **data** is
+fresh. None watched whether the deployed **site** matches the repo.
+
+`scripts/check-deploy-fresh.mjs` fetches each page in
+`scripts/deploy-fresh.config.json` and compares it byte-for-byte with the file on
+disk. These sites publish the repo root as-is, so a mismatch means the live site
+is not this commit. It reads what a visitor reads rather than asking the API,
+because the API answer is what hid this.
+
+Not in `npm test` — that suite is offline by design. `npm run check:deploy`, or
+`--wait` to poll for three minutes right after a push.
+
+This site was NOT affected; the check is here so the class of failure is covered
+everywhere rather than only where it happened.

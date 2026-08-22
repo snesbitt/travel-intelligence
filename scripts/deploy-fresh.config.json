@@ -1,0 +1,10 @@
+{
+  "baseUrl": "https://travelintelligence.org",
+  "files": [
+    "index.html",
+    "about.html",
+    "guide.html",
+    "roadmap.html"
+  ],
+  "note": "Pages compared byte-for-byte against the live site. Add a page here when it becomes something a reader relies on; every file listed must exist at the repo root and be served at the same path."
+}
