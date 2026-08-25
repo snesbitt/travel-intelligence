@@ -63,13 +63,13 @@
 
     <div class="about-section" id="the-stack">
       <div class="about-section-head"><span class="about-num-badge">02</span><h3>the stack</h3></div>
-      <p>Plain web pages, running the same scoring engine in your browser every time, so the same trip and the same fares always produce the same answer. Six small pieces of server code handle what a browser can't do alone. One searches live fares (<code>/api/fares</code>). A second saves a route you ask it to watch, protected by a shared edit key so only you can add or remove one, and a third re-checks those watched routes every other day. The last three store fares you scan yourself from Kayak or Booking, expose a privacy-scoped read of your watched trips (destination, coordinates, and dates only) for Vinyl Scout's Concert Radar, and sweep once a week for newly matching shows on trips you're already watching.</p>
+      <p>Plain web pages, running the same scoring engine in your browser every time, so the same trip and the same fares always produce the same answer. Five small pieces of server code handle what a browser can't do alone. One searches live fares (<code>/api/fares</code>). A second saves a route you ask it to watch, protected by a shared edit key so only you can add or remove one, and a third re-checks those watched routes every other day. The last two store fares you scan yourself from Kayak or Booking, and expose a privacy-scoped read of your watched trips (destination, coordinates, and dates only) for Vinyl Scout's Concert Radar.</p>
       <p>Trip details reach the fare search only when you run one. Cabin and traveler count go with them. Your saved wallet, the cards and balances, never leaves your browser. Mileage and award figures are hand-maintained, distance-scaled planning ranges, because award availability isn't searched yet, and the screen labels them that way wherever they appear.</p>
 
       <div class="stack-col this-site">
         <h4>This site, today</h4>
         <ul>
-          <li>Static pages, six small server functions, no build step</li>
+          <li>Static pages, five small server functions, no build step</li>
           <li>Live Google Flights fares, plus fares you scan yourself from Kayak or Booking</li>
           <li>Every-other-day fare re-check for watched trips, with a health status log</li>
           <li>Watching a trip is protected by a shared edit key, enforced server-side, so a shared link can't quietly spend your watch slots</li>
