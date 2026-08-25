@@ -10,7 +10,7 @@
 // Run via `node tests/concert-match-check.test.mjs` (wired into `npm test`).
 
 import assert from "node:assert/strict";
-import { computeMatchUpdate, matchKey, resolveTripCoords } from "../netlify/functions/concert-match-check.mjs";
+import { computeMatchUpdate, matchKey } from "../scripts/concert-match-check.mjs";
 
 let passed = 0;
 function test(name, fn) {
@@ -91,28 +91,7 @@ test("computeMatchUpdate: the same artist appearing twice in one run (two shows)
   assert.deepEqual(result.newThisWeek, ["Ziggy Marley"]);
 });
 
-/* ---------- resolveTripCoords ---------- */
-
-const CITY_COORDS = { ord: [41.98, -87.9], "chicago": [41.98, -87.9] };
-
-test("resolveTripCoords: resolves via destIata first", () => {
-  const coords = resolveTripCoords({ destIata: "ORD", destination: "Chicago" }, CITY_COORDS);
-  assert.deepEqual(coords, [41.98, -87.9]);
-});
-
-test("resolveTripCoords: falls back to destination name if destIata doesn't resolve", () => {
-  const coords = resolveTripCoords({ destIata: "ZZZ", destination: "Chicago" }, CITY_COORDS);
-  assert.deepEqual(coords, [41.98, -87.9]);
-});
-
-test("resolveTripCoords: unmapped on both, returns null, never guesses", () => {
-  const coords = resolveTripCoords({ destIata: "ZZZ", destination: "Nowhereville" }, CITY_COORDS);
-  assert.equal(coords, null);
-});
-
-test("resolveTripCoords: null/undefined trip is safe", () => {
-  assert.equal(resolveTripCoords(null, CITY_COORDS), null);
-  assert.equal(resolveTripCoords(undefined, CITY_COORDS), null);
-});
-
-console.log(`\n${passed} passed`);
+/* resolveTripCoords tests removed 2026-08-25: coordinate resolution
+   moved to watched-trips.mjs (the API now returns lat/lon directly),
+   already covered by buildWatchedTripsView tests in
+   tests/watched-trips.test.mjs. */

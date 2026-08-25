@@ -23,7 +23,7 @@ const roadmap = readFileSync("roadmap.html", "utf8");
 const indexHtml = readFileSync("index.html", "utf8");
 const watchMjs = readFileSync("netlify/functions/watch.mjs", "utf8");
 const watchCheckMjs = readFileSync("netlify/functions/watch-check.mjs", "utf8");
-const concertCheckMjs = readFileSync("netlify/functions/concert-match-check.mjs", "utf8");
+const concertCronYml = readFileSync(".github/workflows/concert-match-check.yml", "utf8");
 
 // app.js is a browser script: give it a window, then read the object it
 // attaches, exactly the way tests/app.test.js loads it. Nothing here
@@ -228,7 +228,7 @@ function clausesOf(html) {
 {
   const floorMatch = watchCheckMjs.match(/now - last < (\d+) \* 3600 \* 1000/);
   const watchCron = watchCheckMjs.match(/export const config = \{ schedule: "([^"]+)" \}/);
-  const concertCron = concertCheckMjs.match(/export const config = \{ schedule: "([^"]+)" \}/);
+  const concertCron = concertCronYml.match(/cron:\s*"([^"]+)"/);
 
   if (!floorMatch || !watchCron) {
     failures.push(
@@ -236,7 +236,7 @@ function clausesOf(html) {
     );
   } else if (!concertCron) {
     failures.push(
-      "netlify/functions/concert-match-check.mjs: could not read its cron (update this check's regex).",
+      ".github/workflows/concert-match-check.yml: could not read its cron (update this check's regex).",
     );
   } else {
     const floorHours = Number(floorMatch[1]);
@@ -244,7 +244,7 @@ function clausesOf(html) {
     const concertWeekly = /^\S+ \S+ \* \* [0-6]$/.test(concertCron[1]);
     if (!concertWeekly) {
       failures.push(
-        `netlify/functions/concert-match-check.mjs runs on "${concertCron[1]}", which is no longer a once-a-week schedule, but guide.html and about.html both call it a weekly sweep. Update the pages and this check together.`,
+        `.github/workflows/concert-match-check.yml runs on "${concertCron[1]}", which is no longer a once-a-week schedule, but guide.html and about.html both call it a weekly sweep. Update the pages and this check together.`,
       );
     }
     // Cadence vocabulary. "monthly" is dropped from a clause that is
