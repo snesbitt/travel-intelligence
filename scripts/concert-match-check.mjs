@@ -150,7 +150,15 @@ async function main() {
   }
 }
 
-main().catch((err) => {
-  console.error('concert-match-check.mjs failed:', err.message);
-  process.exit(1);
-});
+// Only auto-run when executed directly (node scripts/concert-match-check.mjs
+// or via the GitHub Actions workflow) -- not when imported, e.g. by
+// tests/concert-match-check.test.mjs for computeMatchUpdate/matchKey.
+// Without this guard, importing the module for its pure functions would
+// also kick off a real network run and fail the whole test suite outside
+// an environment with live API access.
+if (import.meta.url === `file://${process.argv[1]}`) {
+  main().catch((err) => {
+    console.error('concert-match-check.mjs failed:', err.message);
+    process.exit(1);
+  });
+}
