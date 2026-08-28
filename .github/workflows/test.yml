@@ -62,16 +62,32 @@ jobs:
         run: node scripts/check-integrity.mjs
         continue-on-error: true
 
+      - name: Smoke test live functions
+        id: smoke
+        if: github.event_name == 'schedule'
+        # Pings each function's safe, side-effect-free path (a health
+        # ping or a plain read). check-deploy-fresh.mjs above only
+        # confirms the STATIC pages are the right bytes; this confirms
+        # the FUNCTIONS behind them are actually responding, the same
+        # "a working page can front a 502'd backend" class of bug
+        # netlify.toml's included_files fix (2026-08-28) addressed for
+        # watched-trips.mjs specifically. Skips watch-check.mjs and
+        # concert-match-check.mjs on purpose: schedule-only, no safe
+        # read-only path to ping without triggering a real search/write.
+        run: node scripts/smoke.mjs
+        continue-on-error: true
+
       - name: Open or update tracking issue if a scheduled site check failed
         if: >-
           github.event_name == 'schedule' &&
-          (steps.deploy_fresh.outcome == 'failure' || steps.integrity.outcome == 'failure')
+          (steps.deploy_fresh.outcome == 'failure' || steps.integrity.outcome == 'failure' || steps.smoke.outcome == 'failure')
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
           TITLE="Scheduled site-health check failed"
           BODY="- Deploy freshness: ${{ steps.deploy_fresh.outcome }}
           - Watched-trips integrity: ${{ steps.integrity.outcome }}
+          - Function smoke test: ${{ steps.smoke.outcome }}
 
           Run: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
           EXISTING=$(gh issue list --repo "$GITHUB_REPOSITORY" --state open --json number,title \
@@ -85,5 +101,5 @@ jobs:
       - name: Fail the job if a scheduled site check failed
         if: >-
           github.event_name == 'schedule' &&
-          (steps.deploy_fresh.outcome == 'failure' || steps.integrity.outcome == 'failure')
+          (steps.deploy_fresh.outcome == 'failure' || steps.integrity.outcome == 'failure' || steps.smoke.outcome == 'failure')
         run: exit 1
