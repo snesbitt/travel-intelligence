@@ -36,10 +36,47 @@ export function computeMatchUpdate(prev, matches, nowIso) {
   };
 }
 
-async function fetchJSON(url, opts) {
-  const res = await fetch(url, opts);
-  if (!res.ok) throw new Error('GET ' + url + ' failed: HTTP ' + res.status);
-  return await res.json();
+// Small bounded retry around a single external fetch: up to 3 attempts
+// total, short fixed backoff between them. Same fix and same reasoning
+// as watch-check.mjs's fetchWithRetry (2026-08-28): this script's two
+// external calls (this site's own /api/watched-trips, Vinyl Scout's
+// /api/artists-playing) previously failed the whole trip (or the whole
+// run, for the watched-trips call) on a single transient blip, when a
+// second attempt one beat later would likely have succeeded.
+//
+// timeoutMs (optional) gets its OWN fresh AbortController per attempt --
+// deliberately not a single AbortSignal passed in from the caller, which
+// would abort once and poison every retry after it (an aborted signal
+// stays aborted; a second fetch given the same signal fails instantly,
+// defeating the retry). Callers that need a per-call timeout pass
+// timeoutMs instead of building their own AbortController.
+async function fetchJSON(url, opts, attempts, delayMs) {
+  opts = opts || {};
+  attempts = attempts || 3;
+  delayMs = delayMs || 500;
+  const timeoutMs = opts.timeoutMs;
+  let lastErr;
+  for (let i = 0; i < attempts; i++) {
+    let controller, timeout;
+    const fetchOpts = { ...opts };
+    delete fetchOpts.timeoutMs;
+    if (timeoutMs) {
+      controller = new AbortController();
+      fetchOpts.signal = controller.signal;
+      timeout = setTimeout(function () { controller.abort(); }, timeoutMs);
+    }
+    try {
+      const res = await fetch(url, fetchOpts);
+      if (res.ok) return await res.json();
+      lastErr = new Error('GET ' + url + ' failed: HTTP ' + res.status);
+    } catch (e) {
+      lastErr = e;
+    } finally {
+      if (timeout) clearTimeout(timeout);
+    }
+    if (i < attempts - 1) await new Promise(function (r) { setTimeout(r, delayMs); });
+  }
+  throw lastErr;
 }
 
 async function loadPreviousState() {
@@ -90,14 +127,7 @@ async function main() {
       u.searchParams.set('lon', trip.lon);
       u.searchParams.set('date_start', trip.dateStart);
       u.searchParams.set('date_end', trip.dateEnd || trip.dateStart);
-      const controller = new AbortController();
-      const timeout = setTimeout(function () { controller.abort(); }, 8000);
-      let j;
-      try {
-        j = await fetchJSON(u.toString(), { signal: controller.signal });
-      } finally {
-        clearTimeout(timeout);
-      }
+      const j = await fetchJSON(u.toString(), { timeoutMs: 8000 });
       const matches = Array.isArray(j.matches) ? j.matches : [];
       const next = computeMatchUpdate(prevAll[trip.id], matches, nowIso);
       nextAll[trip.id] = next;

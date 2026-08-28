@@ -14,6 +14,16 @@
 // (cheapest offer's total price + carrier), not the engine's weighted
 // winner, which is computed client-side; the Watched Trips card labels
 // it exactly that way. History capped at 30 checks per trip.
+//
+// 2026-08-28: the SerpApi search below now goes through a small bounded
+// retry (fetchWithRetry, 3 attempts, short backoff) instead of a single
+// bare fetch(). This is a scheduled job with a real daily quota budget
+// (see the QUOTA MATH comment in watch.mjs) -- a single transient
+// network blip or SerpApi 5xx used to just silently skip that trip for
+// the whole ~44h cycle (the existing try/catch already swallowed it,
+// "one bad trip never blocks the others"), which is the right failure
+// mode for a REAL error but the wrong one for a blip that would have
+// succeeded on a second try one second later. No new dependency.
 
 import { getStore } from "@netlify/blobs";
 // 2026-08-28: extracted to lib/cabin-class.mjs (was defined identically
@@ -22,6 +32,29 @@ import { getStore } from "@netlify/blobs";
 import { CABIN_CLASS } from "./lib/cabin-class.mjs";
 
 export const config = { schedule: "0 14 * * *" };
+
+// Small bounded retry around a single external fetch: up to 3 attempts
+// total, short fixed backoff between them (not exponential -- 3
+// attempts at a flat 500ms is plenty for a transient blip and keeps one
+// stuck trip from eating too much of the scheduled function's own time
+// budget). Retries on both a thrown error (network failure/timeout) and
+// a non-2xx response (SerpApi 5xx/429 are exactly the transient case
+// this exists for); a genuine 4xx from a malformed request would also
+// retry and just fail the same way three times, which is harmless.
+async function fetchWithRetry(url, attempts = 3, delayMs = 500) {
+  let lastErr;
+  for (let i = 0; i < attempts; i++) {
+    try {
+      const res = await fetch(url);
+      if (res.ok) return res;
+      lastErr = new Error("HTTP " + res.status);
+    } catch (e) {
+      lastErr = e;
+    }
+    if (i < attempts - 1) await new Promise((r) => setTimeout(r, delayMs));
+  }
+  throw lastErr;
+}
 
 export default async () => {
   const store = getStore({ name: "watched-trips", consistency: "strong" });
@@ -99,8 +132,7 @@ export default async () => {
     }
 
     try {
-      const res = await fetch("https://serpapi.com/search?" + q);
-      if (!res.ok) continue;
+      const res = await fetchWithRetry("https://serpapi.com/search?" + q);
       const j = await res.json();
       const raw = [...(j.best_flights || []), ...(j.other_flights || [])].filter((o) => o.price);
       if (!raw.length) continue;
