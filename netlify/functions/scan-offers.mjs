@@ -13,6 +13,18 @@
 // Freshness is the reader's job: the frontend ignores scans older than
 // SCAN_TTL_H (exported for tests, 24h) rather than this file deleting
 // anything.
+//
+// 2026-08-28: POST is now gated by the same X-Edit-Key / EDIT_SECRET
+// pattern watch.mjs (v4, 2026-08-08) uses -- checkWriteAuth() below is
+// the identical check, copied rather than imported (this repo keeps
+// cross-function sharing in netlify/functions/lib/, and a 4-line auth
+// check didn't earn a new lib file). Closes the same gap watch.mjs v4
+// closed there: this store was described above as "no auth, nothing
+// sensitive," but it's still a write anyone with the site URL could
+// spam or pollute (fake offers feeding the optimizer's merge), and
+// scan-offers.mjs was the one write endpoint watch.mjs's v4 pass never
+// touched. GET stays public, same reasoning as watch.mjs: reading scans
+// was never the risk.
 
 export const SCAN_TTL_H = 24;
 const MAX_OFFERS = 12;
@@ -24,6 +36,15 @@ function json(body, status) {
     status: status || 200,
     headers: { "Content-Type": "application/json", "Cache-Control": "no-store" },
   });
+}
+
+// Same as watch.mjs's checkWriteAuth: fails closed if EDIT_SECRET is
+// unset, a misconfigured deploy rejects writes rather than silently
+// accepting them from anyone.
+export function checkWriteAuth(req) {
+  const expected = process.env.EDIT_SECRET;
+  const provided = req.headers.get("x-edit-key");
+  return !!(expected && provided && provided === expected);
 }
 
 // Pure validator, exported for tests: returns a sanitized record or null.
@@ -44,6 +65,13 @@ export function sanitizeScan(body) {
 }
 
 export default async (req) => {
+  // Auth gate runs before getStore(), same order/reasoning as watch.mjs:
+  // an unauthorized or misconfigured request gets a clean 401 rather than
+  // depending on getStore() not throwing first. GET is excluded.
+  if (req.method === "POST" && !checkWriteAuth(req)) {
+    return json({ error: "unauthorized: wrong or missing edit key" }, 401);
+  }
+
   // dynamic import keeps the pure exports above testable without blobs
   const { getStore } = await import("@netlify/blobs");
   const store = getStore({ name: "watched-trips", consistency: "strong" });
