@@ -317,12 +317,37 @@ function clausesOf(html) {
   }
 }
 
+// Check 8: every in-page anchor link (href="#id") resolves to a real
+// id="..." somewhere on that SAME page. A section reorg or rename that
+// forgets to update its own "Jump to X" link leaves a click that
+// silently goes nowhere -- no error, no visual break, nothing a normal
+// read of the page would catch.
+{
+  const ANCHOR_PAGES = [["index.html", indexHtml], ...PAGES];
+  for (const [name, html] of ANCHOR_PAGES) {
+    const ids = new Set();
+    for (const m of html.matchAll(/\bid="([^"]+)"/g)) ids.add(m[1]);
+    const reported = new Set();
+    for (const m of html.matchAll(/href="#([^"]*)"/g)) {
+      const target = m[1];
+      if (!target) continue; // href="#" alone is a JS-hook placeholder, not a real anchor
+      if (reported.has(target)) continue; // report each broken anchor once per page, not once per link
+      if (!ids.has(target)) {
+        reported.add(target);
+        failures.push(
+          `${name}: href="#${target}" has no matching id="${target}" anywhere on the page (broken in-page anchor).`,
+        );
+      }
+    }
+  }
+}
+
 if (failures.length) {
   console.error("Content drift check FAILED:\n");
   for (const f of failures) console.error("  - " + f);
   process.exit(1);
 } else {
   console.log(
-    "Content drift check passed: dimension/priority counts, transfer-bonus expiry, valuation age, backend function count, scheduled-job cadences, and the watched-trip cap all match the code.",
+    "Content drift check passed: dimension/priority counts, transfer-bonus expiry, valuation age, backend function count, scheduled-job cadences, the watched-trip cap, and in-page anchor links all match the code.",
   );
 }
