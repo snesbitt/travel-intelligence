@@ -25,6 +25,7 @@ on:
 
 permissions:
   contents: write
+  issues: write # only used by the issue-on-failure step below
 
 jobs:
   concert-match-check:
@@ -51,4 +52,31 @@ jobs:
           else
             git commit -m "concert-match-check: ${{ steps.check.outputs.log_path }} (${{ steps.check.outputs.checked_count }} of ${{ steps.check.outputs.trip_count }} trips, via GitHub Actions)"
             git push
+          fi
+
+      # 2026-08-28: this job had no alerting of its own -- a failed run
+      # (or, per GitHub's default, a scheduled workflow that gets
+      # auto-disabled after 60 days with no repo activity, though that
+      # doesn't apply here since this repo sees regular pushes) just sat
+      # quiet in the Actions tab, nobody would notice unless they went
+      # looking. Same issue-on-failure pattern as test.yml's scheduled
+      # site-health checks: default GITHUB_TOKEN only, checks for an
+      # already-open issue with the same title first so a run of
+      # consecutive failures comments on one issue instead of opening a
+      # new one each week.
+      - name: Open or update tracking issue if this run failed
+        if: failure()
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          TITLE="Weekly concert match check failed"
+          BODY="scripts/concert-match-check.mjs (or the commit/push step after it) failed on the scheduled Monday run.
+
+          Run: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
+          EXISTING=$(gh issue list --repo "$GITHUB_REPOSITORY" --state open --json number,title \
+            --jq '[.[] | select(.title == "'"$TITLE"'")] | .[0].number // empty')
+          if [ -n "$EXISTING" ]; then
+            gh issue comment "$EXISTING" --repo "$GITHUB_REPOSITORY" --body "$BODY"
+          else
+            gh issue create --repo "$GITHUB_REPOSITORY" --title "$TITLE" --body "$BODY"
           fi
