@@ -3,6 +3,18 @@
   publish = "."
   functions = "netlify/functions"
 
+# 2026-08-28: watched-trips.mjs reads data/concert-match-log.json via a
+# dynamic fs.readFile() one level outside its own function directory --
+# invisible to Netlify's bundler (the same failure class this repo's
+# CLAUDE.md already documents as "Incident #2": works in local tests,
+# 502s live because the file never made it into the deploy bundle).
+# included_files makes the bundler ship it explicitly. Falls back to the
+# Blobs store if this ever goes missing (see readBlobsMatchLog in that
+# file), but the committed JSON should always be present after a normal
+# deploy now.
+[functions."watched-trips"]
+  included_files = ["data/concert-match-log.json"]
+
 [[redirects]]
   from = "https://travel-intelligence-susan.netlify.app/*"
   to = "https://travelintelligence.org/:splat"
