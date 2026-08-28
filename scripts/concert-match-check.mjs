@@ -66,10 +66,22 @@ async function main() {
     if (!trip || !trip.id) continue;
     if (trip.dateStart && Date.parse(trip.dateStart + 'T23:59:00Z') < Date.now()) {
       skippedDeparted++;
+      // Carry the previous entry forward unchanged, same as the
+      // fetch-error branch below -- a departed trip is still skipped
+      // (nothing to warn about, per the Netlify original's identical
+      // early-continue), but "skipped" must not mean "erased": without
+      // this, firstSeenAt/lastMatches/newThisWeek for that trip id
+      // vanish from nextAll the very next run, wiping match history a
+      // trip that departs mid-week never needed to lose.
+      if (prevAll[trip.id]) nextAll[trip.id] = prevAll[trip.id];
       continue;
     }
     if (typeof trip.lat !== 'number' || typeof trip.lon !== 'number') {
       skippedUnmapped++;
+      // Same carry-forward, same reasoning: an unmapped destination is a
+      // data gap, not a signal that this trip's prior match history
+      // should be discarded.
+      if (prevAll[trip.id]) nextAll[trip.id] = prevAll[trip.id];
       continue;
     }
     try {
