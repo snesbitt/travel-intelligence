@@ -1328,3 +1328,100 @@ Not in `npm test` — that suite is offline by design. `npm run check:deploy`, o
 
 This site was NOT affected; the check is here so the class of failure is covered
 everywhere rather than only where it happened.
+
+
+## 2026-08-28 — Audit fix pass: bundler gap, missing write-auth, no scheduled
+## site checks, no retry, dropped trip history
+
+Implementing a prior read-only audit's findings, in the order it gave them.
+Susan approved the exact list before any of this was written. Nothing was
+pushed -- per this project's standing workflow, Susan pushes herself; each
+item below is its own commit so a later `git bisect` has one traceable cause
+per breakage, not a bundle.
+
+**Bundler gap, `watched-trips.mjs`'s committed match-log read.**
+`readCommittedMatchLog()` reads `../../data/concert-match-log.json` via
+`fs.readFile()` -- a path outside the function's own directory, invisible to
+Netlify's bundler, the same failure class this file documents as Incident #2
+(city-coords.mjs's own header). Fixed with `included_files` in `netlify.toml`
+under `[functions."watched-trips"]`, the standard fix for exactly this. No
+existing function used `included_files` yet to pattern-match against; this is
+now that precedent.
+
+**`scan-offers.mjs` POST had no write-auth gate.** `watch.mjs`'s v4
+(2026-08-08) gated POST/DELETE with `checkWriteAuth()` against
+`X-Edit-Key`/`EDIT_SECRET`; `scan-offers.mjs`'s POST was never updated to
+match, so anyone with the site URL could pollute the deep-scan feed the
+optimizer merges into live results. Applied the identical gate (copied, not
+imported -- this repo keeps cross-function sharing in `netlify/functions/
+lib/`, and 4 lines didn't earn a new file). New `tests/scan-auth.test.mjs`,
+same shape as `tests/watch-auth.test.mjs`, wired into `npm test`.
+
+**No scheduled site-health checks.** `check-deploy-fresh.mjs` existed but was
+`npm run check:deploy` only, never run automatically. `test.yml`'s schedule
+moved weekly -> daily and now runs three checks on the scheduled trigger only
+(never on push/PR, so pushes aren't slowed and PRs don't spam issues):
+deploy freshness (existing script, now actually wired in), a new
+`scripts/check-integrity.mjs` (read-only; see its own header for exactly
+what it can check without a Blobs credential this repo doesn't have and
+isn't adding), and a new `scripts/smoke.mjs` (pings each function's safe,
+side-effect-free path; skips `watch-check.mjs`/`concert-match-check.mjs`,
+both schedule-only with no safe path to ping). Any failure opens or, if one's
+already open, comments on a `Scheduled site-health check failed` issue via
+the default `GITHUB_TOKEN` -- no new secret, no third-party integration,
+per Susan's explicit constraint for this whole pass.
+
+**`concert-match-check.yml` had no alerting of its own.** Same
+issue-on-failure pattern, scoped to that job. Separately: the prior audit
+flagged that this job's last commit to `data/concert-match-log.json` was
+2026-08-17 despite a weekly Monday cron. Unresolved here -- this job only
+commits when the match log actually changes, so a legitimate no-diff run and
+a silently-skipped run both look identical in `git log`, and this
+environment has no GitHub API/`gh` CLI access to check real Actions run
+history. Flagging for Susan to check the Actions tab directly.
+
+**No retry/backoff on external calls in either scheduled sweep.**
+`watch-check.mjs`'s SerpApi search and `scripts/concert-match-check.mjs`'s
+two fetches each did one bare `fetch()`; a transient blip or upstream
+5xx/429 silently skipped that trip for a whole cycle. Both now retry (3
+attempts, short flat backoff, no new dependency). In fixing this, found and
+fixed a related bug in `concert-match-check.mjs`: its 8s per-request timeout
+built one `AbortController` OUTSIDE the retry loop and reused its signal
+across attempts -- an aborted signal stays aborted, so a timeout on attempt 1
+silently killed attempts 2 and 3 too. Moved the timeout inside the retry
+helper so each attempt gets its own controller.
+
+**`concert-match-check.mjs` dropped trip history on skip.** The
+departed-trip and unmapped-destination branches `continue`d without carrying
+`prevAll[trip.id]` into `nextAll`, unlike the fetch-error branch right below
+them, which already did this correctly. Both now carry the previous entry
+forward unchanged, matching that branch.
+
+**Retiring the old Netlify-scheduled `concert-match-check.mjs`: SKIPPED.**
+The prerequisites (the bundler fix, the alerting, the retry fix) are now
+code-complete, but nothing above has run in production yet -- Susan hasn't
+pushed, and this session has no network path to the live site or to GitHub's
+API to watch the new path actually succeed even once. Retiring the only
+currently-proven sweep before its replacement has a real production track
+record risks losing coverage rather than improving it. Revisit once the new
+path has run clean for a few weeks live.
+
+**`CABIN_CLASS` deduplicated.** Was defined identically in `fares.mjs` and
+`watch-check.mjs`; extracted to `netlify/functions/lib/cabin-class.mjs`, same
+pattern `lib/city-coords.mjs` established. No behavior change, confirmed by
+`npm test`.
+
+**`_to_delete/` cleared.** Stale git lock files, two zip backups, an old
+`app.js`/`index.html`/`roadmap.html` backup set, and a leftover commit-
+message scratch note -- all already-flagged cruft, confirmed nothing in
+there looked like real data before deleting.
+
+**Verified:** `npm test` green after every commit above (each was run
+individually, not just at the end). `check-integrity.mjs` and `smoke.mjs`
+were each exercised against a local mock HTTP server covering every
+pass/fail branch (in-process, `process.exit` stubbed, no real process
+spawning) since this environment has no network path to the live site to
+verify them end-to-end -- the same limitation `check-deploy-fresh.mjs`
+already has when run from here. `check-content-drift.mjs`'s new anchor-link
+check was verified by deliberately renaming an id, confirming the failure
+message, then reverting.
