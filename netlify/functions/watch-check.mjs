@@ -16,6 +16,10 @@
 // it exactly that way. History capped at 30 checks per trip.
 
 import { getStore } from "@netlify/blobs";
+// 2026-08-28: extracted to lib/cabin-class.mjs (was defined identically
+// here and in fares.mjs), same shared-lib pattern city-coords.mjs already
+// established.
+import { CABIN_CLASS } from "./lib/cabin-class.mjs";
 
 export const config = { schedule: "0 14 * * *" };
 
@@ -51,7 +55,6 @@ export default async () => {
   if (!trips.length) return new Response("no trips", { status: 200 });
 
   const now = Date.now();
-  const CABIN_CLASS = { Economy: "1", "Premium Economy": "2", Business: "3", First: "4" };
   let searched = 0;
   const MAX_TRIPS = 6; // must match watch.mjs's MAX_TRIPS, that file is the source of truth (raised 2026-08-11, Susan)
 

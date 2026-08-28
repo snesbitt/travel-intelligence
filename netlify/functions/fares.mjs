@@ -40,6 +40,12 @@
 // Netlify's own runtime always has it available when the handler actually
 // runs, so this changes nothing about production behavior.
 
+// 2026-08-28: extracted to lib/cabin-class.mjs (was defined identically
+// here and in watch-check.mjs), same shared-lib pattern city-coords.mjs
+// already established. See that file's header for why this is a STATIC
+// import (Netlify's bundler only sees those).
+import { CABIN_CLASS } from "./lib/cabin-class.mjs";
+
 function json(body, status) {
   return new Response(JSON.stringify(body), {
     status: status || 200,
@@ -47,7 +53,6 @@ function json(body, status) {
   });
 }
 
-const CABIN_CLASS = { Economy: "1", "Premium Economy": "2", Business: "3", First: "4" };
 const IATA_RE = /^[A-Z]{3}$/;
 const DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
 const MIN_LEGS = 2;
