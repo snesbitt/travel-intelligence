@@ -6,16 +6,22 @@ on:
   pull_request:
     branches: [main]
   schedule:
-    # Weekly, independent of any push: catches content drift (About page
+    # Daily (was weekly until 2026-08-28): catches content drift (About page
     # stat tiles vs. app.js's DIMENSIONS/PRIORITY_WEIGHTS, see
-    # scripts/check-content-drift.mjs) even on a week with no code changes
-    # at all. Runs the same job as a normal push, so no separate workflow
-    # file or new failure mode.
-    - cron: "0 13 * * 1"
+    # scripts/check-content-drift.mjs) even on a day with no code changes at
+    # all. Runs the same job as a normal push, so no separate workflow file
+    # or new failure mode. Moved to daily specifically so the live-site
+    # checks below (deploy freshness, added 2026-08-28) run at a cadence
+    # that actually matches what they're for -- catching a stale/broken
+    # deploy within a day, not within a week.
+    - cron: "0 13 * * *"
 
 jobs:
   test:
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      issues: write # only used by the scheduled-run issue-on-failure step below
     steps:
       - uses: actions/checkout@v4
 
@@ -30,3 +36,36 @@ jobs:
 
       - name: Run tests
         run: npm test
+
+      # Everything below this line runs ONLY on the daily schedule, not on
+      # every push/PR: these hit the LIVE site over the network (a push's
+      # deploy freshness can legitimately still be building for a few
+      # minutes right after the push lands), and opening a tracking issue
+      # on every PR run would be noise, not signal.
+
+      - name: Check deploy freshness
+        id: deploy_fresh
+        if: github.event_name == 'schedule'
+        run: npm run check:deploy
+        continue-on-error: true
+
+      - name: Open or update tracking issue if a scheduled site check failed
+        if: github.event_name == 'schedule' && steps.deploy_fresh.outcome == 'failure'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          TITLE="Scheduled site-health check failed"
+          BODY="- Deploy freshness: ${{ steps.deploy_fresh.outcome }}
+
+          Run: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
+          EXISTING=$(gh issue list --repo "$GITHUB_REPOSITORY" --state open --json number,title \
+            --jq '[.[] | select(.title == "'"$TITLE"'")] | .[0].number // empty')
+          if [ -n "$EXISTING" ]; then
+            gh issue comment "$EXISTING" --repo "$GITHUB_REPOSITORY" --body "$BODY"
+          else
+            gh issue create --repo "$GITHUB_REPOSITORY" --title "$TITLE" --body "$BODY"
+          fi
+
+      - name: Fail the job if a scheduled site check failed
+        if: github.event_name == 'schedule' && steps.deploy_fresh.outcome == 'failure'
+        run: exit 1
