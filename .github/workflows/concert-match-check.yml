@@ -8,15 +8,19 @@ name: Weekly concert match check
 # script calls (this site's own /api/watched-trips and Vinyl Scout's
 # /api/artists-playing) are already-public reads.
 #
-# TRANSITION PERIOD: additive alongside the existing Netlify-scheduled
-# concert-match-check.mjs, not a replacement yet. netlify/functions/
-# watched-trips.mjs needs its own separate, reviewed v2 update before
-# this committed file actually reaches the live site's newMatches field
-# -- see that migration's own PR for the read-side cutover.
+# Sole sweep as of 2026-08-30. Ran additively alongside the old
+# Netlify-scheduled concert-match-check.mjs from 2026-08-15, with
+# netlify/functions/watched-trips.mjs reading this file's committed
+# output since 2026-08-15 (v2) -- see that file's header. The old
+# Netlify-scheduled function was retired 2026-08-26 (PR #6) once this
+# path had run clean on schedule twice (2026-08-17, 2026-08-24) with no
+# gap; watched-trips.mjs's v3 update the same week dropped the Blobs
+# fallback that named it. This is now the only writer for
+# data/concert-match-log.json.
 #
-# Scheduled Mondays 12:05 UTC -- 5 minutes after the existing Netlify
-# scheduled function's own Monday 12:00 UTC firing, so the two don't race
-# on reading /api/watched-trips during the transition window.
+# Scheduled Mondays 12:05 UTC. The 5-minute offset from the old
+# function's Monday 12:00 UTC firing no longer matters now that it's
+# retired, but the time itself is unchanged -- no reason to move it.
 
 on:
   schedule:

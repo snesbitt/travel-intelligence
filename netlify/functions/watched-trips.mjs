@@ -1,19 +1,26 @@
 // netlify/functions/watched-trips.mjs
-// version: 2
+// version: 3
 // Phase 10, Concert Radar hooks (2026-08-05). Travel Intelligence's half
 // of the bidirectional integration with Vinyl Scout's Concert Radar.
 // Updated 2026-08-15 as the second half of the concert-match-check
 // GitHub Actions migration (see scripts/concert-match-check.mjs and
 // .github/workflows/concert-match-check.yml, added same day): the
-// newMatches merge now reads the git-committed data/concert-match-
-// log.json the Actions workflow writes every Monday, instead of the
-// 'concert-match-log' Blobs store the OLD Netlify-scheduled concert-
-// match-check.mjs writes to. Falls back to Blobs if the committed file
-// is missing or fails to parse -- a deliberate safety net, mirroring
-// vinyl-scout's catalog-cache.mjs v2 exactly. Once the git-committed
-// source has a solid track record, the Blobs fallback path and the old
-// Netlify-scheduled concert-match-check.mjs + backing store can be
-// removed together -- not yet, this deploy.
+// newMatches merge reads the git-committed data/concert-match-log.json
+// the Actions workflow writes every Monday.
+// Updated again 2026-08-30: the OLD Netlify-scheduled
+// concert-match-check.mjs (and the 'concert-match-log' Blobs store it
+// wrote to) was retired 2026-08-26 -- PR #6, already merged -- with no
+// replacement writer left for that store. The committed-file path had
+// run clean on its own schedule twice by then (2026-08-17, 2026-08-24)
+// with no gap, so the v2 Blobs-read fallback here was dead weight: it
+// could only ever serve increasingly stale data from a store nothing
+// updates anymore, silently, on a bad day for the committed-file read.
+// Removed. A committed-file read failure now just yields no new matches
+// for that request, matching this endpoint's existing best-effort
+// promise below rather than reaching for silently-stale data. The old
+// Blobs store itself is orphaned but not deleted -- deleting it needs a
+// live Blobs call this environment isn't set up to make safely, and an
+// unread store costs nothing.
 //
 // EVERYTHING BELOW THIS POINT IS UNCHANGED FROM v1 except the
 // newMatches-merge block inside the default handler (search for "v2"
@@ -134,17 +141,6 @@ async function readCommittedMatchLog() {
   return parsed;
 }
 
-// v1's original Blobs read, kept verbatim as the fallback path.
-async function readBlobsMatchLog(tripIds) {
-  const matchStore = getStore({ name: "concert-match-log", consistency: "strong" });
-  const entries = await Promise.all(
-    tripIds.map(async (id) => {
-      const rec = await matchStore.get(id, { type: "json" });
-      return [id, rec && Array.isArray(rec.newThisWeek) ? rec.newThisWeek : []];
-    })
-  );
-  return Object.fromEntries(entries);
-}
 
 export default async (req) => {
   if (req.method !== "GET") {
@@ -155,24 +151,18 @@ export default async (req) => {
   const cityCoords = loadCityCoords();
   const tripIds = (rawTrips || []).filter((t) => t && t.id).map((t) => t.id);
 
-  // v2: try the committed file first, fall back to Blobs. Any failure in
-  // EITHER path just yields {} / empty arrays per trip -- this endpoint's
-  // core job must never depend on either match-log source being healthy.
+  // Any failure here just yields {} / empty arrays per trip -- this
+  // endpoint's core job must never depend on the match-log source being
+  // healthy (no Blobs fallback since 2026-08-30; see header).
   let newMatchesById = {};
   try {
     const committed = await readCommittedMatchLog();
-    // Reshape to the {id: newThisWeek[]} form buildWatchedTripsView
-    // expects, same as the Blobs path already returns.
+    // Reshape to the {id: newThisWeek[]} form buildWatchedTripsView expects.
     newMatchesById = Object.fromEntries(
       tripIds.map((id) => [id, Array.isArray(committed[id] && committed[id].newThisWeek) ? committed[id].newThisWeek : []])
     );
   } catch (committedErr) {
-    console.warn("watched-trips.mjs: committed match log read failed, falling back to Blobs:", committedErr.message);
-    try {
-      newMatchesById = await readBlobsMatchLog(tripIds);
-    } catch (blobsErr) {
-      console.warn("watched-trips.mjs: Blobs match-log fallback also failed:", blobsErr.message);
-    }
+    console.warn("watched-trips.mjs: committed match log read failed, no new matches this request:", committedErr.message);
   }
 
   const { trips, unmapped } = buildWatchedTripsView(rawTrips, cityCoords, newMatchesById);

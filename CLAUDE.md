@@ -1425,3 +1425,62 @@ verify them end-to-end -- the same limitation `check-deploy-fresh.mjs`
 already has when run from here. `check-content-drift.mjs`'s new anchor-link
 check was verified by deliberately renaming an id, confirming the failure
 message, then reverting.
+
+## 2026-08-30 — Retiring the old concert-match-check: finished, for real this time
+
+Follow-up to the 2026-08-28 entry above ("Retiring the old Netlify-scheduled
+`concert-match-check.mjs`: SKIPPED"). The old function itself was already
+gone by today -- `netlify/functions/concert-match-check.mjs` was deleted
+2026-08-26 in PR #6 (merged upstream before this session picked the repo
+back up), and about.html/guide.html/roadmap.html's function counts were
+already corrected 6 -> 5 as part of that PR. Susan approved finishing the
+retirement (the two loose ends that PR didn't cover) with "yes retire the
+dup."
+
+**`watched-trips.mjs` (v2 -> v3): dropped the Blobs fallback.** v2 kept
+`readBlobsMatchLog()` as a deliberate safety net while the new
+committed-file path proved itself, per the 2026-08-15 entry. By today the
+committed-file path had run clean on its own weekly schedule twice
+(2026-08-17, 2026-08-24, both real Monday cron firings, no gap) with no
+writer left for the Blobs store it would have fallen back to -- so the
+fallback could now only ever return increasingly stale data, silently, on a
+bad day for the committed-file read. Removed `readBlobsMatchLog()` entirely;
+a committed-file read failure now just yields no new matches for that
+request, matching this endpoint's own "must never depend on a second data
+source being healthy" promise instead of quietly serving stale matches. The
+orphaned `concert-match-log` Blobs store itself was left alone -- deleting
+it needs a live Blobs call this environment can't safely make, and an
+unread store costs nothing.
+
+**`concert-match-check.yml`'s header comment: updated.** Described itself as
+"TRANSITION PERIOD: additive alongside the existing Netlify-scheduled
+concert-match-check.mjs, not a replacement yet" -- false since 2026-08-26.
+Rewrote to state it's the sole sweep and name the retirement date and PR.
+Left the actual cron (Monday 12:05 UTC, 5 minutes after the old function's
+former 12:00 UTC slot) unchanged -- no reason to move it now that there's
+nothing to avoid racing.
+
+**Also found and fixed while in here: guide.html still described
+`concert-match-check` as one of the five Netlify functions.** "The backend
+is five small functions... watched-trips serves the privacy-scoped read,
+and concert-match-check sweeps weekly" -- six things named (`fares`,
+`scan-offers`, `watch`, `watch-check`, `watched-trips`,
+`concert-match-check`) under a count of five, and concert-match-check hasn't
+been a Netlify function since 2026-08-26. `check-content-drift.mjs`'s
+"N small functions" check only verifies the stated number against
+`netlify/functions/*.mjs`'s real count (which happened to already read
+five, correctly) -- it doesn't check that every `<code>`-tagged name in the
+same sentence is actually one of them, so this passed silently. Rewrote the
+sentence to list only the five real functions and describe
+concert-match-check accurately as a separate weekly GitHub Actions script.
+Did not change the drift check itself this pass -- flagging the gap here
+rather than scope-creeping into a new check on top of an approved cleanup.
+
+**Verified:** `node --check` on `watched-trips.mjs`, a Python `yaml.safe_load`
+on `concert-match-check.yml`, and the full `npm test` chain (242 assertions,
+0 failures, content-drift passing clean) all after every edit, not just at
+the end.
+
+**Delivered:** `netlify/functions/watched-trips.mjs`, `guide.html`,
+`.github/workflows/concert-match-check.yml`, this file. Nothing committed or
+pushed yet -- Susan runs that herself.
