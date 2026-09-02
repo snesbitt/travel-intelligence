@@ -1484,3 +1484,65 @@ the end.
 **Delivered:** `netlify/functions/watched-trips.mjs`, `guide.html`,
 `.github/workflows/concert-match-check.yml`, this file. Nothing committed or
 pushed yet -- Susan runs that herself.
+
+## 2026-09-02 - Monthly TPG points/miles valuation refresh (GitHub Actions "Tests: All jobs have failed", root-caused)
+
+Susan saw the GitHub Actions email twice in a row ("Tests: All jobs have
+failed", failing in 15-20 seconds with 2-3 annotations) and asked to fix it
+for good. Reproduced locally first, against the exact commit CI ran
+against (origin/main was at `f75b0e6`, one commit behind this repo's local
+HEAD): `npm test` failed identically, one failure only, everything else
+green.
+
+**Not a code bug. The content-drift check working exactly as designed.**
+`scripts/check-content-drift.mjs` failed with: "app.js: POINT_VALUATIONS
+was hand-copied on 2026-07-18, 46 days ago, past the 45-day limit it sets
+for itself against a stated monthly refresh." This is Phase 9's own
+self-check (added 2026-08-21, see that entry) doing its job: the July TPG
+table quietly aged 17 days past its own copiedOn-based deadline with
+nothing else in the pipeline to catch it before CI did.
+
+**Re-copied the September 2026 table from
+thepointsguy.com/loyalty-programs/monthly-valuations/.** One real caution
+for future refreshes: WebFetch's summarizer was tried first and gave two
+different, mutually inconsistent answers across two calls (different
+bylines, different row order, no corroborating page in web search results)
+- almost certainly fabricated rather than actually read, exactly the
+failure mode Phase 9 exists to prevent us from shipping. Abandoned that
+and read the live rendered page directly instead, through the
+device-linked browser (title bar confirmed "TPG's Sept. 2026 valuations"),
+which is the same real content Susan would see. Don't trust WebFetch's
+extraction for this specific page without a second, direct read to
+cross-check; it has fabricated a plausible-looking table at least once now.
+
+Card figures unchanged (Bilt 2.2, Chase 2.05, Amex 2.0, Citi 1.9, Capital
+One 1.85, Wells Fargo 1.75). Airline figures that moved, matching TPG's own
+"up/down from" annotations: Flying Blue 1.55 to 1.4, Air Canada Aeroplan
+1.45 to 1.5, Avianca LifeMiles 1.45 to 1.55, American AAdvantage 1.4 to
+1.45, Virgin Atlantic Flying Club 1.5 to 1.45, United MileagePlus 1.3 to
+1.2, Qantas Frequent Flyer 1.3 to 1.2. `asOf` and `copiedOn` both bumped to
+2026-09-02 (September issue), plus the header comment above the table.
+Transfer bonuses (`TRANSFER_BONUSES`) were not touched this pass - both
+existing entries already expired 2026-07-31 and `activeTransferBonuses()`
+already filters them from render, so nothing was rendering stale; a real
+refresh of that table is separate scope.
+
+**Verified, not assumed:** full `npm test` chain, 238 assertions, 0
+failures, content-drift passing clean (its own summary line lists valuation
+age as one of the things it re-checked).
+
+**The systemic fix, so this doesn't recur silently again:** nothing in the
+scheduled-task fleet previously watched this 45-day clock; the monthly
+"Comprehensive end-to-end audit and repair" task's scope was narrowed
+2026-08-11 to exclude exactly this kind of content fix. Added a new
+monthly scheduled task, timed well inside the 45-day window (see
+`claude/standing-rules.md` history if the trigger itself needs auditing
+later), to re-copy the TPG table before it can go stale enough to fail CI
+again. This is a recurring hand-copy task by design (`portfolio-conventions`:
+"Refreshing them is a recurring manual task") - the fix is a standing
+reminder, not automation that writes on its own, per the portfolio's own
+"a job that writes is never a job that checks" rule; a scheduled task can
+prompt the refresh, it should not silently commit one unattended.
+
+**Delivered:** `app.js` (POINT_VALUATIONS table + header comment), this
+file. Committed locally, not pushed - Susan runs that herself.

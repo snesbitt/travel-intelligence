@@ -96,13 +96,13 @@ const TRANSFER_PARTNERS = {
   "Marriott Bonvoy": { ratio: "3:1 (plus a 5,000 bonus per 60k converted)", value: 0.8, note: "weak ratio for flights; hotel points converted to air are rarely a good redemption" },
 };
 
-// TPG's published monthly valuations, July 2026 issue (thepointsguy.com/
-// loyalty-programs/monthly-valuations/). Hand-copied on 2026-07-18, not
+// TPG's published monthly valuations, September 2026 issue (thepointsguy.com/
+// loyalty-programs/monthly-valuations/). Hand-copied on 2026-09-02, not
 // live-fetched, re-copy monthly or when a program devalues. Cents per
 // point/mile. This is the "which airline's points are actually worth the
 // most" answer, straight from the source Susan asked to pull in.
 const POINT_VALUATIONS = {
-  asOf: "July 2026 (TPG monthly valuations, copied 2026-07-18)",
+  asOf: "September 2026 (TPG monthly valuations, copied 2026-09-02)",
   // 2026-08-21: asOf was a prose string only, so nothing on screen and
   // nothing in the test suite could tell a two-week-old copy from a
   // six-month-old one against a stated monthly refresh. copiedOn is the
@@ -110,17 +110,17 @@ const POINT_VALUATIONS = {
   // to the figures (valuationAge below) and scripts/check-content-drift.
   // mjs fails once it passes staleAfterDays, so this can't drift quietly
   // again. Bump BOTH strings when the table is re-copied from TPG.
-  copiedOn: "2026-07-18",
+  copiedOn: "2026-09-02",
   staleAfterDays: 45, // a monthly refresh plus two weeks of slack
   cards: {
     "Bilt Rewards": 2.2, "Chase Ultimate Rewards": 2.05, "American Express Membership Rewards": 2.0,
     "Citi ThankYou": 1.9, "Capital One": 1.85, "Wells Fargo": 1.75,
   },
   airlines: {
-    "Alaska Atmos Rewards": 1.55, "Flying Blue (Air France/KLM)": 1.55, "Air Canada Aeroplan": 1.5,
-    "Virgin Atlantic Flying Club": 1.5, "Avianca LifeMiles": 1.45, "American AAdvantage": 1.4,
+    "Alaska Atmos Rewards": 1.55, "Flying Blue (Air France/KLM)": 1.4, "Air Canada Aeroplan": 1.5,
+    "Virgin Atlantic Flying Club": 1.45, "Avianca LifeMiles": 1.55, "American AAdvantage": 1.45,
     "ANA Mileage Club": 1.4, "Avios (BA/Iberia/Qatar)": 1.4, "JetBlue TrueBlue": 1.35,
-    "United MileagePlus": 1.3, "Cathay Asia Miles": 1.3, "Qantas Frequent Flyer": 1.3,
+    "United MileagePlus": 1.2, "Cathay Asia Miles": 1.3, "Qantas Frequent Flyer": 1.2,
     "Singapore KrisFlyer": 1.3, "Southwest Rapid Rewards": 1.25, "Delta SkyMiles": 1.2,
     "Emirates Skywards": 1.2, "Etihad Guest": 1.2, "Turkish Miles&Smiles": 1.1,
   },
