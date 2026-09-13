@@ -56,6 +56,55 @@ async function fetchWithRetry(url, attempts = 3, delayMs = 500) {
   throw lastErr;
 }
 
+// 2026-09-13: root-cause fix for trips silently disappearing. This
+// scheduled job used to read the list once at the top of the run, then
+// blindly overwrite the whole "list" key with that same (possibly
+// now-stale) array at the end -- no etag, no merge. watch.mjs's own
+// POST/DELETE handlers use optimistic concurrency specifically so a
+// concurrent write never gets lost, but this job's final write bypassed
+// that protection entirely. A run here can take a while (up to 6
+// sequential SerpApi calls, each with its own retry/backoff), so if
+// Susan added or removed a trip on her phone anywhere in that window,
+// this job's stale copy would win the race and silently erase her
+// change the moment the run finished. Confirmed against real history:
+// data/concert-match-log.json's own commit messages (git-committed by
+// the separate weekly concert-match-check job, which only ever reads
+// /api/watched-trips) show the live trip count dropping from 4 (2026-08-16/17)
+// to 3 (2026-08-24) to 1 (2026-08-31) with no corresponding deletions --
+// exactly the signature of this race, not of anyone explicitly unwatching
+// a trip. Fix: merge our check-array updates into a FRESH read of the
+// list, using the same getWithMetadata/onlyIfMatch/onlyIfNew pattern
+// watch.mjs already uses, so a trip added or removed elsewhere during
+// this run is never clobbered. Pure merge logic pulled out for the same
+// "export the pure logic for testability" reason buildWatchId/planAddTrip
+// already are in watch.mjs.
+export function mergeChecks(currentTrips, checkedById) {
+  return (currentTrips || []).map((t) =>
+    t && t.id && Object.prototype.hasOwnProperty.call(checkedById, t.id)
+      ? { ...t, checks: checkedById[t.id] }
+      : t
+  );
+}
+
+async function writeChecksWithRetry(store, checkedById) {
+  if (!Object.keys(checkedById).length) return; // nothing to persist, don't touch "list" at all
+  for (let attempt = 0; attempt < 5; attempt++) {
+    const current = await store.getWithMetadata("list", { type: "json" });
+    const currentTrips = (current && current.data) || [];
+    const etag = current && current.etag;
+    const merged = mergeChecks(currentTrips, checkedById);
+    const result = etag
+      ? await store.setJSON("list", merged, { onlyIfMatch: etag })
+      : await store.setJSON("list", merged, { onlyIfNew: true });
+    if (result.modified) return;
+    // someone else wrote in between (e.g. a watch/unwatch mid-run) -- loop and re-merge against the fresh list
+  }
+  // Bounded retries exhausted under sustained contention: don't loop forever
+  // in a scheduled function. The checks just recorded are lost for this
+  // trip until the next run, which is a stale-price problem, not a
+  // lost-trip problem -- the failure mode this fix exists to close.
+}
+
 export default async () => {
   const store = getStore({ name: "watched-trips", consistency: "strong" });
 
@@ -89,6 +138,7 @@ export default async () => {
 
   const now = Date.now();
   let searched = 0;
+  const checkedById = {}; // trip.id -> updated checks[], merged back in at the end (see mergeChecks above)
   const MAX_TRIPS = 6; // must match watch.mjs's MAX_TRIPS, that file is the source of truth (raised 2026-08-11, Susan)
 
   for (const trip of trips.slice(0, MAX_TRIPS)) {
@@ -142,9 +192,10 @@ export default async () => {
       trip.checks = trip.checks || [];
       trip.checks.push({ at: new Date().toISOString(), price: Math.round(cheapest.price), carrier });
       if (trip.checks.length > 30) trip.checks = trip.checks.slice(-30);
+      checkedById[trip.id] = trip.checks;
     } catch (e) { /* one bad trip never blocks the others */ }
   }
 
-  await store.setJSON("list", trips);
+  await writeChecksWithRetry(store, checkedById);
   return new Response(`checked ${searched} trips`, { status: 200 });
 };
