@@ -1266,4 +1266,69 @@ test("valuationAge: copiedOn and the human-readable asOf string describe the sam
   );
 });
 
+// ---------------------------------------------------------------------------
+// Write paths in index.html must handle more than a 401 (2026-09-14)
+//
+// tiUnwatch checked for a 401 and nothing else. Any other failure fell through
+// to renderWatched(j.trips), and on an error body like {"error": "..."} that is
+// renderWatched(undefined) -- whose first guard hid the entire Watched Trips
+// card. A FAILED delete therefore looked like a successful one that had also
+// removed every other watched trip. A non-JSON error body threw into an empty
+// catch instead, so nothing happened at all.
+//
+// The client is inline in index.html and not importable, so these are source
+// assertions rather than behavioural ones. That is weaker than running the
+// code, and it is deliberately narrow: each one names a specific guard whose
+// absence caused a specific observed failure, so it fails when the guard is
+// removed rather than when the file is merely edited.
+// ---------------------------------------------------------------------------
+{
+  const html = require("node:fs").readFileSync(path.join(__dirname, "..", "index.html"), "utf8");
+  // Anchor on the DEFINITION, not the name. The first draft of this used
+  // indexOf("window.tiUnwatch"), which finds the CALL SITE inside
+  // renderWatched's delegated click handler, and sliced 16k characters of
+  // unrelated code -- so the "no clearEditSecret here" assertion below matched
+  // something else entirely and failed against correct code. A source
+  // assertion is only as good as the region it reads.
+  const defStart = html.indexOf("window.tiUnwatch = async function");
+  assert.ok(defStart !== -1, "could not locate the window.tiUnwatch definition in index.html; update this test's anchor");
+  const defEnd = html.indexOf("\n  };", defStart);
+  assert.ok(defEnd !== -1, "could not locate the end of window.tiUnwatch; update this test's anchor");
+  const unwatch = html.slice(defStart, defEnd);
+  assert.ok(unwatch.length > 100 && unwatch.length < 4000, `tiUnwatch slice is ${unwatch.length} chars, which is not a single function body; the anchors have drifted`);
+
+  test("tiUnwatch checks r.ok, not just a 401", () => {
+    assert.ok(
+      /if \(!r\.ok\)/.test(unwatch),
+      "tiUnwatch must check !r.ok. Without it a 500 falls through to renderWatched(undefined), " +
+        "which hides the whole Watched Trips card and makes a failed delete look like it wiped the list."
+    );
+  });
+
+  test("tiUnwatch does not clear the edit key on a non-401", () => {
+    const afterOk = unwatch.slice(unwatch.indexOf("if (!r.ok)"));
+    assert.ok(
+      !/clearEditSecret/.test(afterOk),
+      "clearEditSecret() must only run on a 401. A 500 is the server being broken, not the key being " +
+        "wrong, and discarding a good key makes the next action prompt for one that was already correct."
+    );
+  });
+
+  test("tiUnwatch reports a fetch that never returned instead of swallowing it", () => {
+    assert.ok(
+      !/catch \(e\) \{\s*\}/.test(unwatch),
+      "tiUnwatch has an empty catch. A delete that never reached the server must say so: the row stays " +
+        "on screen and the user has no way to tell whether it applied."
+    );
+  });
+
+  test("renderWatched refuses a non-array instead of hiding the card", () => {
+    assert.ok(
+      /if \(!Array\.isArray\(trips\)\) return;/.test(html),
+      "renderWatched must reject a non-array. The old `!trips || !trips.length` guard treated undefined " +
+        "as 'no trips' and hid the card, which is how a failed delete erased the list on screen."
+    );
+  });
+}
+
 console.log(`\n${passed} passed`);

@@ -1571,7 +1571,13 @@
       });
       rows.__tiDelegated = true;
     }
-    if (!trips || !trips.length) { card.classList.add("ti-hidden"); return; }
+    // 2026-09-14: `!Array.isArray` rather than a truthiness test. The old
+    // guard treated undefined as "no trips" and hid the card, which is how a
+    // failed delete above erased the whole list on screen. An empty array is
+    // still a legitimate "nothing watched"; undefined is a caller bug and now
+    // leaves the card alone instead of silently emptying it.
+    if (!Array.isArray(trips)) return;
+    if (!trips.length) { card.classList.add("ti-hidden"); return; }
     card.classList.remove("ti-hidden");
     // 2026-08-11 (Susan: order watched trips soonest to latest): departDate
     // is always a validated YYYY-MM-DD string (validateTripInput in
@@ -1782,17 +1788,48 @@
     });
   }
 
+  // 2026-09-14: this used to handle a 401 and nothing else. Every other
+  // failure fell through to `renderWatched(j.trips)`, and on an error body
+  // like {"error": "..."} that is renderWatched(undefined), whose first guard
+  // hides the whole Watched Trips card. So a FAILED delete looked like a
+  // successful one that had also taken every other watched trip with it. A
+  // reload brought them all back, which is its own kind of alarming. A
+  // non-JSON error body was worse in the other direction: r.json() threw
+  // into the empty catch and absolutely nothing happened.
+  //
+  // Same defect class as Streaming Scout's authedWrite, found the same day by
+  // sweeping all four sites for write paths that only check for a 401.
   window.tiUnwatch = async function (id) {
     const editKey = getEditSecret();
     if (!editKey) return;
+    let r;
     try {
-      const r = await fetch("/api/watch?id=" + encodeURIComponent(id), { method: "DELETE", headers: { "X-Edit-Key": editKey } });
-      if (r.status === 401) { clearEditSecret(); alert("Wrong edit key: try again."); return; }
-      const j = await r.json();
-      renderWatched(j.trips);
-      const btn = document.getElementById("watch-btn");
-      if (btn) btn.textContent = "⭑ Watch this trip";
-    } catch (e) {}
+      r = await fetch("/api/watch?id=" + encodeURIComponent(id), { method: "DELETE", headers: { "X-Edit-Key": editKey } });
+    } catch (e) {
+      // Never reached the server, or the answer never came back. The delete
+      // may or may not have applied, and saying so is more useful than a
+      // silent no-op that leaves the row sitting there.
+      alert("Could not reach the server, so this trip may or may not have been removed. Reload to see the current list.");
+      return;
+    }
+    if (r.status === 401) { clearEditSecret(); alert("Wrong edit key: try again."); return; }
+    if (!r.ok) {
+      // Deliberately does NOT clear the edit key: a 500 is the server being
+      // broken, not the key being wrong, and discarding a good key would make
+      // the next action ask for one that was already correct.
+      alert("The server rejected that (error " + r.status + "), so the trip was not removed. Your edit key is fine.");
+      return;
+    }
+    let j;
+    try {
+      j = await r.json();
+    } catch (e) {
+      alert("The server replied in a form this page could not read, so the list may be out of date. Reload to see the current list.");
+      return;
+    }
+    renderWatched(j.trips);
+    const btn = document.getElementById("watch-btn");
+    if (btn) btn.textContent = "⭑ Watch this trip";
   };
 
   (async function loadWatched() {

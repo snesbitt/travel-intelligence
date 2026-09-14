@@ -1546,3 +1546,66 @@ prompt the refresh, it should not silently commit one unattended.
 
 **Delivered:** `app.js` (POINT_VALUATIONS table + header comment), this
 file. Committed locally, not pushed - Susan runs that herself.
+
+## 2026-09-14 — tiUnwatch made a failed delete look like it wiped the whole watched list
+
+Found by sweeping all four portfolio sites for the defect class that had just
+turned up in Streaming Scout: a client write path that checks for a 401 and
+treats every other failure as success. Vinyl Scout's `audit.html` and The
+Fitness Log's `index.html` both already check `res.ok` alongside the 401 and
+are fine. Travel Intelligence was not.
+
+`window.tiUnwatch` did this:
+
+```
+if (r.status === 401) { clearEditSecret(); alert(...); return; }
+const j = await r.json();
+renderWatched(j.trips);
+```
+
+On any other failure it fell straight through. Two distinct outcomes, both
+bad, and the first is worse than a silent no-op:
+
+1. **An error body that is still JSON** (`{"error": "..."}`, which is what
+   `watch.mjs` returns) gives `j.trips === undefined`, so this called
+   `renderWatched(undefined)`. That function's first guard was
+   `if (!trips || !trips.length) { card.classList.add("ti-hidden"); return; }`
+   — it cannot tell "nothing watched" from "the caller handed me nothing", so
+   it **hid the entire Watched Trips card**. A delete that failed therefore
+   looked like a delete that had succeeded and taken every other watched trip
+   with it. Reloading brought them all back, which is its own kind of alarming
+   and could easily prompt someone to re-add trips that were never gone.
+2. **A non-JSON error body** made `r.json()` throw into `catch (e) {}`, so
+   absolutely nothing happened: no alert, no re-render, the row still sitting
+   there.
+
+Fixed. `!r.ok` is now checked and reports the status without touching the
+stored key — a 500 is the server being broken, not the key being wrong, and
+discarding a good key would make the next action prompt for one that was
+already correct. A fetch that never returned now says so rather than dying in
+an empty catch, because a delete that may or may not have applied is exactly
+the thing a user needs told. And `renderWatched` now rejects a non-array
+outright instead of reading it as "no trips", so no future caller can blank
+the card by accident.
+
+**Four source assertions added to `tests/app.test.js`**, one per guard. The
+client is inline in `index.html` and not importable, so these read the
+function's source rather than running it, which is weaker and worth naming:
+each is deliberately narrow, pinned to a specific guard whose absence caused a
+specific observed failure. All four were verified by mutation — removing each
+guard fails exactly its own assertion and nothing else.
+
+**Worth recording, because it nearly shipped a useless test.** The first draft
+anchored the slice on `indexOf("window.tiUnwatch")`, which finds the CALL SITE
+inside `renderWatched`'s delegated click handler, not the definition. It
+sliced 16,744 characters of unrelated code, and the "does not clear the key on
+a non-401" assertion consequently matched something else and failed against
+correct code. It now anchors on `window.tiUnwatch = async function` and
+asserts the slice is a plausible single function body. A source assertion is
+only ever as good as the region it reads.
+
+**Verified:** `npm test` green end to end, exit 0, 121 assertions in
+`app.test.js`.
+
+**Delivered:** `index.html`, `tests/app.test.js`, this file. Committed on
+`main`, not pushed.
