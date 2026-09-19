@@ -49,7 +49,7 @@ function renderMyBalances() {
       '<p>' + t.name + ': <strong>' + t.balance.toLocaleString() + '</strong></p>'
     ).join('') +
     '<p class="field-hint">Last updated ' + MY_BALANCES.lastUpdated +
-    ' &middot; <a href="javascript:location.reload()">Refresh</a></p>';
+    ' &middot; hand-entered, updated when you report a new balance</p>';
 }
 
 if (typeof document !== 'undefined') {
