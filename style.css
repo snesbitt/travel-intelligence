@@ -546,3 +546,13 @@ details.refine > summary:hover { color: var(--accent); }
 .empty-state.es-idle { padding: 0.7rem 1rem; }
 /* the sticky nav must never cover the top of a scrolled-to section */
 #results, #watched, #points-intel { scroll-margin-top: 64px; }
+
+/* Roadmap: at-a-glance shipped-phase strip, added 2026-09-21 */
+.phase-timeline { display: flex; flex-wrap: wrap; gap: 6px; margin: 0 0 1.4rem; }
+.phase-timeline a {
+  display: inline-flex; align-items: center; justify-content: center;
+  min-width: 28px; height: 28px; padding: 0 6px; border-radius: 999px;
+  background: var(--good-dim); color: var(--good); font-size: 12px; font-weight: 600;
+  text-decoration: none;
+}
+.phase-timeline a:hover { text-decoration: underline; }
