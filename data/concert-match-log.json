@@ -1,14 +1,14 @@
 {
-  "SFO|ORD|2026-11-15|Economy|2026-11-19|1": {
+  "SFO|VFA|2027-05-21|Economy|2027-06-01|1|BBK": {
     "lastMatches": [],
     "firstSeenAt": {},
     "newThisWeek": [],
-    "lastCheckedAt": "2026-09-14T18:03:14.628Z"
+    "lastCheckedAt": "2026-09-21T18:11:05.907Z"
   },
-  "SFO|GBE|2027-05-21|Economy|2027-06-01|1|-": {
+  "SFO|VFA|2027-05-21|Economy|2027-06-01|1|-": {
     "lastMatches": [],
     "firstSeenAt": {},
     "newThisWeek": [],
-    "lastCheckedAt": "2026-09-14T18:03:14.628Z"
+    "lastCheckedAt": "2026-09-21T18:11:05.907Z"
   }
 }
