@@ -19,7 +19,7 @@
 // `npm test`). No live network calls.
 
 import assert from "node:assert/strict";
-import { mergeChecks } from "../netlify/functions/watch-check.mjs";
+import { mergeChecks, buildStopsSummary } from "../netlify/functions/watch-check.mjs";
 
 let passed = 0;
 function test(name, fn) {
@@ -85,6 +85,58 @@ test("mergeChecks: empty checkedById is a no-op copy", () => {
 test("mergeChecks: handles an empty current list", () => {
   assert.deepEqual(mergeChecks([], { "some|id": [] }), []);
   assert.deepEqual(mergeChecks(null, {}), []);
+});
+
+// buildStopsSummary tests, added 2026-09-21 alongside the stops/layover
+// summary itself: a route pill like SFO-VFA never revealed whether it was
+// nonstop or hid a connection. Pure function, same "no live network calls"
+// testing approach as mergeChecks above -- these exercise the split/via
+// logic against hand-built SerpApi-shaped fixtures, not a real API call.
+
+test("buildStopsSummary: nonstop, no return leg requested", () => {
+  const segments = [{ departure_airport: { id: "SFO" }, arrival_airport: { id: "VFA" } }];
+  const summary = buildStopsSummary(segments, [], null);
+  assert.deepEqual(summary.outbound, { stops: 0, via: [] });
+  assert.equal(summary.return, null);
+});
+
+test("buildStopsSummary: one stop, no return leg requested, layover name+duration carried through", () => {
+  const segments = [
+    { departure_airport: { id: "SFO" }, arrival_airport: { id: "JNB" } },
+    { departure_airport: { id: "JNB" }, arrival_airport: { id: "VFA" } },
+  ];
+  const layovers = [{ id: "JNB", name: "O.R. Tambo", duration: 135 }];
+  const summary = buildStopsSummary(segments, layovers, null);
+  assert.deepEqual(summary.outbound, { stops: 1, via: [{ code: "JNB", name: "O.R. Tambo", minutes: 135 }] });
+  assert.equal(summary.return, null);
+});
+
+test("buildStopsSummary: open-jaw trip splits outbound and return at the requested outbound destination", () => {
+  const segments = [
+    { departure_airport: { id: "SFO" }, arrival_airport: { id: "JNB" } },
+    { departure_airport: { id: "JNB" }, arrival_airport: { id: "VFA" } }, // end of outbound leg
+    { departure_airport: { id: "BBK" }, arrival_airport: { id: "JNB" } }, // start of return leg (open-jaw)
+    { departure_airport: { id: "JNB" }, arrival_airport: { id: "SFO" } },
+  ];
+  const layovers = [
+    { id: "JNB", name: "O.R. Tambo", duration: 135 },
+    { id: "JNB", name: "O.R. Tambo", duration: 220 },
+  ];
+  const summary = buildStopsSummary(segments, layovers, "VFA");
+  assert.deepEqual(summary.outbound, { stops: 1, via: [{ code: "JNB", name: "O.R. Tambo", minutes: 135 }] });
+  assert.deepEqual(summary.return, { stops: 1, via: [{ code: "JNB", name: "O.R. Tambo", minutes: 220 }] });
+});
+
+test("buildStopsSummary: outboundDestIata given but not found in segments falls back to one leg rather than guessing a split", () => {
+  const segments = [{ departure_airport: { id: "SFO" }, arrival_airport: { id: "VFA" } }];
+  const summary = buildStopsSummary(segments, [], "SOMEWHERE_ELSE");
+  assert.deepEqual(summary.outbound, { stops: 0, via: [] });
+  assert.equal(summary.return, null);
+});
+
+test("buildStopsSummary: missing/malformed segments or layovers never throws", () => {
+  assert.deepEqual(buildStopsSummary(undefined, undefined, null), { outbound: { stops: 0, via: [] }, return: null });
+  assert.deepEqual(buildStopsSummary(null, null, null).outbound.stops, 0);
 });
 
 console.log(`\n${passed} passed`);

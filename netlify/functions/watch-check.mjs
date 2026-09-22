@@ -1,7 +1,10 @@
 // netlify/functions/watch-check.mjs
-// version: 3 (2026-08-11, later still: open-jaw support -- a watched
-// trip's return leg can now depart from a different city than the
-// outbound destination, see the multi-city branch below. Version 2's
+// version: 4 (2026-09-21: each check now also records a stops/layover
+// summary -- see buildStopsSummary below -- so the Watched Trips card can
+// show whether the fare floor is nonstop or hides a connection, which the
+// route pill alone never revealed. Version 3, 2026-08-11, open-jaw support
+// -- a watched trip's return leg can now depart from a different city than
+// the outbound destination, see the multi-city branch below. Version 2's
 // cadence/cap change, same day, is unchanged.)
 // Scheduled re-search for watched trips, the half of the fare watcher
 // that "does the watching" the Purchase Strategy used to outsource to
@@ -84,6 +87,56 @@ export function mergeChecks(currentTrips, checkedById) {
       ? { ...t, checks: checkedById[t.id] }
       : t
   );
+}
+
+// 2026-09-21: pure, exported per the same "export the logic for
+// testability" pattern mergeChecks above and planAddTrip/planRemoveTrip in
+// watch.mjs already use. Turns the cheapest offer's raw `flights` segments
+// (+ SerpApi's parallel `layovers` array -- one entry between each
+// consecutive pair of segments, per its Google Flights response shape) into
+// a small stops/via summary for the Watched Trips card.
+//
+// For an open-jaw trip (returnFromIata set) this is a real 2-leg multi-city
+// search, so `segments` covers BOTH legs concatenated: outboundDestIata is
+// the requested outbound leg's arrival IATA (trip.destIata), and everything
+// up to and including the segment landing there is outbound, everything
+// after is the return leg. If that landing segment can't be found (a
+// response shape we didn't expect), it falls back to reporting the whole
+// thing as one leg rather than guess at a split.
+//
+// For a plain round trip (no returnFromIata, outboundDestIata omitted),
+// `segments` is reported as a single leg. NOT yet verified against a live
+// response whether SerpApi's `flights` there covers the outbound leg only
+// or the whole round trip without a departure_token exchange -- same open
+// question fares.mjs's mapOffers() already flags for durationMinutes/
+// departTimeRaw. Until verified, the card labels this generically rather
+// than claiming it's specifically "outbound".
+export function buildStopsSummary(segments, layovers, outboundDestIata) {
+  const segs = Array.isArray(segments) ? segments : [];
+  const lays = Array.isArray(layovers) ? layovers : [];
+
+  function legInfo(legSegs, legLayovers) {
+    const via = [];
+    for (let i = 0; i < legSegs.length - 1; i++) {
+      const seg = legSegs[i];
+      const code = (seg && seg.arrival_airport && seg.arrival_airport.id) || null;
+      const lay = legLayovers[i] || null;
+      via.push({ code, name: (lay && lay.name) || null, minutes: (lay && typeof lay.duration === "number" ? lay.duration : null) });
+    }
+    return { stops: Math.max(0, legSegs.length - 1), via };
+  }
+
+  if (!outboundDestIata) return { outbound: legInfo(segs, lays), return: null };
+
+  const splitAt = segs.findIndex((s) => s && s.arrival_airport && s.arrival_airport.id === outboundDestIata);
+  if (splitAt === -1) return { outbound: legInfo(segs, lays), return: null };
+
+  const outboundSegs = segs.slice(0, splitAt + 1);
+  const returnSegs = segs.slice(splitAt + 1);
+  return {
+    outbound: legInfo(outboundSegs, lays.slice(0, outboundSegs.length - 1)),
+    return: returnSegs.length ? legInfo(returnSegs, lays.slice(outboundSegs.length - 1)) : null,
+  };
 }
 
 async function writeChecksWithRetry(store, checkedById) {
@@ -189,8 +242,15 @@ export default async () => {
       searched++;
       const cheapest = raw.reduce((m, o) => (o.price < m.price ? o : m), raw[0]);
       const carrier = ((cheapest.flights || [])[0] || {}).airline || "";
+      const stopsSummary = buildStopsSummary(cheapest.flights, cheapest.layovers, trip.returnFromIata ? trip.destIata : null);
       trip.checks = trip.checks || [];
-      trip.checks.push({ at: new Date().toISOString(), price: Math.round(cheapest.price), carrier });
+      trip.checks.push({
+        at: new Date().toISOString(),
+        price: Math.round(cheapest.price),
+        carrier,
+        outboundStops: stopsSummary.outbound,
+        returnStops: stopsSummary.return,
+      });
       if (trip.checks.length > 30) trip.checks = trip.checks.slice(-30);
       checkedById[trip.id] = trip.checks;
     } catch (e) { /* one bad trip never blocks the others */ }

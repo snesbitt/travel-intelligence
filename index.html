@@ -1608,6 +1608,36 @@
       // server-side, see watch.mjs); shown as a second O-D pair so the
       // card doesn't imply a plain round trip back through dCode.
       const codeChip = oCode && dCode ? ` <span class="watched-codes">${oCode}–${dCode}${t.returnFromIata ? ` / ${t.returnFromIata}–${oCode}` : ""}</span>` : "";
+      // 2026-09-21: stops/layover summary, added because the code pill above
+      // only ever shows the two endpoints -- a route like SFO-VFA reads as
+      // if it might be nonstop when it almost never is. Comes from
+      // watch-check.mjs's buildStopsSummary(), stored on the latest check;
+      // older checks recorded before this shipped won't have it, so this
+      // degrades to showing nothing rather than a wrong or invented count.
+      const fmtLayoverMinutes = (mins) => {
+        if (typeof mins !== "number" || !isFinite(mins) || mins <= 0) return "";
+        const h = Math.floor(mins / 60), m = mins % 60;
+        return h ? `${h}h${m ? ` ${m}m` : ""}` : `${m}m`;
+      };
+      const stopsBadge = (legStops) => {
+        if (!legStops || typeof legStops.stops !== "number") return "";
+        const nonstop = legStops.stops === 0;
+        const badgeClass = nonstop ? "good" : "gold";
+        const badgeText = nonstop ? "nonstop" : `${legStops.stops} stop${legStops.stops === 1 ? "" : "s"}`;
+        const viaBits = (legStops.via || []).map((v) => {
+          const code = v && v.code ? escapeHtml(v.code) : null;
+          if (!code) return null;
+          const dur = fmtLayoverMinutes(v.minutes);
+          return dur ? `${dur} in ${code}` : code;
+        }).filter(Boolean);
+        const viaText = viaBits.length ? ` <span class="watched-via">via ${viaBits.join(", ")}</span>` : "";
+        return `<span class="chip ${badgeClass} watched-stops">${badgeText}</span>${viaText}`;
+      };
+      const outboundStopsHtml = stopsBadge(latest && latest.outboundStops);
+      const returnStopsHtml = latest && latest.returnStops ? stopsBadge(latest.returnStops) : "";
+      const stopsRow = !outboundStopsHtml ? "" : returnStopsHtml
+        ? `<div class="watched-stops-row"><span class="watched-stops-label">Out</span> ${outboundStopsHtml}</div><div class="watched-stops-row"><span class="watched-stops-label">Return</span> ${returnStopsHtml}</div>`
+        : `<div class="watched-stops-row">${outboundStopsHtml}</div>`;
       const travLabel = `${t.travelers} traveler${String(t.travelers) === "1" ? "" : "s"}`;
       // 2026-07-26 (Susan): every watched trip links out to buy. American
       // rows get the verified aa.com deep link; everything else gets the
@@ -1631,6 +1661,7 @@
         <div class="watched-route-card">
           <span class="watched-route-main">${safeOrigin} → ${safeDest}${codeChip}</span>
           <span class="watched-route-meta">${fmtWatchRange(t.departDate, t.returnDate)} · ${safeCabin} · ${travLabel}${safeReturnFrom ? ` · returns from ${safeReturnFrom}` : ""}</span>
+          ${stopsRow}
         </div>
         <div class="watched-side" style="display:flex;align-items:center;gap:12px;">
           ${spark}

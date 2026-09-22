@@ -71,6 +71,7 @@
           <li>Static pages, five small server functions, no build step</li>
           <li>Live Google Flights fares, plus fares you scan yourself from Kayak or Booking</li>
           <li>Every-other-day fare re-check for watched trips, with a health status log</li>
+          <li>Each re-check records whether the fare floor is nonstop or has a connection, shown as a stop badge with the layover airport and length when known</li>
           <li>Watching a trip is protected by a shared edit key, enforced server-side, so a shared link can't quietly spend your watch slots</li>
           <li>Concert Radar cross-check: watched trips are checked against Vinyl Scout's catalog/wishlist/watching artists for shows nearby, both directions (built 2026-08-05, with <a href="https://vinylscout.org/">vinylscout.org</a>)</li>
           <li>GitHub repo, auto-deploy on push</li>
@@ -85,7 +86,7 @@
       <div class="page-card-grid">
         <div class="page-card">
           <h4 class="page-card__title">Watched Trips</h4>
-          <p class="page-card__desc">Routes you asked the site to keep an eye on, up to six, each re-searched every other day. Shows the live fare floor and how far it has moved from the price on the day you started watching. Adding or removing one needs the shared edit key.</p>
+          <p class="page-card__desc">Routes you asked the site to keep an eye on, up to six, each re-searched every other day. Shows the live fare floor, how far it has moved from the price on the day you started watching, and whether that fare is nonstop or has a connection. Adding or removing one needs the shared edit key.</p>
         </div>
         <div class="page-card">
           <h4 class="page-card__title">My Balances</h4>

@@ -543,6 +543,15 @@ details.refine > summary:hover { color: var(--accent); }
 .watched-book:hover .watched-price-amount { text-decoration: underline; text-underline-offset: 3px; }
 .watched-book::after { content: none; }
 
+/* 2026-09-21: stop/layover summary line under the route meta, so a route
+   pill like SFO-VFA doesn't imply nonstop when it hides a connection.
+   Reuses the existing .chip.good/.chip.gold pair (green = nonstop, gold =
+   1+ stop) rather than new color tokens. */
+.watched-stops-row { font-size: 12px; color: #6b7080; margin-top: 2px; display: flex; flex-wrap: wrap; gap: 4px 6px; align-items: center; }
+.watched-stops-label { font-size: 10px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.04em; color: #6b7080; }
+.chip.watched-stops { vertical-align: -1px; }
+.watched-via { color: #6b7080; }
+
 .empty-state.es-idle { padding: 0.7rem 1rem; }
 /* the sticky nav must never cover the top of a scrolled-to section */
 #results, #watched, #points-intel { scroll-margin-top: 64px; }
