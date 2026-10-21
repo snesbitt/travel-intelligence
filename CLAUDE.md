@@ -1609,3 +1609,48 @@ only ever as good as the region it reads.
 
 **Delivered:** `index.html`, `tests/app.test.js`, this file. Committed on
 `main`, not pushed.
+
+## 2026-10-20 - TPG valuations refresh, again, plus an early warning so it stops recurring (GitHub Actions "Tests: All jobs have failed")
+
+Susan got the "Tests: All jobs have failed" email (one job, failed in 9
+seconds, 3 annotations) and asked to fix it for good. Reproduced locally
+at origin/main `cc6a680`: `npm test` ran green through every suite and
+failed only at the last step, `scripts/check-content-drift.mjs`, with
+"POINT_VALUATIONS was hand-copied on 2026-09-02, 48 days ago, past the
+45-day limit". Same root cause as the 2026-09-02 entry above. Not a code
+bug: the drift check doing its job.
+
+**Why it recurred.** The 2026-09-02 fix refreshed the table but added
+nothing that would warn before the next deadline, so the same failure was
+guaranteed 45 days later, on every push, blocking unrelated commits.
+
+**Change 1, data.** Re-copied the October 2026 table by reading the live
+page directly in Chrome (title bar "TPG's Oct. 2026 valuations"), then
+cross-checked against a WebFetch summary. Both agreed on every row. Cards
+unchanged. Airlines that moved, matching TPG's own "up from" notes:
+Avianca LifeMiles 1.55 to 1.6, Qantas 1.2 to 1.25, Virgin Atlantic 1.45
+to 1.5. `asOf`, `copiedOn` and the header comment bumped to 2026-10-20.
+
+**Change 2, prevention.** New read-only `scripts/check-valuations-due.mjs`.
+It exits 1 as soon as a calendar month (UTC) has started that is later
+than the month of `copiedOn`, which is when TPG has published a new table.
+It runs only in the daily scheduled job in `.github/workflows/test.yml`
+(new step `valuations_due`, `continue-on-error`, wired into the existing
+tracking-issue steps), never in `npm test`, so it cannot block a push. The
+hard 45-day stop in the drift check is unchanged. Net effect: a tracking
+issue opens on the 1st of the month, with roughly six weeks of slack before
+anything fails. The script cannot edit the table by design.
+
+**Verified:** full `npm test` green, exit 0. The warning path was proven by
+mutation: a temp copy of `app.js` with `copiedOn` 2026-09-20 exits 1 with
+the refresh message, the real file exits 0. Workflow YAML parses. Pushed
+2026-10-21 after a `git pull --rebase` over one bot commit; local HEAD and
+origin/main both `2463287` (confirmed by Susan's own terminal).
+
+**Still manual, on purpose:** the monthly re-copy. A script that fetched
+and wrote TPG figures would be a job that writes deciding its own inputs,
+and WebFetch's summarizer has fabricated this page before. Read the live
+page directly each month.
+
+**Delivered:** `app.js`, `scripts/check-valuations-due.mjs`,
+`.github/workflows/test.yml` (commit `2463287`), and this file.
