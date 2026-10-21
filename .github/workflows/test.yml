@@ -77,10 +77,21 @@ jobs:
         run: node scripts/smoke.mjs
         continue-on-error: true
 
+      - name: Check TPG valuations refresh is not due
+        id: valuations_due
+        if: github.event_name == 'schedule'
+        # Read-only early warning added 2026-10-20. The hard 45-day stop in
+        # npm test (check-content-drift.mjs) only fires after the deadline
+        # and blocks every push; this opens the tracking issue as soon as
+        # TPG has published a newer month, weeks before that. See
+        # scripts/check-valuations-due.mjs.
+        run: node scripts/check-valuations-due.mjs
+        continue-on-error: true
+
       - name: Open or update tracking issue if a scheduled site check failed
         if: >-
           github.event_name == 'schedule' &&
-          (steps.deploy_fresh.outcome == 'failure' || steps.integrity.outcome == 'failure' || steps.smoke.outcome == 'failure')
+          (steps.deploy_fresh.outcome == 'failure' || steps.integrity.outcome == 'failure' || steps.smoke.outcome == 'failure' || steps.valuations_due.outcome == 'failure')
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
@@ -88,6 +99,7 @@ jobs:
           BODY="- Deploy freshness: ${{ steps.deploy_fresh.outcome }}
           - Watched-trips integrity: ${{ steps.integrity.outcome }}
           - Function smoke test: ${{ steps.smoke.outcome }}
+          - TPG valuations refresh due: ${{ steps.valuations_due.outcome }}
 
           Run: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
           EXISTING=$(gh issue list --repo "$GITHUB_REPOSITORY" --state open --json number,title \
@@ -101,5 +113,5 @@ jobs:
       - name: Fail the job if a scheduled site check failed
         if: >-
           github.event_name == 'schedule' &&
-          (steps.deploy_fresh.outcome == 'failure' || steps.integrity.outcome == 'failure' || steps.smoke.outcome == 'failure')
+          (steps.deploy_fresh.outcome == 'failure' || steps.integrity.outcome == 'failure' || steps.smoke.outcome == 'failure' || steps.valuations_due.outcome == 'failure')
         run: exit 1
