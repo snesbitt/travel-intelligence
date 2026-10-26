@@ -18,13 +18,14 @@ name: Weekly concert match check
 # fallback that named it. This is now the only writer for
 # data/concert-match-log.json.
 #
-# Scheduled Mondays 12:05 UTC. The 5-minute offset from the old
-# function's Monday 12:00 UTC firing no longer matters now that it's
-# retired, but the time itself is unchanged -- no reason to move it.
+# Scheduled Mondays 18:05 UTC (moved from 12:05 UTC on 2026-10-26, so no
+# run starts before 10 am Pacific all year: 18:05 UTC is 10:05 PST and
+# 11:05 PDT). The 5-minute offset from the old function's Monday firing no
+# longer matters now that it's retired.
 
 on:
   schedule:
-    - cron: "5 12 * * 1"
+    - cron: "5 18 * * 1"
   workflow_dispatch: {}
 
 permissions:

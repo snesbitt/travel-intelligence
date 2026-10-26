@@ -14,7 +14,10 @@ on:
     # checks below (deploy freshness, added 2026-08-28) run at a cadence
     # that actually matches what they're for -- catching a stale/broken
     # deploy within a day, not within a week.
-    - cron: "0 13 * * *"
+    # 2026-10-26: moved from 13:00 UTC to 18:00 UTC so no run starts before
+    # 10 am Pacific all year (18:00 UTC is 10:00 PST and 11:00 PDT). It now
+    # also runs after the 14:00 UTC watch-check.mjs health write, not before.
+    - cron: "0 18 * * *"
 
 jobs:
   test:

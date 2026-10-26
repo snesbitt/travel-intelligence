@@ -1654,3 +1654,5 @@ page directly each month.
 
 **Delivered:** `app.js`, `scripts/check-valuations-due.mjs`,
 `.github/workflows/test.yml` (commit `2463287`), and this file.
+
+- 2026-10-26: Both GitHub Actions schedules moved at Susan's request so no run starts before 10 am Pacific. `.github/workflows/test.yml` daily cron went from 13:00 to 18:00 UTC. `.github/workflows/concert-match-check.yml` Monday cron went from 12:05 to 18:05 UTC. 18:00 UTC is 10:00 PST and 11:00 PDT, so the rule holds all year. The daily test run now follows the 14:00 UTC `watch-check.mjs` health write instead of preceding it. YAML parses and `npm test` passes. Not changed, and still before 10 am Pacific: `watch-check.mjs` itself runs daily at 14:00 UTC (7 am PDT) as a Netlify schedule, which is a separate change. Earlier entries that name 12:05 UTC describe the design on those dates. Committed on main, not pushed.
