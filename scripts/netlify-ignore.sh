@@ -34,6 +34,7 @@ if git diff --quiet "$CACHED_COMMIT_REF" "$COMMIT_REF" -- \
   manifest.json \
   netlify \
   netlify.toml \
+  data \
   package.json package-lock.json
 then
   echo "netlify-ignore: no user-facing changes; skipping deploy."

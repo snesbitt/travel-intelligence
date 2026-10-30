@@ -21,6 +21,109 @@
   status = 301
   force = true
 
+# 2026-10-30: publish = "." serves the whole repo root, so internal docs, tests,
+# scripts, function source and data/concert-match-log.json (which holds watched
+# route keys with origin, cabin and dates) were publicly reachable. One rule per
+# file because Netlify allows a splat only at the end of a path. force = true is
+# needed: a redirect never fires for a path that already resolves to a real file.
+# Nothing in the front end, sw.js or the functions fetches these paths over HTTP
+# (watched-trips.mjs reads data/ from disk via included_files above).
+[[redirects]]
+  from = "/CLAUDE.md"
+  to = "/index.html"
+  status = 404
+  force = true
+
+[[redirects]]
+  from = "/CHANGELOG_ARCHIVE.md"
+  to = "/index.html"
+  status = 404
+  force = true
+
+[[redirects]]
+  from = "/README.md"
+  to = "/index.html"
+  status = 404
+  force = true
+
+[[redirects]]
+  from = "/package.json"
+  to = "/index.html"
+  status = 404
+  force = true
+
+[[redirects]]
+  from = "/package-lock.json"
+  to = "/index.html"
+  status = 404
+  force = true
+
+[[redirects]]
+  from = "/.nvmrc"
+  to = "/index.html"
+  status = 404
+  force = true
+
+[[redirects]]
+  from = "/.gitignore"
+  to = "/index.html"
+  status = 404
+  force = true
+
+[[redirects]]
+  from = "/netlify.toml"
+  to = "/index.html"
+  status = 404
+  force = true
+
+[[redirects]]
+  from = "/scripts/*"
+  to = "/index.html"
+  status = 404
+  force = true
+
+[[redirects]]
+  from = "/tests/*"
+  to = "/index.html"
+  status = 404
+  force = true
+
+[[redirects]]
+  from = "/.github/*"
+  to = "/index.html"
+  status = 404
+  force = true
+
+[[redirects]]
+  from = "/data/*"
+  to = "/index.html"
+  status = 404
+  force = true
+
+[[redirects]]
+  from = "/netlify/*"
+  to = "/index.html"
+  status = 404
+  force = true
+
+[[redirects]]
+  from = "/node_modules/*"
+  to = "/index.html"
+  status = 404
+  force = true
+
+[[redirects]]
+  from = "/_to_delete/*"
+  to = "/index.html"
+  status = 404
+  force = true
+
+[[redirects]]
+  from = "/_to_delete_locks/*"
+  to = "/index.html"
+  status = 404
+  force = true
+
 [[headers]]
   for = "/*"
   [headers.values]
