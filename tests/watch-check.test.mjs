@@ -19,7 +19,7 @@
 // `npm test`). No live network calls.
 
 import assert from "node:assert/strict";
-import { mergeChecks, buildStopsSummary } from "../netlify/functions/watch-check.mjs";
+import { mergeChecks, buildStopsSummary, isBeyondBookingHorizon } from "../netlify/functions/watch-check.mjs";
 
 let passed = 0;
 function test(name, fn) {
@@ -137,6 +137,14 @@ test("buildStopsSummary: outboundDestIata given but not found in segments falls 
 test("buildStopsSummary: missing/malformed segments or layovers never throws", () => {
   assert.deepEqual(buildStopsSummary(undefined, undefined, null), { outbound: { stops: 0, via: [] }, return: null });
   assert.deepEqual(buildStopsSummary(null, null, null).outbound.stops, 0);
+});
+
+
+test("isBeyondBookingHorizon: a trip 400 days out is skipped, one 100 days out is searched", () => {
+  const now = Date.parse("2026-10-30T12:00:00Z");
+  assert.equal(isBeyondBookingHorizon("2027-12-04", now), true);
+  assert.equal(isBeyondBookingHorizon("2027-02-07", now), false);
+  assert.equal(isBeyondBookingHorizon("garbage", now), false);
 });
 
 console.log(`\n${passed} passed`);

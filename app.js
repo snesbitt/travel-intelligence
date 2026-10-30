@@ -553,7 +553,12 @@ function stripIataSuffix(name) {
 function toIATA(name) {
   if (!name) return null;
   const n = name.trim().toLowerCase();
-  if (/^[a-z]{3}$/.test(n)) return n.toUpperCase();
+  // A bare 3-letter word is an IATA code, except where the country table
+  // owns it ("usa", "uae" are not airports).
+  if (/^[a-z]{3}$/.test(n)) {
+    const own = COUNTRY_TO_IATA[n];
+    return own && own.toLowerCase() !== n ? own : n.toUpperCase();
+  }
   const suffixed = parseIataSuffix(name);
   if (suffixed) return suffixed;
   if (COUNTRY_TO_IATA[n]) return COUNTRY_TO_IATA[n];
@@ -897,6 +902,7 @@ function routeContext(inputs) {
 function fuzzyCarrierScore(name) {
   if (UPGRADE_FRIENDLY[name] != null) return UPGRADE_FRIENDLY[name];
   const n = (name || "").toLowerCase();
+  if (!n) return 50; // an empty name would substring-match the first table row
   for (const key of Object.keys(UPGRADE_FRIENDLY)) {
     if (n.includes(key.toLowerCase()) || key.toLowerCase().includes(n)) return UPGRADE_FRIENDLY[key];
   }
@@ -905,6 +911,7 @@ function fuzzyCarrierScore(name) {
 
 function fuzzyAlliance(name) {
   const n = (name || "").toLowerCase();
+  if (!n) return "Unaligned"; // an empty name would substring-match the first alliance
   for (const [al, list] of Object.entries(ALLIANCES)) {
     if (list.some((c) => n.includes(c.toLowerCase()) || c.toLowerCase().includes(n))) return al;
   }
@@ -996,11 +1003,14 @@ function buildLiveCandidates(inputs, offers) {
   // caller tell "nothing came back" apart from "real offers came back and
   // your own filter removed all of them" and say so honestly.
   const rawOfferCount = offers.length;
+  const budget = inputs.maxBudget > 0 ? inputs.maxBudget : 1000; // a missing budget must not turn every Cost score into NaN
   const afterAirlineFilter = offers.filter((o) => !avoid.some((a) => (o.carrier || "").toLowerCase().includes(a)));
   const afterStopsFilter = afterAirlineFilter.filter((o) => !hasStopsLimit || Math.max(0, o.stops || 0) <= inputs.maxStops);
 
+  // No cap before scoring: the feed returns at most 20 offers and scan offers
+  // are appended after them, so a cap here silently dropped the scans (and
+  // sometimes the cheapest fare) before they could compete.
   const candidates = afterStopsFilter
-    .slice(0, 12)
     .map((o, i) => {
       const price = Math.round(o.priceTotal / travelers); // per person, matching the model's display convention
       const stops = Math.max(0, o.stops || 0);
@@ -1017,7 +1027,7 @@ function buildLiveCandidates(inputs, offers) {
       // discriminating on expensive routes and a pricier-but-faster offer
       // could win "Best Overall" over one $500 cheaper (caught in the
       // multi-feed e2e review). Under-budget scoring is unchanged.
-      scores.Cost = clamp(100 - (price / Math.max(1, inputs.maxBudget)) * 65, -80, 100);
+      scores.Cost = clamp(100 - (price / budget) * 65, -80, 100);
       // Preferred airline/alliance/time-of-day: same pattern as the Asia
       // comfort bonus above, flat additions, each independently gated so
       // they stack additively rather than overriding one another. A saved
@@ -1049,6 +1059,7 @@ function buildLiveCandidates(inputs, offers) {
         milesEst, feesEst, candCpp, payWith: candCpp >= 1.6 ? "miles" : "cash",
         travelMinutes: o.durationMinutes || null, // provider returns outbound (one-way) minutes
         routeKm: route.km, routeKnown: route.known,
+        via: route.via || null, routeLegs: route.legs || null, directKm: route.directKm || null,
         aircraft: o.aircraft || (o.bookableSeats ? `${o.bookableSeats} bookable seats` : "–"),
         availLabel: o.aircraft ? "Aircraft" : "Availability",
         live: true, priceTotal: Math.round(o.priceTotal), lastTicketingDate: o.lastTicketingDate || null,
@@ -1179,6 +1190,7 @@ function matchUpgradeWinCarrier(upgradeWins, carrierName) {
 /* ---------- weighting from the ranked priority list ---------- */
 
 function computeWeights(priorityRanks) {
+  if (!priorityRanks || !Object.keys(priorityRanks).length) priorityRanks = { "Best Overall Experience": 1 };
   // priorityRanks: { "Cheapest": 1, "Best Value": 2, ... } rank 1 = most important
   const total = Object.keys(priorityRanks).length || 1;
   const dimWeights = { Cost: 0, Comfort: 0, Upgrade: 0, Award: 0, Flexibility: 0, Risk: 0, Time: 0 };
@@ -1229,7 +1241,7 @@ function purchaseTiming(inputs) {
   const daysOut = Math.round((depart - today) / 86400000);
   if (isNaN(daysOut)) return { verdict: "monitor", days: null, reason: "No valid departure date entered; set one to get a timing read." };
   if (daysOut < 0) return { verdict: "buy", days: daysOut, reason: "Departure date is in the past; re-check the date." };
-  if (daysOut <= 20) return { verdict: "buy", days: daysOut, reason: `Only ${daysOut} days out. Close-in fares typically climb from here; the risk of waiting outweighs any further discount.` };
+  if (daysOut <= 20) return { verdict: "buy", days: daysOut, reason: `Only ${daysOut} day${daysOut === 1 ? "" : "s"} out. Close-in fares typically climb from here; the risk of waiting outweighs any further discount.` };
   if (daysOut <= 60) return { verdict: "buy", days: daysOut, reason: `${daysOut} days out is inside the typical low-fare window for most routes (roughly 3–8 weeks out). Prices are more likely to drift up than down from here.` };
   if (daysOut <= 180) return { verdict: "wait", days: daysOut, reason: `${daysOut} days out: still early. Fares this far ahead are unsettled; monitor for 2–3 weeks and set a price watch rather than booking today.` };
   return { verdict: "monitor", days: daysOut, reason: `${daysOut} days out is very early; most airlines haven't released their real pricing yet for this window. Set an alert and revisit closer to the 4–6 month mark.` };
@@ -1300,7 +1312,7 @@ function awardRecommendation(best, inputs, programBalances) {
  */
 
 function fmtDateShort(d) {
-  return isNaN(d) ? null : d.toLocaleDateString("en-US", { weekday: "short", month: "short", day: "numeric" });
+  return !d || isNaN(d) ? null : d.toLocaleDateString("en-US", { weekday: "short", month: "short", day: "numeric" });
 }
 function daysBefore(dateStr, days) {
   const d = new Date(dateStr + "T12:00:00");
@@ -1323,7 +1335,7 @@ function upgradeTactics(best, inputs) {
   const fromEconomy = best.cabin === "Economy" || best.cabin === "Best Value";
   const cabinAbove = fromEconomy ? "Business" : { "Premium Economy": "Business", Business: "First" }[best.cabin];
   if (!cabinAbove) {
-    tactics.push({ when: "Now", title: "You're already in the top cabin, so the play is price", detail: "Nothing sits above First to move up into. Price Business on the same flights before you pay: it runs about 55% of the First fare and buys most of the same trip." });
+    tactics.push({ when: "Now", title: "You're already in the top cabin, so the play is price", detail: `Nothing sits above First to move up into. Price Business on the same flights before you pay: it runs about ${Math.round((CABIN_BASE.Business / CABIN_BASE.First) * 100)}% of the First fare and buys most of the same trip.` });
     return tactics;
   }
 
@@ -1398,11 +1410,11 @@ function upgradeTactics(best, inputs) {
     title: `Last ask at the gate`,
     detail: `If ${cabinAbove} still shows open seats, ask the gate agent once, early in boarding prep. An undersold cabin gets cleared at the gate at the steepest discount of the whole timeline.`,
   });
-  if (inputs.tripPurpose === "Business" || inputs.tripPurpose === "Both" || (inputs.travelers || 1) > 1) {
+  if ((inputs.travelers || 1) > 1) {
     tactics.push({
       when: "Creative play",
       title: `Split the cabin across your party`,
-      detail: `Book ONE ${cabinAbove} seat and the rest in ${best.cabin}, then trade off in-flight. For ${inputs.travelers || 2} travelers that's about $${Math.round(gap / (inputs.travelers || 2)).toLocaleString()} per person for everyone to get some time up front.`,
+      detail: `Book ONE ${cabinAbove} seat and the rest in ${best.cabin}, then trade off in-flight. For ${inputs.travelers} travelers that's about $${Math.round(gap / inputs.travelers).toLocaleString()} per person for everyone to get some time up front.`,
     });
   }
   tactics.push({
@@ -1427,6 +1439,11 @@ function bestPointsAnswers(inputs) {
 }
 
 /* ---------- insights ---------- */
+
+// User-typed text reaches these strings, and the page inserts insights as HTML.
+function escHtml(s) {
+  return String(s).replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+}
 
 function buildInsights(inputs, candidates, best, weights, timing, usingLive) {
   const insights = [];
@@ -1484,32 +1501,33 @@ function buildInsights(inputs, candidates, best, weights, timing, usingLive) {
 
   const dislikedMatch = flagsDislikedAirport(inputs);
   if (dislikedMatch) {
-    insights.push(`You've saved "${dislikedMatch}" as an airport to avoid, and it shows up in this trip's origin/destination/via/nearby-airport fields; double-check the itinerary. (Stop count is modeled here, not specific connection airports, so this can't check a mid-trip connection, only the fields above.)`);
+    insights.push(`You've saved "${escHtml(dislikedMatch)}" as an airport to avoid, and it shows up in this trip's origin/destination/via/nearby-airport fields; double-check the itinerary. (Stop count is modeled here, not specific connection airports, so this can't check a mid-trip connection, only the fields above.)`);
   }
 
   const upgradeWinMatch = matchUpgradeWinCarrier(inputs.upgradeWins, best.carrier);
   if (upgradeWinMatch) {
-    insights.push(`You've logged a past upgrade win mentioning ${best.carrier}; worth trying the same play again: "${upgradeWinMatch.text}"`);
+    insights.push(`You've logged a past upgrade win mentioning ${best.carrier}; worth trying the same play again: "${escHtml(upgradeWinMatch.text)}"`);
   }
 
   // Purchase timing is covered by its own Purchase Strategy card, no
   // duplicate insight here (audit finding: verbatim repetition).
 
   if (inputs.airportFlexibility && inputs.airportFlexibility.split(",").map((s) => s.trim()).filter(Boolean).length > 1) {
-    insights.push(`Only your primary airport was searched live; the nearby airports you listed (${inputs.airportFlexibility}) weren't. Nearby-airport comparisons routinely beat date-shifting alone, so price the alternates on Google Flights before booking.`);
+    insights.push(`Only your primary airport was searched live; the nearby airports you listed (${escHtml(inputs.airportFlexibility)}) weren't. Nearby-airport comparisons routinely beat date-shifting alone, so price the alternates on Google Flights before booking.`);
   }
 
   if (best.routeKnown === false) {
-    insights.push(`Flight times and fares for this route are rough: ${best.via ? `at least one of "${inputs.origin}" / "${best.via}" / "${inputs.destination}"` : `"${inputs.origin}" → "${inputs.destination}"`} is not in the city table, so they assume a generic 7,500 km long-haul.`);
+    insights.push(`Flight times and fares for this route are rough: ${best.via ? `at least one of "${escHtml(inputs.origin)}" / "${escHtml(best.via)}" / "${escHtml(inputs.destination)}"` : `"${escHtml(inputs.origin)}" → "${escHtml(inputs.destination)}"`} is not in the city table, so they assume a generic 7,500 km long-haul.`);
   } else if (best.via && best.routeLegs) {
-    insights.push(`Routed via ${best.via}: ${best.routeLegs[0].toLocaleString()} km + ${best.routeLegs[1].toLocaleString()} km = ${best.routeKm.toLocaleString()} km each way, vs ~${(best.directKm || 0).toLocaleString()} km direct: about ${Math.max(0, Math.round(((best.routeKm - (best.directKm || best.routeKm)) / Math.max(1, best.directKm || 1)) * 100))}% extra flying for the stopover. Book it as one multi-city ticket rather than two one-ways; that is usually cheaper, and it protects the connection if the first leg runs late.`);
+    insights.push(`Routed via ${escHtml(best.via)}: ${best.routeLegs[0].toLocaleString()} km + ${best.routeLegs[1].toLocaleString()} km = ${best.routeKm.toLocaleString()} km each way, vs ~${(best.directKm || 0).toLocaleString()} km direct: about ${Math.max(0, Math.round(((best.routeKm - (best.directKm || best.routeKm)) / Math.max(1, best.directKm || 1)) * 100))}% extra flying for the stopover. Book it as one multi-city ticket rather than two one-ways; that is usually cheaper, and it protects the connection if the first leg runs late.`);
   } else if (best.routeKm) {
     insights.push(`Route distance: roughly ${best.routeKm.toLocaleString()} km great-circle each way. Flight times and the distance scaling on fares both come from that geometry.`);
   }
 
-  insights.push(`Prices here are live quotes, from the Google Flights feed or your own Kayak scans, and each one is labeled with its source. Mileage figures are still planning ranges scaled by distance, because award space isn't searched yet. The Guide has the full split.`);
-
-  return insights.slice(0, 8);
+  // The data-source line goes on after the cut so a long list can never push it off the page.
+  const shown = insights.slice(0, 7);
+  shown.push(`Prices here are live quotes, from the Google Flights feed or your own Kayak scans, and each one is labeled with its source. Mileage figures are still planning ranges scaled by distance, because award space isn't searched yet. The Guide has the full split.`);
+  return shown;
 }
 
 /* ---------- date-range score sweep (roadmap Phase 5c, "Date-range score

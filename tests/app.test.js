@@ -1331,4 +1331,80 @@ test("valuationAge: copiedOn and the human-readable asOf string describe the sam
   });
 }
 
+
+/* ---------- 2026-10-30 weekly audit regressions ---------- */
+
+const AUDIT_BASE = { origin: "SFO", destination: "NRT", departDate: "2027-03-01", returnDate: "2027-03-10", cabin: "Economy",
+  travelers: 1, maxBudget: 1000, maxStops: 3, priorityRanks: { "Best Overall Experience": 1 }, programBalances: [], creditCards: [] };
+const AUDIT_OFFERS = [{ carrier: "United", priceTotal: 900, stops: 0, durationMinutes: 640 }, { carrier: "Delta", priceTotal: 1100, stops: 1, durationMinutes: 800 }];
+
+test("toIATA: 'usa' and 'uae' resolve through the country table, not as literal airport codes", () => {
+  assert.notEqual(T.toIATA("usa"), "USA");
+  assert.notEqual(T.toIATA("uae"), "UAE");
+  assert.equal(T.toIATA("sfo"), "SFO");
+});
+
+test("runOptimization: a missing budget never produces NaN scores", () => {
+  const r = T.runOptimization({ ...AUDIT_BASE, maxBudget: undefined }, AUDIT_OFFERS);
+  assert.ok(Number.isFinite(r.best.weighted));
+  assert.ok(Number.isFinite(r.best.scores.Cost));
+});
+
+test("computeWeights: empty ranks fall back to Best Overall Experience, never all-zero weights", () => {
+  const w = T.computeWeights({});
+  assert.ok(Math.abs(Object.values(w).reduce((a, b) => a + b, 0) - 1) < 1e-9);
+});
+
+test("buildLiveCandidates: a scan offer appended after 20 feed offers is still scored", () => {
+  const feed = Array.from({ length: 20 }, (_, i) => ({ carrier: "United", priceTotal: 1500 + i, stops: 1 }));
+  const scan = { carrier: "ANA", priceTotal: 600, stops: 1, src: "Kayak · scanned 1h ago" };
+  const c = T.buildLiveCandidates(AUDIT_BASE, feed.concat([scan]));
+  assert.equal(c.length, 21);
+  assert.ok(c.some((x) => x.src));
+});
+
+test("fuzzy carrier matching: an empty carrier name does not inherit the first table row", () => {
+  const c = T.buildLiveCandidates(AUDIT_BASE, [{ carrier: "", priceTotal: 500, stops: 0 }]);
+  assert.equal(c[0].alliance, "Unaligned");
+});
+
+test("upgradeTactics: a solo business traveller gets no 'split the party' play", () => {
+  const r = T.runOptimization({ ...AUDIT_BASE, tripPurpose: "Business", travelers: 1 }, AUDIT_OFFERS);
+  assert.ok(!r.tactics.some((t) => /Split the cabin/.test(t.title)));
+  const r2 = T.runOptimization({ ...AUDIT_BASE, travelers: 2 }, AUDIT_OFFERS);
+  assert.ok(r2.tactics.some((t) => /Split the cabin/.test(t.title)));
+});
+
+test("upgradeTactics: First-cabin copy quotes the real Business-to-First price ratio", () => {
+  const r = T.runOptimization({ ...AUDIT_BASE, cabin: "First" }, AUDIT_OFFERS);
+  assert.match(r.tactics[0].detail, /about 44% of the First fare/);
+});
+
+test("buildInsights: the data-source line survives a full insight list", () => {
+  const r = T.runOptimization({ ...AUDIT_BASE, destination: "Tokyo", airportFlexibility: "SFO, OAK, SJC", preferredAirlines: ["United"],
+    preferredAlliances: ["Star Alliance"], dislikedAirports: "oak", upgradeWins: [{ text: "United bid worked" }],
+    programBalances: [{ program: "Delta SkyMiles", balance: 90000 }], cabin: "Business" }, AUDIT_OFFERS);
+  assert.ok(r.insights.length <= 8);
+  assert.match(r.insights[r.insights.length - 1], /live quotes/);
+});
+
+test("buildInsights: user-typed text is HTML-escaped before it reaches the page", () => {
+  const r = T.runOptimization({ ...AUDIT_BASE, airportFlexibility: "SFO, <b>OAK</b>" }, AUDIT_OFFERS);
+  assert.ok(r.insights.every((t) => !/<b>OAK/.test(t)));
+});
+
+test("purchaseTiming: one day out is singular", () => {
+  const d = new Date(Date.now() + 86400000 + 3600000).toISOString().slice(0, 10);
+  assert.match(T.runOptimization({ ...AUDIT_BASE, departDate: d }, AUDIT_OFFERS).timing.reason, /Only (0|1) days? out/);
+});
+
+test("upgradeTactics: an unparseable departure date degrades to generic timing, never throws", () => {
+  assert.doesNotThrow(() => T.runOptimization({ ...AUDIT_BASE, departDate: "" }, AUDIT_OFFERS));
+});
+
+test("via routing: the route insight names the via city and the extra distance", () => {
+  const r = T.runOptimization({ ...AUDIT_BASE, viaCity: "Osaka" }, AUDIT_OFFERS);
+  assert.ok(r.insights.some((t) => /Routed via Osaka/.test(t)));
+});
+
 console.log(`\n${passed} passed`);

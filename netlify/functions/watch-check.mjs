@@ -158,6 +158,13 @@ async function writeChecksWithRetry(store, checkedById) {
   // lost-trip problem -- the failure mode this fix exists to close.
 }
 
+export const BOOKING_HORIZON_DAYS = 330; // same figure as index.html
+
+export function isBeyondBookingHorizon(departDate, now) {
+  const t = Date.parse(departDate + "T12:00:00Z");
+  return Number.isFinite(t) && t - now > BOOKING_HORIZON_DAYS * 86400000;
+}
+
 export default async () => {
   const store = getStore({ name: "watched-trips", consistency: "strong" });
 
@@ -198,6 +205,9 @@ export default async () => {
     const last = trip.checks && trip.checks.length ? Date.parse(trip.checks[trip.checks.length - 1].at) : 0;
     if (now - last < 44 * 3600 * 1000) continue;               // already checked within the last ~2 days (every-other-day cadence, 2026-08-11)
     if (Date.parse(trip.departDate + "T23:59:00Z") < now) continue; // trip departed
+    // Airlines publish fares about 330 days ahead. A trip further out returns nothing and records no
+    // check, so without this it would be searched on every daily run instead of every other day.
+    if (isBeyondBookingHorizon(trip.departDate, now)) continue;
 
     // 2026-08-11: open-jaw support (the return leg departs from a
     // different city than the outbound destination, e.g. fly into

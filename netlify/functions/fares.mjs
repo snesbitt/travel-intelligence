@@ -58,6 +58,21 @@ const DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
 const MIN_LEGS = 2;
 const MAX_LEGS = 4; // origin->via(s)->destination[->origin]; guards against a malformed/huge request
 
+// SerpApi reports "no flights for this query" as an error string. That is an
+// answer (zero offers), not a failure: treating it as a 502 made the page retry
+// and spend a second search on the same empty result.
+export const NO_RESULTS_RE = /hasn'?t returned any results|no results|no flights/i;
+
+// Pure. Returns a reason string when a search must be refused before it spends
+// quota (same airport both ends, or a departure before today in UTC minus one
+// day, which covers every time zone), else null.
+export function preflightProblem(origin, destination, departDate, now = new Date()) {
+  if (origin && origin === destination) return "origin and destination are the same airport";
+  const floor = new Date(now.getTime() - 86400000).toISOString().slice(0, 10);
+  if (departDate && departDate < floor) return "departure date is in the past";
+  return null;
+}
+
 export const CACHE_TTL_MS = 15 * 60 * 1000; // 15 min - protects quota, short enough fares never feel stale
 
 // ---------- abuse protection (2026-08-05 audit backlog item) ----------
@@ -308,7 +323,7 @@ export default async (req) => {
     return json({ live: false, reason: "origin_not_allowed", detail: "This endpoint only serves search requests referred from travelintelligence.org." }, 403);
   }
 
-  const adults = Math.min(9, Math.max(1, parseInt(url.searchParams.get("adults") || "1", 10)));
+  const adults = Math.min(9, Math.max(1, parseInt(url.searchParams.get("adults") || "1", 10) || 1));
   const cabin = url.searchParams.get("cabin") || "";
   const legsRaw = url.searchParams.get("legs");
 
@@ -364,7 +379,8 @@ export default async (req) => {
       const detail = await res.text();
       return json({ live: false, reason: "upstream_error", status: res.status, detail: detail.slice(0, 400) }, 502);
     }
-    const j = await res.json();
+    let j = await res.json();
+    if (j.error && NO_RESULTS_RE.test(String(j.error))) j = {};
     if (j.error) return json({ live: false, reason: "upstream_error", detail: String(j.error).slice(0, 400) }, 502);
 
     const { offers, droppedForUnparseablePrice } = mapOffers(j);
@@ -401,6 +417,8 @@ export default async (req) => {
   if (!IATA_RE.test(origin) || !IATA_RE.test(destination) || !DATE_RE.test(departDate)) {
     return json({ live: false, reason: "bad_request", detail: "origin/destination must be IATA codes, depart must be YYYY-MM-DD" }, 400);
   }
+  const problem = preflightProblem(origin, destination, departDate);
+  if (problem) return json({ live: false, reason: "bad_request", detail: problem }, 400);
   if (!key) return json({ live: false, reason: "not_configured" }, 503);
 
   // Reuses the existing "watched-trips" blob store (key-prefixed "farecache-")
@@ -450,7 +468,8 @@ export default async (req) => {
     const detail = await res.text();
     return json({ live: false, reason: "upstream_error", status: res.status, detail: detail.slice(0, 400) }, 502);
   }
-  const j = await res.json();
+  let j = await res.json();
+  if (j.error && NO_RESULTS_RE.test(String(j.error))) j = {};
   if (j.error) return json({ live: false, reason: "upstream_error", detail: String(j.error).slice(0, 400) }, 502);
 
   const { offers, droppedForUnparseablePrice } = mapOffers(j);

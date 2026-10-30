@@ -272,7 +272,7 @@
   <div class="wrap">© 2026</div>
 </footer>
 
-<script src="app.js?v=3"></script>
+<script src="app.js?v=4"></script>
 <script>
 (function () {
   // Refine panel remembers whether you keep it open (2026-07-26)
@@ -585,7 +585,7 @@
     if (prefs.preferredSeat) document.getElementById("preferredSeat").value = prefs.preferredSeat;
     if (prefs.preferredHotel) document.getElementById("preferredHotel").value = prefs.preferredHotel;
     if (prefs.travelStyle) document.getElementById("travelStyle").value = prefs.travelStyle;
-    upgradeWins = Array.isArray(prefs.upgradeWins) ? prefs.upgradeWins : [];
+    upgradeWins = Array.isArray(prefs.upgradeWins) ? prefs.upgradeWins.filter((w) => w && typeof w.text === "string" && w.text.trim()) : [];
     renderUpgradeWins();
     showPrefsStatus(prefs.savedAt, "loaded from");
   }
@@ -834,6 +834,8 @@
           // than the generic "failed or timed out, re-run to retry".
           else if (j.reason === "daily_cap_reached") reason = "daily-cap";
           else if (j.reason === "origin_not_allowed") reason = "origin-blocked";
+          // SerpApi answered with an error: retrying spends a second search on the same failure.
+          else if (j.reason === "upstream_error") reason = "upstream-error";
         } catch (e2) {}
         return { data: null, reason };
       }
@@ -872,6 +874,8 @@
         const safeSource = escapeHtml(scan.source);
         labels.push(safeSource + " scan (" + ageTxt + ")");
         for (const of2 of scan.offers || []) {
+          // An offer with no stop count would score and display as a nonstop. Skip it.
+          if (!of2 || !Number.isInteger(of2.stops)) continue;
           const safeOffer = {};
           for (const k in of2) safeOffer[k] = typeof of2[k] === "string" ? escapeHtml(of2[k]) : of2[k];
           offers.push({ ...safeOffer, src: safeSource + " · scanned " + ageTxt });
@@ -911,6 +915,8 @@
     "not-configured": () => `the live fare backend has no API credential configured, so there are no real fares to show.`,
     "no-offers": () => `the live search returned no offers for this route/date.`,
     "api-fail": () => `the live search failed or timed out; re-run to retry.`,
+    "upstream-error": () => `Google Flights returned an error for this search. Check the dates and cities, then re-run.`,
+    "beyond-horizon": () => `airlines have not published fares this far ahead.`,
     // 2026-08-05: fares.mjs's two abuse guards (an Origin/Referer allowlist
     // and a daily SerpApi-call cap, both protecting the 100/month quota):
     // deterministic failures, so unlike "api-fail" these are never retried
@@ -930,6 +936,29 @@
         <p class="form-hint">No search was run: an inverted range can never return real fares. Fix the dates and re-run.</p></div>`;
       document.getElementById("results").scrollIntoView({ behavior: "smooth", block: "start" });
       return;
+    }
+    // Guards that stop a search before it spends one of the 100 monthly SerpApi calls.
+    const blockSearch = (headline, hint) => {
+      resultsEl.innerHTML = `<div class="empty-state"><div class="es-icon">⚠</div>
+        <p><strong>${headline}</strong></p>
+        <p class="form-hint">${hint}</p></div>`;
+      document.getElementById("results").scrollIntoView({ behavior: "smooth", block: "start" });
+    };
+    if (!document.getElementById("origin").value.trim() || !document.getElementById("destination").value.trim()) {
+      return blockSearch("Enter both an origin and a destination.", "No search was run. Type a city or a 3-letter airport code in each field.");
+    }
+    const todayLocal = (() => { const n = new Date(); return n.getFullYear() + "-" + String(n.getMonth() + 1).padStart(2, "0") + "-" + String(n.getDate()).padStart(2, "0"); })();
+    if (inputs.departDate && inputs.departDate < todayLocal) {
+      return blockSearch(`Departure date (${escapeHtml(inputs.departDate)}) is in the past.`, "No search was run. Pick today or a later date.");
+    }
+    {
+      const oC = T.toIATA(inputs.preferredAirport) || T.toIATA(inputs.origin), dC = T.toIATA(inputs.destination);
+      if (oC && dC && oC === dC) {
+        return blockSearch("Origin and destination are the same airport.", "No search was run. Change one of the two cities.");
+      }
+    }
+    if (inputs.viaCity && inputs.returnDate && inputs.viaStopoverNights > 0 && addDaysIso(inputs.departDate, inputs.viaStopoverNights) > inputs.returnDate) {
+      return blockSearch("The stopover runs past your return date.", "No search was run. Shorten the stopover or move the return date later.");
     }
     resultsEl.innerHTML = '<div class="empty-state es-searching"><p>Searching live fares… <span class="form-hint">usually 3–12 seconds</span></p></div>';
     let live = await fetchLiveOffers(inputs);
@@ -1100,6 +1129,11 @@
       btn.textContent = `Sweeping ${i + 1}/${sweep.samples.length}…`;
       bodyEl.innerHTML = `<p class="form-hint">Sampling ${escapeHtml(s.departDate)}${s.returnDate ? " – " + escapeHtml(s.returnDate) : ""} (${i + 1} of ${sweep.samples.length})…</p>`;
       const sampleInputs = Object.assign({}, baseInputs, { departDate: s.departDate, returnDate: s.returnDate });
+      // Dates past the booking horizon cannot return fares. Do not spend a search on them.
+      if (daysOut(s.departDate) > BOOKING_HORIZON_DAYS) {
+        results.push({ offset: s.offset, departDate: s.departDate, returnDate: s.returnDate, best: null, reason: "beyond-horizon", inputs: sampleInputs, stopsFilteredAllOut: false, airlineFilteredAllOut: false });
+        continue;
+      }
       const live = await fetchLiveOffers(sampleInputs);
       if (!live.data && live.reason === "daily-cap") {
         stoppedAt = i;
@@ -1111,6 +1145,8 @@
         best: result.best, reason: live.reason, inputs: sampleInputs,
         stopsFilteredAllOut: !!result.stopsFilteredAllOut, airlineFilteredAllOut: !!result.airlineFilteredAllOut,
       });
+      // A configuration or origin failure repeats on every date. Stop after recording it.
+      if (!live.data && ["not-configured", "origin-blocked"].includes(live.reason)) break;
     }
 
     btn.disabled = false;
@@ -1161,7 +1197,7 @@
     if (!result.routeKnown) {
       const oCode = T.toIATA(inputs.preferredAirport || inputs.origin);
       const dCode = T.toIATA(inputs.destination);
-      const badField = !dCode ? `destination "${inputs.destination}"` : (!oCode ? `origin "${inputs.preferredAirport || inputs.origin}"` : null);
+      const badField = !dCode ? `destination "${escapeHtml(inputs.destination)}"` : (!oCode ? `origin "${escapeHtml(inputs.preferredAirport || inputs.origin)}"` : null);
       const beyondHorizon = ["api-fail", "no-offers"].includes(window.__tiLiveReason) && daysOut(inputs.departDate) > BOOKING_HORIZON_DAYS;
       // 2026-08-07 (Susan: SFO->Tallinn "failed or timed out" bug): when
       // buildLiveCandidates() (app.js) reports that real fares came back
@@ -1213,7 +1249,7 @@
       `${best.stops === 0 ? " nonstop" : ` with ${best.stops} stop${best.stops > 1 ? "s" : ""}`} for ${T.fmtUSD(best.price)} per person${trav > 1 ? ` (${T.fmtUSD(totalCash)} total for ${trav} travelers)` : ""}. ` +
       `It scores highest against the priorities you ranked. ` +
       (timing.verdict === "buy" ? `Purchase timing favors booking now rather than waiting. ` : timing.verdict === "wait" ? `Purchase timing favors waiting and watching for a better window before locking it in. ` : `It's early enough that I'd set a fare watch rather than transact today. `) +
-      (award.strong ? `Your miles balance is a strong redemption here (${award.cpp.toFixed(2)}¢/mile); worth booking with points instead of cash.` : `Paying cash beats redeeming miles here (${award.cpp.toFixed(2)}¢/mile); save the balance for a stronger redemption.`);
+      (award.strong ? `Miles are a strong redemption here (${award.cpp.toFixed(2)}¢/mile), if award space exists. Check what you hold first.` : `Paying cash beats redeeming miles here (${award.cpp.toFixed(2)}¢/mile); save the balance for a stronger redemption.`);
 
     const SORTS = {
       "Weighted score": (a, b) => b.weighted - a.weighted,
@@ -1296,7 +1332,7 @@
           </div>
           <div class="rec-price-block">
             <div class="rec-price">${best.payWith === "miles" ? `~${(best.milesEst / 1000).toFixed(0)}k mi + ${T.fmtUSD(best.feesEst)}` : T.fmtUSD(best.price)}</div>
-            <div class="rec-price-sub">round-trip per person, ${best.cabin} · pay with <strong>${best.payWith}</strong></div>
+            <div class="rec-price-sub">${inputs.returnDate ? "round-trip" : "one-way"} per person, ${best.cabin} · pay with <strong>${best.payWith}</strong></div>
             <div class="rec-price-sub">${best.payWith === "miles" ? `or ${T.fmtUSD(best.price)} cash` : `or ~${(best.milesEst / 1000).toFixed(0)}k miles + ${T.fmtUSD(best.feesEst)} (${best.candCpp.toFixed(1)}¢/mi, below the 1.6¢ bar)`}</div>
             ${trav > 1 ? `<div class="rec-price-sub"><strong>× ${trav} travelers:</strong> ${best.payWith === "miles" ? `~${((best.milesEst * trav) / 1000).toFixed(0)}k mi + ${T.fmtUSD(best.feesEst * trav)}` : T.fmtUSD(best.price * trav)} total</div>` : ""}
           </div>
@@ -1526,7 +1562,15 @@
           departDate: inputs.departDate, returnDate: inputs.returnDate, cabin: inputs.cabin,
           travelers: inputs.travelers || 1,
           returnFromIata, returnFromCity: returnFromIata ? inputs.returnFromCity : null,
-          baseline: best ? { price: best.priceTotal || best.price * (inputs.travelers || 1), carrier: best.carrier } : null,
+          // The nightly watcher records the cheapest offer, so the baseline must be the
+          // cheapest feed offer too. The engine's winner can cost more, and comparing the
+          // two would show a drop that never happened.
+          baseline: (() => {
+            const offers = ((window.__tiLastLive && window.__tiLastLive.offers) || []).filter((o) => !o.src && o.priceTotal > 0);
+            if (!offers.length) return null;
+            const floor = offers.reduce((m, o) => (o.priceTotal < m.priceTotal ? o : m), offers[0]);
+            return { price: floor.priceTotal, carrier: floor.carrier };
+          })(),
         } }),
       });
       const j = await r.json();

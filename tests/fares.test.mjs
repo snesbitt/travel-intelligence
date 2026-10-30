@@ -7,7 +7,7 @@
 // package.json). No live network calls, no SerpApi key needed.
 
 import assert from "node:assert/strict";
-import { buildFareCacheKey, isCacheFresh, CACHE_TTL_MS, parseLegs, buildLegsCacheKey, isAllowedOrigin, isOverDailyCap, DAILY_SEARCH_CAP, todayQuotaKey, mapOffers } from "../netlify/functions/fares.mjs";
+import { buildFareCacheKey, isCacheFresh, CACHE_TTL_MS, parseLegs, buildLegsCacheKey, isAllowedOrigin, isOverDailyCap, DAILY_SEARCH_CAP, todayQuotaKey, mapOffers, NO_RESULTS_RE, preflightProblem } from "../netlify/functions/fares.mjs";
 
 let passed = 0;
 function test(name, fn) {
@@ -321,6 +321,24 @@ test("mapOffers: no flights array at all still returns an offer with null times,
   const { offers } = mapOffers(j);
   assert.equal(offers[0].departTimeRaw, null);
   assert.equal(offers[0].arriveTimeRaw, null);
+});
+
+
+test("preflightProblem: same airport both ends is refused before it spends quota", () => {
+  assert.match(preflightProblem("SFO", "SFO", "2030-01-01", new Date("2029-12-01")), /same airport/);
+  assert.equal(preflightProblem("SFO", "NRT", "2030-01-01", new Date("2029-12-01")), null);
+});
+
+test("preflightProblem: a past departure is refused, today and yesterday-in-UTC are not", () => {
+  const now = new Date("2026-10-30T03:00:00Z");
+  assert.match(preflightProblem("SFO", "NRT", "2026-10-01", now), /past/);
+  assert.equal(preflightProblem("SFO", "NRT", "2026-10-29", now), null);
+  assert.equal(preflightProblem("SFO", "NRT", "2026-10-30", now), null);
+});
+
+test("NO_RESULTS_RE: SerpApi's empty-result error text is an answer, a real error is not", () => {
+  assert.ok(NO_RESULTS_RE.test("Google Flights hasn't returned any results for this query."));
+  assert.ok(!NO_RESULTS_RE.test("Invalid API key. Your API key should be here: https://serpapi.com/manage-api-key"));
 });
 
 console.log(`\n${passed} passed, 0 failed`);
