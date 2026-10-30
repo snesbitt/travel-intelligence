@@ -244,7 +244,7 @@
 
     <section class="block" id="results" style="margin-top:0.9rem;" aria-live="polite">
       <div class="empty-state es-idle">
-        <p>✈&nbsp; Fill in your trip and run the optimization. You'll get an executive summary, the best pick, and the five alternatives it beat.</p>
+        <p>Fill in your trip and run the optimization. You'll get an executive summary, the best pick, and the five alternatives it beat.</p>
       </div>
     </section>
 
@@ -272,7 +272,7 @@
   <div class="wrap">© 2026</div>
 </footer>
 
-<script src="app.js?v=2"></script>
+<script src="app.js?v=3"></script>
 <script>
 (function () {
   // Refine panel remembers whether you keep it open (2026-07-26)
@@ -1211,9 +1211,9 @@
     const totalCash = best.price * trav;
     const execSummary = `If this were my own trip, I'd book the ${best.cabin} fare on ${best.carrier}` +
       `${best.stops === 0 ? " nonstop" : ` with ${best.stops} stop${best.stops > 1 ? "s" : ""}`} for ${T.fmtUSD(best.price)} per person${trav > 1 ? ` (${T.fmtUSD(totalCash)} total for ${trav} travelers)` : ""}. ` +
-      `It comes out ahead on the priorities you ranked highest, not just on price. ` +
+      `It scores highest against the priorities you ranked. ` +
       (timing.verdict === "buy" ? `Purchase timing favors booking now rather than waiting. ` : timing.verdict === "wait" ? `Purchase timing favors waiting and watching for a better window before locking it in. ` : `It's early enough that I'd set a fare watch rather than transact today. `) +
-      (award.strong ? `Your miles balance is a genuinely strong redemption here (${award.cpp.toFixed(2)}¢/mile); worth booking with points instead of cash.` : `Paying cash beats redeeming miles here (${award.cpp.toFixed(2)}¢/mile); save the balance for a stronger redemption.`);
+      (award.strong ? `Your miles balance is a strong redemption here (${award.cpp.toFixed(2)}¢/mile); worth booking with points instead of cash.` : `Paying cash beats redeeming miles here (${award.cpp.toFixed(2)}¢/mile); save the balance for a stronger redemption.`);
 
     const SORTS = {
       "Weighted score": (a, b) => b.weighted - a.weighted,
@@ -1354,8 +1354,8 @@
       <h3 class="eyebrow" style="margin:0 0 0.5rem;">Award strategy</h3>
       <div class="card block">
         <div class="strategy-block">
-          <h4>Redemption value <span class="tag" style="background:${award.strong ? "var(--good-dim)" : "var(--bad-dim)"};color:${award.strong ? "var(--good)" : "var(--bad)"};">${award.strong ? "Genuinely strong" : "Not recommended"}</span></h4>
-          <p>Typical ${award.cabin} redemption on ${award.alliance} carriers runs ${award.milesLow.toLocaleString()}–${award.milesHigh.toLocaleString()} miles round-trip plus taxes/fees. Against this itinerary's ${T.fmtUSD(best.price)} cash price, the outcome depends on which award level is released: roughly ${Math.max(0, award.cppWorstCase).toFixed(1)}–${award.cppBestCase.toFixed(1)}¢ per mile across the range, and <strong>${award.cpp.toFixed(2)}¢/mile</strong> at this itinerary's estimate: the single verdict used everywhere on this page. ${award.strong ? "That clears the 1.6¢ bar for a genuinely good redemption; worth using miles here, if award space exists." : "That's below the roughly 1.6¢/mile bar; cash is the better call, and the miles are worth more saved for a stronger use."}</p>
+          <h4>Redemption value <span class="tag" style="background:${award.strong ? "var(--good-dim)" : "var(--bad-dim)"};color:${award.strong ? "var(--good)" : "var(--bad)"};">${award.strong ? "Strong" : "Not recommended"}</span></h4>
+          <p>Typical ${award.cabin} redemption on ${award.alliance} carriers runs ${award.milesLow.toLocaleString()}–${award.milesHigh.toLocaleString()} miles round-trip plus taxes/fees. Against this itinerary's ${T.fmtUSD(best.price)} cash price, the outcome depends on which award level is released: roughly ${Math.max(0, award.cppWorstCase).toFixed(1)}–${award.cppBestCase.toFixed(1)}¢ per mile across the range, and <strong>${award.cpp.toFixed(2)}¢/mile</strong> at this itinerary's estimate: the single verdict used everywhere on this page. ${award.strong ? "That clears the 1.6¢ bar for a good redemption; worth using miles here, if award space exists." : "That's below the roughly 1.6¢/mile bar; cash is the better call, and the miles are worth more saved for a stronger use."}</p>
         </div>
         ${award.relevantPrograms.length ? `<div class="strategy-block"><h4>Your balances in play</h4><p>${award.relevantPrograms.map((p) => `${p.program}: ${p.balance.toLocaleString()} miles`).join(" · ")}</p><p>${award.balanceCheck.status === "enough" ? `<strong>Your ${award.balanceCheck.program} balance covers this.</strong> It clears the ~${award.balanceCheck.needed.toLocaleString()}-mile low end of the typical range, with ${award.balanceCheck.surplus.toLocaleString()} miles to spare.` : `<strong>Your ${award.balanceCheck.program} balance is short.</strong> This redemption typically starts around ${award.balanceCheck.needed.toLocaleString()} miles and you have ${award.balanceCheck.biggestBalance.toLocaleString()}; you'd need about ${award.balanceCheck.shortfall.toLocaleString()} more.`}</p></div>` : `<div class="strategy-block"><h4>No balance entered for a ${award.alliance} program</h4><p>Add a balance above if you hold miles in a program that flies this alliance, or check the transfer-partner note below if your points live on a transferable card. This redemption typically starts around ${award.balanceCheck.needed.toLocaleString()} miles.</p></div>`}
         ${inputs.creditCards.length ? `<div class="strategy-block"><h4>Transfer path from your cards</h4><p>${inputs.creditCards.map((cc) => T.TRANSFER_PARTNERS[cc] ? `<strong>${cc}</strong> (${T.TRANSFER_PARTNERS[cc].ratio}): ${T.TRANSFER_PARTNERS[cc].note}.` : "").filter(Boolean).join(" ")}</p></div>` : ""}
@@ -1751,13 +1751,13 @@
     try { localStorage.setItem(CONCERT_CACHE_KEY, JSON.stringify(cache)); } catch (e) {}
   }
   function buildMatchNoteHTML(matches, cityForLink, newKeys, lat, lon) {
-    const badge = (artist) => newKeys.has(String(artist).trim().toLowerCase()) ? ` <span class="concert-match-new" title="First matched in the weekly check">🆕 new this week</span>` : "";
+    const badge = (artist) => newKeys.has(String(artist).trim().toLowerCase()) ? ` <span class="concert-match-new" title="First matched in the weekly check">New this week</span>` : "";
     if (matches.length === 1) {
       const mm = matches[0];
-      return `🎵 ${concertRadarLink(mm.artist, cityForLink, lat, lon)} plays ${escapeHtml(mm.venue || "a venue nearby")} ${escapeHtml(mm.dateLabel || mm.date || "")}, while you're there${badge(mm.artist)}`;
+      return `${concertRadarLink(mm.artist, cityForLink, lat, lon)} plays ${escapeHtml(mm.venue || "a venue nearby")} ${escapeHtml(mm.dateLabel || mm.date || "")}, while you're there${badge(mm.artist)}`;
     }
     const names = matches.slice(0, 4).map((mm) => concertRadarLink(mm.artist, cityForLink, lat, lon) + badge(mm.artist)).join(", ");
-    return `🎵 ${matches.length} artists you follow are playing nearby while you're there: ${names}${matches.length > 4 ? "…" : ""}`;
+    return `${matches.length} artists you follow are playing nearby while you're there: ${names}${matches.length > 4 ? "…" : ""}`;
   }
   function clearMatchNote(row) {
     const existing = row.querySelector(".concert-match, .concert-match-loading");
@@ -1775,7 +1775,7 @@
     clearMatchNote(row);
     const note = document.createElement("div");
     note.className = "concert-match-loading";
-    note.textContent = "🎵 Checking for concert matches…";
+    note.textContent = "Checking for concert matches…";
     row.appendChild(note);
   }
   async function checkConcertMatches(trips) {

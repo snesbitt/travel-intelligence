@@ -8,11 +8,11 @@
 --border: #ddd4bc;
 --accent: #1f3a5f;
 --accent-dim: #dde3ea;
---gold: #a97b2f;
+--gold: #80591a;
 --gold-dim: #f0e4c8;
 --good: #3f6b4f;
 --good-dim: #e2e8de;
---mid: #9c7a35;
+--mid: #7a5c1c;
 --mid-dim: #f0e6cd;
 --bad: #a24a3f;
 --bad-dim: #f2e2de;
@@ -565,3 +565,78 @@ details.refine > summary:hover { color: var(--accent); }
   text-decoration: none;
 }
 .phase-timeline a:hover { text-decoration: underline; }
+
+/* 2026-10-30: restored rules dropped by the 2026-08-08 em-dash sweep (33fbd52), which
+   overwrote style.css with a pre-2026-08-06 copy while the HTML kept the newer class
+   names (guide prompt box, compare cards, need/next lists, mode-card--a..d, stat-tile__,
+   page-card__, phase--live rail, date-sweep chart). Text colours kept at AA. */
+.phase--live .phase__rail { color: var(--good); }
+.phase--progress .phase__rail { color: var(--mid); }
+.mode-card__name { font-weight: 700; font-size: 19px; }
+.mode-card__role { font-size: 11px; text-transform: uppercase; letter-spacing: 0.05em; color: var(--accent); margin: 2px 0 6px; }
+.mode-card ul { margin: 0; padding-left: 15px; font-size: 13.5px; color: #565b6e; }
+.mode-caption { font-family: var(--sans); font-size: 13px; font-style: italic; color: #565b6e; text-align: center; margin: 10px 0 4px; }
+.wont-list li::before { content: "\2715"; color: var(--accent); flex-shrink: 0; font-size: 12px; }
+.mode-card--a { border-left: 3px solid var(--good); }
+.mode-card--b { border-left: 3px solid var(--mid); }
+.mode-card--c { border-left: 3px solid var(--accent); }
+.mode-card--d { border-left: 3px solid var(--gold); }
+.stat-tile__num { font-family: var(--serif); font-style: italic; font-weight: 400; font-size: 22px; color: var(--accent); }
+.stat-tile__label { font-size: 10px; letter-spacing: 0.06em; text-transform: uppercase; color: #565b6e; margin-top: 2px; }
+.page-card__title { margin: 0 0 4px; font-size: 13px; }
+.page-card__desc { margin: 0; font-size: 12px; color: #565b6e; }
+.compare-row { display: grid; grid-template-columns: 1fr; gap: 10px; margin: 1rem 0 1.6rem; }
+@media (min-width: 640px) { .compare-row { grid-template-columns: 1fr 1fr; } }
+.compare-card { background: var(--card); border: 1px solid var(--border); border-radius: 8px; padding: 0.85rem 1rem; }
+.compare-card__kicker { font-size: 10px; letter-spacing: 0.08em; text-transform: uppercase; font-weight: 700; margin-bottom: 4px; }
+.compare-card--good .compare-card__kicker { color: var(--good); }
+.compare-card--bad .compare-card__kicker { color: var(--bad); }
+.compare-card--gold .compare-card__kicker { color: var(--gold); }
+.compare-card p { margin: 0; font-size: 12.5px; color: var(--ink); }
+.prompt-box { background: #24262b; border: 1px solid #454852; border-radius: 9px; padding: 1.1rem 1.2rem; margin: 1.1rem 0 1.6rem; position: relative; }
+.prompt-box pre { margin: 0; white-space: pre-wrap; word-wrap: break-word; font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; font-size: 12.5px; line-height: 1.6; color: #efe8db; }
+.prompt-copy { position: absolute; top: 10px; right: 10px; background: #efe8db; color: #24262b; border: none; border-radius: 6px; font-family: var(--sans); font-size: 11px; font-weight: 700; letter-spacing: 0.03em; padding: 6px 11px; cursor: pointer; }
+.prompt-copy:hover { background: #fff; }
+
+.next-grid { display: grid; grid-template-columns: 1fr; gap: 10px; margin: 0.9rem 0 1.7rem; }
+@media (min-width: 640px) { .next-grid { grid-template-columns: 1fr 1fr; } }
+.next-card { background: var(--card); border: 1px solid var(--border); border-left: 3px solid var(--accent); border-radius: 6px; padding: 0.8rem 0.95rem; }
+.next-card__n { font-family: var(--serif); font-style: italic; font-weight: 400; color: var(--accent); font-size: 13px; }
+.next-card h4 { margin: 2px 0 4px; font-size: 13px; }
+.next-card p { margin: 0; font-size: 12px; color: #565b6e; }
+
+.need-list { list-style: none; padding: 0; margin: 0 0 1.7rem; }
+.need-list li { display: flex; gap: 8px; font-size: 13px; padding: 6px 0; border-bottom: 1px solid var(--border); }
+.need-list li:last-child { border-bottom: none; }
+.need-list li::before { content: "\2022"; color: var(--good); flex-shrink: 0; }
+.sweep-chart { display: flex; flex-direction: column; gap: 8px; }
+.sweep-row { display: grid; grid-template-columns: 92px 1fr 64px 72px; align-items: center; gap: 8px; }
+.sweep-row--empty { grid-template-columns: 92px 1fr; color: var(--ink); opacity: 0.6; }
+.sweep-date { font-size: 12px; font-weight: 600; color: var(--ink); }
+.sweep-bar-track { background: var(--bg-alt); border-radius: 5px; height: 9px; overflow: hidden; }
+.sweep-bar-fill { height: 100%; border-radius: 5px; background: var(--accent); }
+.sweep-row--best .sweep-bar-fill { background: var(--good); }
+.sweep-row--best .sweep-date { color: var(--good); }
+.sweep-price { font-size: 12.5px; font-weight: 700; text-align: right; color: var(--ink); }
+.sweep-score { text-align: right; white-space: nowrap; }
+@media (min-width: 640px) { .sweep-row { grid-template-columns: 120px 1fr 76px 90px; } }
+.prompt-copy { min-height: 44px; min-width: 44px; }
+.prompt-box pre { padding-top: 2.4rem; }
+
+/* 2026-10-30 mobile audit at 375px: the 16px input rule near the top of this
+   section lost to the more specific .form-field selectors (13px computed, so iOS
+   zoomed on focus), and nav, section-jump pills, links and buttons measured 20 to
+   32px tall. Phone widths only; desktop keeps the denser layout. */
+@media (max-width: 639px) {
+  .form-field input[type="text"], .form-field input[type="number"], .form-field input[type="date"],
+  .form-field select, .form-field textarea, select, textarea,
+  input[type="text"], input[type="number"], input[type="date"] { font-size: 16px; min-height: 44px; }
+  .brand { min-height: 44px; align-items: center; }
+  nav.links a, .pill-nav a, .phase-timeline a { display: inline-flex; align-items: center; min-height: 44px; }
+  nav.links { gap: 2px; }
+  nav.links a { padding: 0 6px; }
+  .phase-timeline a { min-width: 44px; justify-content: center; }
+  .pill-nav a { padding-top: 0; padding-bottom: 0; }
+  .alt-links a, .es-link { display: inline-flex; align-items: center; min-height: 44px; }
+  .run-btn, .ti-toggle, .tiCopyBtn, #tiCopyBtn { min-height: 44px; }
+}

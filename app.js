@@ -1500,7 +1500,7 @@ function buildInsights(inputs, candidates, best, weights, timing, usingLive) {
   }
 
   if (best.routeKnown === false) {
-    insights.push(`Heads up: ${best.via ? `at least one of "${inputs.origin}" / "${best.via}" / "${inputs.destination}"` : `"${inputs.origin}" → "${inputs.destination}"`} isn't in the hand-maintained city table, so flight times and distance-scaled fares assume a generic 7,500 km long-haul. Add the city to CITY_COORDS in app.js for a real great-circle estimate.`);
+    insights.push(`Flight times and fares for this route are rough: ${best.via ? `at least one of "${inputs.origin}" / "${best.via}" / "${inputs.destination}"` : `"${inputs.origin}" → "${inputs.destination}"`} is not in the city table, so they assume a generic 7,500 km long-haul.`);
   } else if (best.via && best.routeLegs) {
     insights.push(`Routed via ${best.via}: ${best.routeLegs[0].toLocaleString()} km + ${best.routeLegs[1].toLocaleString()} km = ${best.routeKm.toLocaleString()} km each way, vs ~${(best.directKm || 0).toLocaleString()} km direct: about ${Math.max(0, Math.round(((best.routeKm - (best.directKm || best.routeKm)) / Math.max(1, best.directKm || 1)) * 100))}% extra flying for the stopover. Book it as one multi-city ticket rather than two one-ways; that is usually cheaper, and it protects the connection if the first leg runs late.`);
   } else if (best.routeKm) {
