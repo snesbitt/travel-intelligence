@@ -1266,6 +1266,24 @@ test("valuationAge: copiedOn and the human-readable asOf string describe the sam
   );
 });
 
+// 2026-11-03: TRANSFER_PARTNERS used to keep its own hand-typed copy of each
+// card's value, and the monthly refresh only updated POINT_VALUATIONS, so the
+// two disagreed (Citi 1.9 vs 1.95, Wells Fargo 1.75 vs 1.8) on a live page.
+// Card values now come from POINT_VALUATIONS.cards alone.
+test("TRANSFER_PARTNERS: every valued card has exactly the value POINT_VALUATIONS.cards holds", () => {
+  for (const [card, cents] of Object.entries(T.POINT_VALUATIONS.cards)) {
+    assert.ok(T.TRANSFER_PARTNERS[card], `POINT_VALUATIONS.cards has "${card}" but TRANSFER_PARTNERS has no row of that name, so it would render no value`);
+    assert.equal(T.TRANSFER_PARTNERS[card].value, cents, `${card}: TRANSFER_PARTNERS value must be the POINT_VALUATIONS figure`);
+  }
+});
+
+test("TRANSFER_PARTNERS: every row has a numeric cents value to show", () => {
+  for (const [card, row] of Object.entries(T.TRANSFER_PARTNERS)) {
+    assert.equal(typeof row.value, "number", `${card} has no numeric value`);
+    assert.ok(Number.isFinite(row.value) && row.value > 0, `${card} value must be a positive number, got ${row.value}`);
+  }
+});
+
 // ---------------------------------------------------------------------------
 // Write paths in index.html must handle more than a 401 (2026-09-14)
 //

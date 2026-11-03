@@ -56,13 +56,19 @@ const CABIN_STOP_DISCOUNT = { Economy: 26, "Premium Economy": 45, Business: 90, 
 const CABIN_FLOOR = { Economy: 220, "Premium Economy": 560, Business: 1800, First: 4200, "Best Value": 320 };
 const CABIN_COMFORT_BASE = { Economy: 38, "Premium Economy": 58, Business: 85, First: 97, "Best Value": 54 };
 
+// Card transfer ratios and notes. The cents-per-point `value` of each card in
+// POINT_VALUATIONS.cards is NOT written here: it is filled in from that table
+// just below it, so the monthly TPG re-copy updates every figure on screen
+// from one place (2026-11-03: two hand-kept copies had drifted apart, Citi
+// 1.9 vs 1.95 and Wells Fargo 1.75 vs 1.8). Marriott Bonvoy is a hotel
+// currency with no row in POINT_VALUATIONS.cards, so its `value` stays here.
 const TRANSFER_PARTNERS = {
-  "American Express Membership Rewards": { ratio: "1:1", value: 2.0, note: "transfers to most Star Alliance and Oneworld programs, plus Delta, Flying Blue, Virgin Atlantic, ANA, Avianca LifeMiles" },
-  "Chase Ultimate Rewards": { ratio: "1:1", value: 2.05, note: "transfers to United, Air Canada Aeroplan, Air France/KLM Flying Blue, Virgin Atlantic, Singapore, British Airways; no American or Delta" },
-  "Capital One": { ratio: "1:1 (most partners)", value: 1.85, note: "transfers to Air Canada Aeroplan, Turkish, Avianca LifeMiles, Air France/KLM, Cathay, EVA" },
-  "Citi ThankYou": { ratio: "1:1 (most partners)", value: 1.9, note: "transfers to Turkish, Air France/KLM, Avianca LifeMiles, Qatar Avios" },
-  "Bilt Rewards": { ratio: "1:1", value: 2.2, note: "transfers to United, American, Air France/KLM, Turkish, Alaska; the only major card that transfers to American, and TPG's highest-valued currency" },
-  "Wells Fargo": { ratio: "1:1", value: 1.75, note: "transfers to Air France/KLM, Avianca LifeMiles, Virgin Atlantic" },
+  "American Express Membership Rewards": { ratio: "1:1", note: "transfers to most Star Alliance and Oneworld programs, plus Delta, Flying Blue, Virgin Atlantic, ANA, Avianca LifeMiles" },
+  "Chase Ultimate Rewards": { ratio: "1:1", note: "transfers to United, Air Canada Aeroplan, Air France/KLM Flying Blue, Virgin Atlantic, Singapore, British Airways; no American or Delta" },
+  "Capital One": { ratio: "1:1 (most partners)", note: "transfers to Air Canada Aeroplan, Turkish, Avianca LifeMiles, Air France/KLM, Cathay, EVA" },
+  "Citi ThankYou": { ratio: "1:1 (most partners)", note: "transfers to Turkish, Air France/KLM, Avianca LifeMiles, Qatar Avios" },
+  "Bilt Rewards": { ratio: "1:1", note: "transfers to United, American, Air France/KLM, Turkish, Alaska; the only major card that transfers to American, and TPG's highest-valued currency" },
+  "Wells Fargo": { ratio: "1:1", note: "transfers to Air France/KLM, Avianca LifeMiles, Virgin Atlantic" },
   "Marriott Bonvoy": { ratio: "3:1 (plus a 5,000 bonus per 60k converted)", value: 0.8, note: "weak ratio for flights; hotel points converted to air are rarely a good redemption" },
 };
 
@@ -95,6 +101,14 @@ const POINT_VALUATIONS = {
     "Emirates Skywards": 1.0, "Etihad Guest": 1.1, "Turkish Miles&Smiles": 1.1,
   },
 };
+
+// One source of truth for card values: copy each card's cents-per-point from
+// POINT_VALUATIONS.cards onto its TRANSFER_PARTNERS row. A card name that
+// matches no row is skipped here and caught by tests/app.test.js, so a typo
+// fails the build instead of rendering "TPG undefined¢".
+for (const card of Object.keys(POINT_VALUATIONS.cards)) {
+  if (TRANSFER_PARTNERS[card]) TRANSFER_PARTNERS[card].value = POINT_VALUATIONS.cards[card];
+}
 
 // Transfer bonuses, hand-copied 2026-07-18 from TPG's current-transfer-
 // bonuses page; these expire and change monthly, so each entry carries
