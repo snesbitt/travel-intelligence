@@ -417,3 +417,4 @@ Editorial standard for external-facing docs: see ~/Projects/project-hub/EDITORIA
 
 Dated changelog entries (2026-07-26 to 2026-10-26) are in `CHANGELOG_ARCHIVE.md`. Read it before reversing an old decision. New entries: add a short dated bullet below, and move anything longer than ten lines to the archive.
 
+- 2026-11-03: "Tests: All jobs have failed" was the `valuations_due` early warning, not a code bug: TPG published November and `copiedOn` was 2026-10-20. Re-copied all 6 card and 18 airline figures from the live page read in Chrome (diffed, all match), bumped `asOf`/`copiedOn`. Not added, scope call for Susan: Rove (2.05), U.S. Bank (1.6). `TRANSFER_BONUSES` untouched (its rows are expired and filtered at render). The warning fires on the 1st of each month by design; the re-copy stays manual.
