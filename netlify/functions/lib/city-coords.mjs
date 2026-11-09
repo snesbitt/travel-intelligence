@@ -72,7 +72,7 @@ export const CITY_COORDS = {
   melbourne: [-37.67, 144.84], auckland: [-37.01, 174.79], "buenos aires": [-34.82, -58.54],
   "sao paulo": [-23.43, -46.47], "rio de janeiro": [-22.81, -43.25], lima: [-12.02, -77.11],
   bogota: [4.70, -74.15], santiago: [-33.39, -70.79], johannesburg: [-26.14, 28.25], "cape town": [-33.96, 18.60],
-  cairo: [30.12, 31.41], nairobi: [-1.32, 36.93], casablanca: [33.37, -7.59], reykjavik: [63.99, -22.61],
+  cairo: [30.12, 31.41], "addis ababa": [8.98, 38.80], add: [8.98, 38.80], nairobi: [-1.32, 36.93], casablanca: [33.37, -7.59], reykjavik: [63.99, -22.61],
   greenville: [34.90, -82.22], gsp: [34.90, -82.22], spartanburg: [34.90, -82.22],
   gaborone: [-24.56, 25.92], gbe: [-24.56, 25.92],
   "victoria falls": [-17.93, 25.83], vfa: [-17.93, 25.83], kasane: [-17.83, 25.16], bbk: [-17.83, 25.16],
