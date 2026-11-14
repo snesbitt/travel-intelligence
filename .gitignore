@@ -8,3 +8,4 @@ _to_delete/
 *.backup
 fix-*.py
 node_modules/
+_to_delete_locks/

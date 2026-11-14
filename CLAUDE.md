@@ -119,7 +119,7 @@ not just a demo. Hold every future change to that standard.
   SerpApi quota without adding a second store; the cache-key and TTL
   logic is exported as pure functions, `buildFareCacheKey`,
   `isCacheFresh`, `CACHE_TTL_MS`, and covered by `tests/fares.test.mjs`,
-  12 assertions, no network/blobs mocking needed since `@netlify/blobs`
+  52 assertions, no network/blobs mocking needed since `@netlify/blobs`
   is imported dynamically inside the handler rather than at module
   top-level), `scan-offers.mjs` (`/api/scan-offers`, stores Kayak/Booking
   fares scanned from Susan's own logged-in browser, under a
@@ -157,7 +157,7 @@ not just a demo. Hold every future change to that standard.
   roadmap, a stepper-nav walkthrough on Guide. Linked from the masthead
   nav on every page.
 - `style.css` — shared house style. Cream/serif shell (`--bg: #efe8db`,
-  Fraunces italic for titles/accents), with a deep-navy accent
+  Lora italic for titles/accents), with a deep-navy accent
   (`--accent: #1f3a5f`) distinguishing this site from its siblings while
   keeping the same component family (`.card`, `.pill-nav`, `.phase`,
   `.step`, `.stat-strip`, `.field-note`). Travel-specific components

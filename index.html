@@ -609,7 +609,7 @@
     list.innerHTML = shown.map((w) => {
       const d = new Date(w.dateLogged);
       const dateStr = isNaN(d) ? "" : d.toLocaleDateString("en-US", { month: "short", day: "numeric" });
-      return `<li><span class="lg-date">${dateStr}</span>${escapeHtml(w.text)} <button type="button" class="win-del" data-idx="${w.i}" aria-label="Delete this entry" style="background:none;border:none;color:var(--ink-faint);cursor:pointer;font-size:11px;">✕</button></li>`;
+      return `<li><span class="lg-date">${dateStr}</span>${escapeHtml(w.text)} <button type="button" class="win-del" data-idx="${w.i}" aria-label="Delete this entry" style="background:none;border:none;color:#565b6e;cursor:pointer;font-size:11px;">✕</button></li>`;
     }).join("");
     if (ordered.length > 3) {
       toggle.classList.remove("ti-hidden");
