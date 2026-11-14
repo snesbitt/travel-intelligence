@@ -1412,7 +1412,12 @@ test("buildInsights: user-typed text is HTML-escaped before it reaches the page"
 });
 
 test("purchaseTiming: one day out is singular", () => {
-  const d = new Date(Date.now() + 86400000 + 3600000).toISOString().slice(0, 10);
+  // Tomorrow as a LOCAL calendar date, the same clock purchaseTiming() reads.
+  // The old UTC "now + 25h" slice landed two days out when a run started after
+  // 23:00 UTC (late scheduled runs on 2026-11-04, 11-05, 11-13) and rounded to 2.
+  const t = new Date();
+  t.setDate(t.getDate() + 1);
+  const d = `${t.getFullYear()}-${String(t.getMonth() + 1).padStart(2, "0")}-${String(t.getDate()).padStart(2, "0")}`;
   assert.match(T.runOptimization({ ...AUDIT_BASE, departDate: d }, AUDIT_OFFERS).timing.reason, /Only (0|1) days? out/);
 });
 
