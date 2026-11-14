@@ -931,7 +931,7 @@
     const inputs = collectInputs();
     const T = window.TravelIntel;
     if (inputs.returnDate && inputs.departDate && inputs.returnDate < inputs.departDate) {
-      resultsEl.innerHTML = `<div class="empty-state"><div class="es-icon">⚠</div>
+      resultsEl.innerHTML = `<div class="empty-state"><div class="es-icon">⚠︎</div>
         <p><strong>Return date (${inputs.returnDate}) is before departure (${inputs.departDate}).</strong></p>
         <p class="form-hint">No search was run: an inverted range can never return real fares. Fix the dates and re-run.</p></div>`;
       document.getElementById("results").scrollIntoView({ behavior: "smooth", block: "start" });
@@ -939,7 +939,7 @@
     }
     // Guards that stop a search before it spends one of the 100 monthly SerpApi calls.
     const blockSearch = (headline, hint) => {
-      resultsEl.innerHTML = `<div class="empty-state"><div class="es-icon">⚠</div>
+      resultsEl.innerHTML = `<div class="empty-state"><div class="es-icon">⚠︎</div>
         <p><strong>${headline}</strong></p>
         <p class="form-hint">${hint}</p></div>`;
       document.getElementById("results").scrollIntoView({ behavior: "smooth", block: "start" });
@@ -1230,7 +1230,7 @@
           ${u.googleFlights ? `<a class="es-link" href="${u.googleFlights}" target="_blank" rel="noopener">Google Flights ↗</a>` : ""}
           ${kay ? `<a class="es-link" href="${kay}" target="_blank" rel="noopener">Kayak ↗</a>` : ""}
         </div>`;
-      resultsEl.innerHTML = `<div class="empty-state es-error"><div class="es-icon">⚠</div>
+      resultsEl.innerHTML = `<div class="empty-state es-error"><div class="es-icon">⚠︎</div>
         <p><strong>${badField ? `The ${badField} didn't resolve to a known city or airport.` : `No real fares to score for ${oCode} → ${dCode}: ${why}`}</strong></p>
         <p class="form-hint">${badField ? "Check the spelling or use a 3-letter airport code (e.g. GSP for Greenville, SC), then re-run." : (filteredOut ? "Nothing synthetic is ever shown. Real fares exist for this route; they just fall outside a filter you saved." : "Nothing synthetic is ever shown. Retry, or check the live route yourself:")}</p>
         ${actions}</div>`;
@@ -1917,7 +1917,7 @@
         const card = document.getElementById("watched");
         card.classList.remove("ti-hidden");
         document.getElementById("watched-rows").insertAdjacentHTML("afterbegin",
-          `<p class="form-hint" style="color:var(--bad,#a24a3f);">⚠ The last scheduled health check failed (${new Date(j.health.at).toLocaleDateString("en-US", { month: "short", day: "numeric" })}): the fares backend may be down; watched-trip checks may have been skipped.</p>`);
+          `<p class="form-hint" style="color:var(--bad,#a24a3f);">⚠︎ The last scheduled health check failed (${new Date(j.health.at).toLocaleDateString("en-US", { month: "short", day: "numeric" })}): the fares backend may be down; watched-trip checks may have been skipped.</p>`);
       }
     } catch (e) { /* backend absent, card stays hidden */ }
   })();
