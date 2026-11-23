@@ -19,7 +19,8 @@
 // `npm test`). No live network calls.
 
 import assert from "node:assert/strict";
-import { isStarAirline, isStarOffer, carrierLabel } from "../netlify/functions/lib/alliances.mjs";
+import { createRequire } from "node:module";
+import { STAR_AIRLINE_NAMES, isStarAirline, isStarOffer, carrierLabel } from "../netlify/functions/lib/alliances.mjs";
 import { mergeChecks, buildStopsSummary, isBeyondBookingHorizon, buildWatchLegs, applyAllianceFilter } from "../netlify/functions/watch-check.mjs";
 
 let passed = 0;
@@ -214,6 +215,35 @@ test("applyAllianceFilter: no alliance returns everything; Star keeps only Star 
 
 test("applyAllianceFilter: when nothing qualifies the result is empty, so the check is skipped, not faked", () => {
   assert.equal(applyAllianceFilter([offer(1900, "British Airways")], "Star Alliance").length, 0);
+});
+
+let appTI = null; // require() caches app.js, so load it once and reuse
+function loadAppTI() {
+  if (appTI) return appTI;
+  const g = globalThis;
+  const had = Object.prototype.hasOwnProperty.call(g, "window");
+  const prev = g.window;
+  g.window = {};
+  try { createRequire(import.meta.url)("../app.js"); appTI = g.window.TravelIntel; return appTI; }
+  finally { if (had) g.window = prev; else delete g.window; }
+}
+
+test("app.js's Star airline list stays in sync with lib/alliances.mjs", () => {
+  const T = loadAppTI();
+  assert.deepEqual([...T.STAR_AIRLINES].sort(), [...STAR_AIRLINE_NAMES].sort(), "copy lib/alliances.mjs's list into app.js STAR_AIRLINES");
+});
+
+test("starBaseline: picks the cheapest all-Star live offer, ignores cheaper non-Star and scanned offers, null when none", () => {
+  const T = loadAppTI();
+  const offers = [
+    { carrier: "British Airways + South African", priceTotal: 1900 },
+    { carrier: "United + Ethiopian", priceTotal: 2069 },
+    { carrier: "Turkish Airlines + South African", priceTotal: 2155 },
+    { carrier: "United", priceTotal: 1500, src: "Kayak" },
+  ];
+  assert.deepEqual(T.starBaseline(offers), { price: 2069, carrier: "United + Ethiopian" });
+  assert.equal(T.starBaseline([{ carrier: "Emirates", priceTotal: 1 }]), null);
+  assert.equal(T.starBaseline(null), null);
 });
 
 console.log(`\n${passed} passed`);

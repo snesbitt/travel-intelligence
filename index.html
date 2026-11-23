@@ -1580,9 +1580,10 @@
           // The nightly watcher records the cheapest offer, so the baseline must be the
           // cheapest feed offer too. The engine's winner can cost more, and comparing the
           // two would show a drop that never happened.
-          // An alliance watch has no baseline: the feed's cheapest offer may
-          // be outside the alliance, and comparing the two would invent a drop.
-          baseline: alliance ? null : (() => {
+          // An alliance watch starts from the cheapest live offer INSIDE the
+          // alliance (starBaseline), not the feed's overall cheapest, which
+          // may be outside it and would invent a drop. No Star offer = no baseline.
+          baseline: alliance ? T.starBaseline((window.__tiLastLive && window.__tiLastLive.offers) || []) : (() => {
             const offers = ((window.__tiLastLive && window.__tiLastLive.offers) || []).filter((o) => !o.src && o.priceTotal > 0);
             if (!offers.length) return null;
             const floor = offers.reduce((m, o) => (o.priceTotal < m.priceTotal ? o : m), offers[0]);

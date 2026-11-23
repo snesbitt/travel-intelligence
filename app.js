@@ -1641,10 +1641,24 @@ function runOptimization(inputs, liveOffers) {
   return { candidates, weights, best, alternatives, timing, award, insights, tactics, pointsIntel, usingLive, routeKnown };
 }
 
+// 2026-11-22: browser copy of netlify/functions/lib/alliances.mjs's Star
+// Alliance names, a deliberate duplicate (no build step, so app.js cannot
+// import a server module), same arrangement as CITY_COORDS. A test fails
+// if the two lists drift. Used to give a "Star Alliance only" watch a real
+// starting price: the cheapest live offer whose every airline is Star.
+const STAR_AIRLINES = ["aegean", "aegean airlines", "air canada", "air china", "air india", "air new zealand", "all nippon airways", "ana", "asiana", "asiana airlines", "austrian", "austrian airlines", "avianca", "brussels airlines", "copa", "copa airlines", "croatia airlines", "egyptair", "ethiopian", "ethiopian airlines", "eva air", "lot", "lot polish airlines", "lufthansa", "shenzhen airlines", "singapore airlines", "south african", "south african airways", "swiss", "swiss international air lines", "tap air portugal", "tap portugal", "thai", "thai airways", "turkish", "turkish airlines", "united", "united airlines"];
+function starBaseline(offers) {
+  const star = (offers || []).filter((o) => o && !o.src && o.priceTotal > 0 && String(o.carrier || "").split(" + ").every((p) => STAR_AIRLINES.includes(p.trim().toLowerCase())));
+  if (!star.length) return null;
+  const floor = star.reduce((m, o) => (o.priceTotal < m.priceTotal ? o : m), star[0]);
+  return { price: floor.priceTotal, carrier: floor.carrier };
+}
+
 if (typeof window !== "undefined") {
   window.TravelIntel = {
     runOptimization, computeWeights, upgradeTactics, bestPointsAnswers, toIATA, carrierSite, liveSearchUrls, scanSourceUrl, displayCity, displayCityName, priceIntelligence, suggestPriorities,
     levenshtein, fuzzyMatchKey, suggestCities, lookupCoords, parseIataSuffix, stripIataSuffix,
+    STAR_AIRLINES, starBaseline,
     ALLIANCES, ALL_CARRIERS, TRANSFER_PARTNERS, POINT_VALUATIONS, TRANSFER_BONUSES,
     // exposed 2026-08-21: the points panel must render
     // activeTransferBonuses(), never TRANSFER_BONUSES directly, or expired

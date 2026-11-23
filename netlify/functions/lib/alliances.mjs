@@ -21,6 +21,9 @@ const STAR_NAMES = new Set([
   "thai airways", "turkish", "turkish airlines", "united", "united airlines",
 ]);
 
+// Exported so a test can prove app.js's browser copy has not drifted.
+export const STAR_AIRLINE_NAMES = [...STAR_NAMES];
+
 export function isStarAirline(name) {
   return STAR_NAMES.has(String(name || "").trim().toLowerCase());
 }
