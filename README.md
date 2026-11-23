@@ -74,6 +74,18 @@ they do.
   `checkWriteAuth()`, checked against the `EDIT_SECRET` Netlify env var)
   since 2026-08-08; browsing and running the optimizer stay open to
   anyone with the link.
+- Watches can store a one-night stopover (for example SFO to Johannesburg
+  to Victoria Falls). The checker then runs a multi-city search, and the
+  watch id gains a `|via:<IATA>:<nights>` suffix. A watch can also be
+  "Star Alliance only": the carrier can change, but every flight on the
+  fare must be Star Alliance (list in `netlify/functions/lib/alliances.mjs`,
+  dated, checked on the outbound flights only). The id gains `|al:star`.
+  The watch starts from the cheapest Star fare in the search you ran.
+  Plain trips keep their old id.
+- A quieter page (Phase 14): the trip card shows the core fields, and the
+  extras (stopover, open-jaw, date flexibility), preferences, wallet and the
+  lower results cards sit in closed folds. Nothing was removed. The
+  executive summary, best recommendation and top five stay open.
 - Award Strategy checks your saved loyalty balances against the
   redemption this itinerary needs, but only counts a balance held in a
   program that actually flies the itinerary's alliance: a big balance in
