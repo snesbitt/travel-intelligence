@@ -46,16 +46,8 @@
         <div class="form-grid">
           <div class="form-field"><label for="origin">Origin</label><input type="text" id="origin" placeholder="e.g. San Francisco" value="San Francisco"></div>
           <div class="form-field"><label for="destination">Destination</label><input type="text" id="destination" placeholder="e.g. Tokyo" value="Tokyo"></div>
-          <div class="form-field"><label for="viaCity">Via: stopover city (optional)</label><input type="text" id="viaCity"></div>
-          <!-- 2026-08-21 (Susan): stopover defaults to 0 nights, and the Via field's
-                 "e.g. Osaka" placeholder is gone. The stopover is rarely used, so both
-                 defaults were quietly suggesting a trip shape most searches don't want.
-                 viaNights is trip-specific and deliberately never persisted, so this
-                 HTML default is the only default there is. -->
-          <div class="form-field"><label for="viaNights">Nights at the stopover</label><input type="number" id="viaNights" value="0" min="0" max="30"></div>
           <div class="form-field"><label for="departDate">Departure date</label><input type="date" id="departDate"></div>
           <div class="form-field"><label for="returnDate">Return date</label><input type="date" id="returnDate"></div>
-          <div class="form-field"><label for="returnFromCity">Return from a different city (open-jaw, optional)</label><input type="text" id="returnFromCity" placeholder="e.g. Kasane (fly home from a different city than you flew into)"></div>
           <div class="form-field">
             <label for="priorityPrimary">Optimize for</label>
             <select id="priorityPrimary">
@@ -82,15 +74,6 @@
             </select>
           </div>
         </div>
-        <div class="form-field" style="margin-top:10px;">
-          <label>Date flexibility</label>
-          <div class="pill-toggle" data-group="dateFlexibility">
-            <button type="button" data-val="Exact" class="sel">Exact</button>
-            <button type="button" data-val="±1 day">± 1 day</button>
-            <button type="button" data-val="±3 days">± 3 days</button>
-            <button type="button" data-val="±7 days">± 7 days</button>
-          </div>
-        </div>
         <!-- 2026-07-31 (Susan: "I always want to fly nonstop if available"):
              promoted out of the Flight preferences fold, same reasoning the
              Via field got promoted for above, a standing rule, not an edge
@@ -109,6 +92,29 @@
             <button type="button" data-val="3">Any stops</button>
           </div>
         </div>
+        <!-- 2026-11-22 simplification (hide, don't delete): stopover, open-jaw
+             and date flexibility are real features but rarely needed, so they
+             fold away. Every id and data-group is unchanged, so all search and
+             watch logic reads them exactly as before; the script at the end of
+             the body opens this panel by itself if any of them holds a value. -->
+        <details class="refine" id="trip-extra">
+          <summary>More: stopover, different return city, date flexibility</summary>
+          <div class="form-grid">
+            <div class="form-field"><label for="viaCity">Via: stopover city (optional)</label><input type="text" id="viaCity"></div>
+            <div class="form-field"><label for="viaNights">Nights at the stopover</label><input type="number" id="viaNights" value="0" min="0" max="30"></div>
+            <div class="form-field"><label for="returnFromCity">Return from a different city (open-jaw, optional)</label><input type="text" id="returnFromCity" placeholder="e.g. Kasane (fly home from a different city than you flew into)"></div>
+          </div>
+          <div class="form-field" style="margin-top:10px;">
+          <label>Date flexibility</label>
+          <div class="pill-toggle" data-group="dateFlexibility">
+            <button type="button" data-val="Exact" class="sel">Exact</button>
+            <button type="button" data-val="±1 day">± 1 day</button>
+            <button type="button" data-val="±3 days">± 3 days</button>
+            <button type="button" data-val="±7 days">± 7 days</button>
+          </div>
+        </div>
+
+        </details>
         <p class="form-hint" id="prio-suggest" style="margin-top:10px;"></p>
       </section>
 
@@ -144,7 +150,7 @@
 
       <section class="block card" id="preferences">
         <h2 class="card-title">Flight preferences <span class="form-hint" id="prefs-status" style="font-weight:400;"></span></h2>
-        <p class="form-hint" style="margin-bottom:10px;">Everything here auto-saves to this browser and reloads next visit. None of it is stored on a server. One field does travel: cabin goes out with the fare search when you run one, along with the route, dates, and traveler count. Cabin, airlines, alliances, times, and travel style all feed the optimizer and its suggestions. Preferred seat and hotel brand are saved for reference only, since this site scores neither. Same for checked bags and carry-on-only: live fare data carries no baggage fees, and inventing one would be a guess dressed up as a number. Stops lives on the Trip card now, next to Date flexibility.</p>
+        <p class="form-hint" style="margin-bottom:10px;">Saved in this browser only. Cabin is the one field sent with a search, along with route, dates and travellers.</p>
         <div class="form-field">
           <label>Cabin</label>
           <div class="pill-toggle" data-group="cabin">
@@ -202,7 +208,7 @@
 
       <section class="block card" id="wallet">
         <h2 class="card-title">Your wallet <span class="form-hint" id="wallet-status" style="font-weight:400;"></span></h2>
-        <p class="form-hint" style="margin-bottom:10px;">Cards and loyalty balances auto-save to this browser as you type, and reload next session. Save wallet is just the explicit confirm. Nothing in this card ever leaves your device.</p>
+        <p class="form-hint" style="margin-bottom:10px;">Saved in this browser only. Nothing here leaves your device.</p>
         <div class="check-grid">
           <label class="check-row"><input type="checkbox" class="cc-check" value="American Express Membership Rewards"> American Express Membership Rewards</label>
           <label class="check-row"><input type="checkbox" class="cc-check" value="Chase Ultimate Rewards"> Chase Ultimate Rewards</label>
@@ -263,7 +269,10 @@
       <div id="sweep-body" style="margin-top:14px;"></div>
     </section>
 
-    <section class="block" id="points-intel" style="margin-top:2rem;"></section>
+    <details class="refine" id="points-details" style="margin-top:1.2rem;">
+      <summary>Points intelligence: what airline and card points are worth</summary>
+      <section class="block" id="points-intel" style="margin-top:0.4rem;"></section>
+    </details>
 
   </div>
 </main>
@@ -1315,7 +1324,7 @@
         </div>
         <div style="display:flex;gap:8px;align-items:flex-end;flex-wrap:wrap;">
           <button type="button" class="ti-toggle" id="watch-btn" onclick="tiWatchTrip(this)">⭑ Watch this trip</button>
-          <button type="button" class="ti-toggle" id="watch-star-btn" onclick="tiWatchTrip(this, 'Star Alliance')">⭑ Watch (Star Alliance only)</button>
+          <label class="form-hint" style="display:flex;align-items:center;gap:6px;"><input type="checkbox" id="watch-star"> Star Alliance only</label>
           <button type="button" class="ti-toggle" onclick="tiExportIcs()">Upgrade plan → calendar (.ics)</button>
         </div>
         <p class="form-hint" style="flex:2;min-width:200px;margin-bottom:6px;"><strong>Live fares</strong> retrieved ${window.__tiLastLive && window.__tiLastLive.retrievedAt ? new Date(window.__tiLastLive.retrievedAt).toLocaleString("en-US", { month: "short", day: "numeric", hour: "numeric", minute: "2-digit" }) : "just now"} via ${window.__tiLastLive && window.__tiLastLive.provider ? window.__tiLastLive.provider : "the live backend"}: real prices, scored by the same engine. Same shortlist, different lens: switching recomputes every weight and re-ranks instantly, no re-run needed. ${trav > 1 ? `Pricing shown per person; totals for ${trav} travelers alongside.` : ""}</p>
@@ -1351,13 +1360,15 @@
         })()}</div>
       </div>
 
-      <h3 class="eyebrow" style="margin:0 0 0.5rem;">Decision framework</h3>
+      <details class="refine"><summary>Decision framework: how the score was weighted</summary>
       <div class="card block">
         <div class="score-grid">
           ${["Cost","Comfort","Upgrade","Award","Flexibility","Risk","Time"].map((d) => scoreBar(d, best.scores[d], w[d])).join("")}
         </div>
         <p class="form-hint" style="margin-top:10px;">Weights come directly from the priority ranking you set: higher-ranked priorities pull more weight onto the dimensions they care about most. Nothing here is optimized for a single variable.</p>
       </div>
+
+      </details>
 
       <h3 class="eyebrow" style="margin:0 0 0.5rem;">Top five alternatives</h3>
       <div class="card block alt-table-wrap">
@@ -1374,7 +1385,7 @@
         <p class="form-hint" style="margin-top:8px;">Prices are per person${trav > 1 ? `; multiply by ${trav} for your party` : ""}. Miles column is an estimated planning range per candidate (not an award-space check); "pay miles/cash" flips at the 1.6¢-per-mile bar. Award seats are the constraint for groups: programs rarely release ${trav > 1 ? trav + "+" : "many"} award seats on one flight, so for parties consider splitting across two bookings.</p>
       </div>
 
-      <h3 class="eyebrow" style="margin:0 0 0.5rem;">Upgrade strategy</h3>
+      <details class="refine"><summary>Upgrade strategy</summary>
       <div class="card block">
         <div class="strategy-block">
           <h4>Complimentary / mileage upgrade likelihood <span class="tag" style="background:${upgradeLikely === "High" ? "var(--good-dim)" : upgradeLikely === "Moderate" ? "var(--mid-dim)" : "var(--bad-dim)"};color:${upgradeLikely === "High" ? "var(--good)" : upgradeLikely === "Moderate" ? "var(--mid)" : "var(--bad)"};">${upgradeLikely}</span></h4>
@@ -1388,7 +1399,9 @@
         ${result.tactics.length > 3 ? `<button type="button" class="ti-toggle" aria-expanded="false" onclick="var ex=this.parentElement.querySelectorAll('.tac-extra');var hidden=ex[0].classList.contains('ti-hidden');ex.forEach(e=>e.classList.toggle('ti-hidden',!hidden));this.setAttribute('aria-expanded',hidden?'true':'false');this.textContent=hidden?'Collapse the timeline ▴':'Show the full timeline (${result.tactics.length - 3} more steps) ▾';">Show the full timeline (${result.tactics.length - 3} more steps) ▾</button>` : ""}
       </div>
 
-      <h3 class="eyebrow" style="margin:0 0 0.5rem;">Award strategy</h3>
+      </details>
+
+      <details class="refine"><summary>Award strategy</summary>
       <div class="card block">
         <div class="strategy-block">
           <h4>Redemption value <span class="tag" style="background:${award.strong ? "var(--good-dim)" : "var(--bad-dim)"};color:${award.strong ? "var(--good)" : "var(--bad)"};">${award.strong ? "Strong" : "Not recommended"}</span></h4>
@@ -1404,7 +1417,9 @@
         </div>
       </div>
 
-      <h3 class="eyebrow" style="margin:0 0 0.5rem;">Purchase strategy</h3>
+      </details>
+
+      <details class="refine"><summary>Purchase strategy</summary>
       <div class="card block">
         ${(() => {
           const pi = T.priceIntelligence(window.__tiLastLive && window.__tiLastLive.priceInsights, trav);
@@ -1431,8 +1446,11 @@
         </div>
       </div>
 
-      <h3 class="eyebrow" style="margin:0 0 0.5rem;">Travel advisor insights</h3>
+      </details>
+
+      <details class="refine"><summary>Travel advisor insights</summary>
       <ul class="insight-list block">${insightItems}</ul>
+      </details>
     `;
     renderPointsIntel(inputs.creditCards);
   }
@@ -1486,7 +1504,6 @@
     const noBonuses = `<div class="strategy-block"><p>No bonus in the hand-copied table is still running${lastEnded ? `; the most recent one recorded ended ${lastEnded.ends}` : ""}. This table is copied by hand from The Points Guy's current-transfer-bonuses page each month, so an empty list means nothing current has been copied in, not that no bonus exists. Check TPG directly before assuming there's none on your route.</p></div>`;
 
     document.getElementById("points-intel").innerHTML = `
-      <h3 class="eyebrow" style="margin:0 0 0.5rem;">Points intelligence</h3>
       <div class="card block">
         <div class="strategy-block">
           <h4>Which airline's points are worth the most right now</h4>
@@ -1533,8 +1550,12 @@
   // 2026-11-22: second argument is an optional alliance; the watch then
   // tracks the cheapest fare whose every flight is in it (Star Alliance
   // only for now), whichever airline that is on the day.
-  window.tiWatchTrip = async function (btn, alliance) {
-    const idleLabel = alliance ? "⭑ Watch (Star Alliance only)" : "⭑ Watch this trip";
+  window.tiWatchTrip = async function (btn) {
+    // One Watch button; the "Star Alliance only" tick-box beside the main
+    // one decides whether the watch is alliance-restricted (2026-11-22).
+    const starBox = document.getElementById("watch-star");
+    const alliance = starBox && starBox.checked ? "Star Alliance" : undefined;
+    const idleLabel = "⭑ Watch this trip";
     const inputs = window.__tiLastInputs;
     const T = window.TravelIntel;
     if (!inputs) return;
@@ -1929,8 +1950,6 @@
     renderWatched(j.trips);
     const btn = document.getElementById("watch-btn");
     if (btn) btn.textContent = "⭑ Watch this trip";
-    const starBtn = document.getElementById("watch-star-btn");
-    if (starBtn) starBtn.textContent = "⭑ Watch (Star Alliance only)";
   };
 
   (async function loadWatched() {
@@ -1986,4 +2005,22 @@
 })();
 </script>
 
+<script>
+// 2026-11-22: open "More" by itself when a stopover, open-jaw city or
+// non-default date flexibility is set, so a hidden option can never
+// silently shape a search.
+(function () {
+  var d = document.getElementById("trip-extra");
+  if (!d) return;
+  function check() {
+    var via = document.getElementById("viaCity"), oj = document.getElementById("returnFromCity");
+    var fx = document.querySelector('[data-group="dateFlexibility"] .sel');
+    if ((via && via.value.trim()) || (oj && oj.value.trim()) || (fx && fx.dataset.val !== "Exact")) d.open = true;
+  }
+  check();
+  d.addEventListener("input", check);
+  document.addEventListener("click", function (e) { if (e.target.closest && e.target.closest('[data-group="dateFlexibility"]')) setTimeout(check, 0); });
+  window.addEventListener("load", function () { setTimeout(check, 300); });
+})();
+</script>
 </body></html>
