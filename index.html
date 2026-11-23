@@ -148,8 +148,8 @@
         </div>
       </section>
 
+      <details class="refine"><summary>Flight preferences <span class="form-hint" id="prefs-status" style="font-weight:400;"></span></summary>
       <section class="block card" id="preferences">
-        <h2 class="card-title">Flight preferences <span class="form-hint" id="prefs-status" style="font-weight:400;"></span></h2>
         <p class="form-hint" style="margin-bottom:10px;">Saved in this browser only. Cabin is the one field sent with a search, along with route, dates and travellers.</p>
         <div class="form-field">
           <label>Cabin</label>
@@ -204,10 +204,11 @@
           <button type="button" class="ti-toggle ti-hidden" id="upgrade-win-toggle" style="margin-top:6px;"></button>
         </div>
       </section>
+      </details>
 
 
+      <details class="refine"><summary>Your wallet <span class="form-hint" id="wallet-status" style="font-weight:400;"></span></summary>
       <section class="block card" id="wallet">
-        <h2 class="card-title">Your wallet <span class="form-hint" id="wallet-status" style="font-weight:400;"></span></h2>
         <p class="form-hint" style="margin-bottom:10px;">Saved in this browser only. Nothing here leaves your device.</p>
         <div class="check-grid">
           <label class="check-row"><input type="checkbox" class="cc-check" value="American Express Membership Rewards"> American Express Membership Rewards</label>
@@ -242,6 +243,7 @@
         <button type="button" class="ti-toggle" id="balance-toggle">Show all programs ▾</button>
         <button type="button" class="run-btn" id="save-wallet" style="margin-top:14px;">Save wallet</button>
       </section>
+      </details>
 
       </details>
 
@@ -254,9 +256,8 @@
       </div>
     </section>
 
-    <section class="block card ti-hidden" id="date-sweep" style="margin-top:0.9rem;" aria-live="polite">
-      <h2 class="card-title">Date-range score sweep</h2>
-      <p class="form-hint" style="margin-bottom:10px;">See the cheapest date in one chart instead of re-running the optimizer by hand. This samples the same trip length across a window of dates and charts price against score, through the exact live pipeline a normal search uses. Up to 6 real searches per click.</p>
+    <section class="block ti-hidden" id="date-sweep" style="margin-top:0.9rem;" aria-live="polite">
+      <details class="refine"><summary>Date sweep: find the cheapest dates</summary><div class="card block"><p class="form-hint" style="margin-bottom:10px;">Samples the same trip across a window of dates. Up to 6 real searches per click.</p>
       <div class="form-grid">
         <div class="form-field"><label for="sweep-window">Window</label>
           <select id="sweep-window"><option value="30">30 days</option><option value="45">45 days</option><option value="60">60 days</option></select>
@@ -267,7 +268,7 @@
       </div>
       <button type="button" class="ti-toggle" id="sweep-btn" onclick="tiRunDateSweep(this)">Sweep dates</button>
       <div id="sweep-body" style="margin-top:14px;"></div>
-    </section>
+    </div></details></section>
 
     <details class="refine" id="points-details" style="margin-top:1.2rem;">
       <summary>Points intelligence: what airline and card points are worth</summary>
@@ -287,9 +288,10 @@
   // Refine panel remembers whether you keep it open (2026-07-26)
   var refineEl = document.getElementById("refine");
   if (refineEl) {
-    try { refineEl.open = localStorage.getItem("ti-refine-open") === "1"; } catch (e) {}
+    // v2 (2026-11-22): a new key so everyone starts closed.
+    try { refineEl.open = localStorage.getItem("ti-refine-open-v2") === "1"; } catch (e) {}
     refineEl.addEventListener("toggle", function () {
-      try { localStorage.setItem("ti-refine-open", refineEl.open ? "1" : "0"); } catch (e) {}
+      try { localStorage.setItem("ti-refine-open-v2", refineEl.open ? "1" : "0"); } catch (e) {}
     });
   }
   const form = document.getElementById("trip-form");
@@ -1365,7 +1367,7 @@
         <div class="score-grid">
           ${["Cost","Comfort","Upgrade","Award","Flexibility","Risk","Time"].map((d) => scoreBar(d, best.scores[d], w[d])).join("")}
         </div>
-        <p class="form-hint" style="margin-top:10px;">Weights come directly from the priority ranking you set: higher-ranked priorities pull more weight onto the dimensions they care about most. Nothing here is optimized for a single variable.</p>
+        <p class="form-hint" style="margin-top:10px;">Weights come from your priority ranking. Nothing is optimised for a single variable.</p>
       </div>
 
       </details>
@@ -1382,7 +1384,7 @@
           <thead><tr><th>Carrier</th><th>Cabin</th><th>Stops</th><th>Time</th><th>Cash</th><th>Miles (est)</th><th>Score</th></tr></thead>
           <tbody id="alt-tbody">${altRows}</tbody>
         </table>
-        <p class="form-hint" style="margin-top:8px;">Prices are per person${trav > 1 ? `; multiply by ${trav} for your party` : ""}. Miles column is an estimated planning range per candidate (not an award-space check); "pay miles/cash" flips at the 1.6¢-per-mile bar. Award seats are the constraint for groups: programs rarely release ${trav > 1 ? trav + "+" : "many"} award seats on one flight, so for parties consider splitting across two bookings.</p>
+        <p class="form-hint" style="margin-top:8px;">Prices are per person${trav > 1 ? `; multiply by ${trav} for your party` : ""}. Miles are a planning range, not an award-space check.</p>
       </div>
 
       <details class="refine"><summary>Upgrade strategy</summary>
@@ -1862,11 +1864,7 @@
     row.appendChild(note);
   }
   function paintLoadingNote(row) {
-    clearMatchNote(row);
-    const note = document.createElement("div");
-    note.className = "concert-match-loading";
-    note.textContent = "Checking for concert matches…";
-    row.appendChild(note);
+    clearMatchNote(row); // 2026-11-22: no "Checking…" line; a match note appears only when there is one
   }
   async function checkConcertMatches(trips) {
     if (!trips || !trips.length) return;
