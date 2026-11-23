@@ -49,6 +49,7 @@
       <a href="#phase-10a" title="Open-jaw trips">10a</a>
       <a href="#phase-11" title="Exact-match city fields">11</a>
       <a href="#phase-12" title="Stopovers in watched trips">12</a>
+      <a href="#phase-13" title="Alliance-only watches">13</a>
     </nav>
 
     <section class="phase phase--live" id="phase-01">
@@ -229,6 +230,18 @@
         </div>
         <p class="phase__focus">A watch now prices the itinerary you searched, stopover included</p>
         <p class="phase__covers">Shipped 2026-11-22. Before this, a Via stopover reached the live search but not the watch, so watching a trip like SFO &rarr; Johannesburg &rarr; Victoria Falls quietly watched the plain SFO &rarr; Victoria Falls route instead. A watched trip now stores the stopover city and nights, and the every-other-day re-check sends the same multi-city request the Optimize form does. The card shows the stopover in its code pill (SFO&ndash;JNB&ndash;VFA) and in its detail line. A plain trip keeps its exact old id and stored shape, so nothing already watched changes, and a stopover trip and a plain trip on the same route are separate watches. Left out on purpose: watching a particular airline or alliance, because the watch tracks the cheapest carrier on the route. Known limit: the onward leg is dated the departure day plus the nights set, so a connection that lands the next day should be searched with 1 night.</p>
+      </div>
+    </section>
+
+    <section class="phase phase--live" id="phase-13">
+      <div class="phase__rail">13</div>
+      <div class="phase__body">
+        <div class="phase__head">
+          <h3 class="phase__name">Alliance-only watches</h3>
+          <span class="phase__status phase__status--live">Live</span>
+        </div>
+        <p class="phase__focus">Watch the cheapest Star Alliance fare, whichever airline it is on the day</p>
+        <p class="phase__covers">Shipped 2026-11-22. A second button, &ldquo;Watch (Star Alliance only)&rdquo;, saves a watch that records the cheapest fare whose every flight is on a Star Alliance airline, so Miles and More credit works on all of it. The airline can change from one check to the next, and the card names every airline on the winning trip. If no Star fare comes back on a day, the check is skipped rather than recording a price from outside the alliance. The membership list is kept by hand in one file, dated 2026-11-22, and an airline not on it counts as not Star. Known limits: a round-trip search only shows the outbound flights, so the return flights&rsquo; airlines are not checked; and Star Alliance is the only alliance offered so far.</p>
       </div>
     </section>
 

@@ -1,5 +1,7 @@
 // netlify/functions/watch.mjs
-// version: 5 (2026-11-22: a watched trip can now store a stopover city,
+// version: 6 (2026-11-22, later: a watch can carry an alliance filter,
+// "Star Alliance" only for now, see ALLOWED_ALLIANCES.)
+// version 5 was (2026-11-22: a watched trip can now store a stopover city,
 // viaIata/viaCity/viaNights, so the every-other-day re-check prices the
 // same multi-city itinerary that was searched. Before this, watching a
 // "via" search silently watched the plain route. Same non-breaking
@@ -51,6 +53,10 @@
 // never through this HTTP handler, so neither is affected by this gate.
 import { getStore } from "@netlify/blobs";
 import { addDaysIso } from "./lib/date-utils.mjs";
+
+// 2026-11-22: alliances a watch may be restricted to. One value for now;
+// adding another means adding its member list in lib/alliances.mjs too.
+export const ALLOWED_ALLIANCES = ["Star Alliance"];
 
 export const MAX_TRIPS = 6; // see quota math in the header comment above before changing this
 
@@ -121,6 +127,9 @@ export function validateTripInput(t) {
       return { error: "the stopover runs past the return date: a watch with an impossible itinerary can never search real fares" };
     }
   }
+  if (t.alliance !== undefined && t.alliance !== null && t.alliance !== "" && !ALLOWED_ALLIANCES.includes(t.alliance)) {
+    return { error: "alliance must be one of: " + ALLOWED_ALLIANCES.join(", ") };
+  }
   return { ok: true };
 }
 
@@ -160,8 +169,11 @@ export function buildWatchId(t) {
   // watching is affected, and a plain request for a route watched before
   // this change still dedupes against it. A via trip and a plain trip on
   // the same route/dates are different searches, so different watches.
-  if (/^[A-Z]{3}$/.test(t.viaIata || "")) return base + "|via:" + t.viaIata + ":" + normalizeViaNights(t.viaNights);
-  return base;
+  const withVia = /^[A-Z]{3}$/.test(t.viaIata || "") ? base + "|via:" + t.viaIata + ":" + normalizeViaNights(t.viaNights) : base;
+  // 2026-11-22: an alliance-restricted watch is a different search from the
+  // open one (it ignores fares outside the alliance), so it gets its own
+  // id suffix. No alliance means the exact id it always had.
+  return ALLOWED_ALLIANCES.includes(t.alliance) ? withVia + "|al:star" : withVia;
 }
 
 function normalizeTrip(t, id) {
@@ -175,6 +187,7 @@ function normalizeTrip(t, id) {
   // 2026-11-22: stopover. Fields are only added to the stored trip when a
   // stopover is set, so every plain trip keeps its exact old stored shape.
   const viaIata = /^[A-Z]{3}$/.test(t.viaIata || "") ? t.viaIata : null;
+  const alliance = ALLOWED_ALLIANCES.includes(t.alliance) ? t.alliance : null;
   return {
     id,
     originIata: t.originIata, destIata: t.destIata,
@@ -182,6 +195,7 @@ function normalizeTrip(t, id) {
     departDate: t.departDate, returnDate,
     returnFromIata,
     returnFromCity: returnFromIata ? String(t.returnFromCity || t.returnFromIata).slice(0, 60) : null,
+    ...(alliance ? { alliance } : {}),
     ...(viaIata ? { viaIata, viaCity: String(t.viaCity || viaIata).slice(0, 60), viaNights: normalizeViaNights(t.viaNights) } : {}),
     cabin: ["Economy", "Premium Economy", "Business", "First", "Best Value"].includes(t.cabin) ? t.cabin : "Economy",
     travelers,

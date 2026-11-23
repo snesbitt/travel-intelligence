@@ -1,5 +1,8 @@
 // netlify/functions/watch-check.mjs
-// version: 5 (2026-11-22: a watched trip with a stopover (viaIata) is now
+// version: 6 (2026-11-22, later: a watch with an alliance records the
+// cheapest fare whose every flight is in that alliance, see
+// lib/alliances.mjs; with none, it skips the check instead of recording an
+// out-of-alliance price.) Version 5 was (2026-11-22: a watched trip with a stopover (viaIata) is now
 // re-searched as the real multi-city itinerary, see buildWatchLegs below;
 // every other trip's request is unchanged. Version 4 was 2026-09-21: each check now also records a stops/layover
 // summary -- see buildStopsSummary below -- so the Watched Trips card can
@@ -36,8 +39,18 @@ import { getStore } from "@netlify/blobs";
 // established.
 import { CABIN_CLASS } from "./lib/cabin-class.mjs";
 import { addDaysIso } from "./lib/date-utils.mjs";
+import { isStarOffer, carrierLabel } from "./lib/alliances.mjs";
 
 export const config = { schedule: "0 14 * * *" };
+
+// 2026-11-22: pure and exported for tests. Narrows the raw SerpApi offers
+// to those a watch's alliance allows. No alliance (the common case) returns
+// the list untouched. A round-trip search only shows the outbound flights,
+// so the return flights' carriers are not visible here, see About.
+export function applyAllianceFilter(rawOffers, alliance) {
+  if (alliance !== "Star Alliance") return rawOffers;
+  return rawOffers.filter(isStarOffer);
+}
 
 // 2026-11-22: pure, exported per the same "export the logic for
 // testability" pattern mergeChecks and buildStopsSummary use. Returns the
@@ -276,11 +289,14 @@ export default async () => {
     try {
       const res = await fetchWithRetry("https://serpapi.com/search?" + q);
       const j = await res.json();
-      const raw = [...(j.best_flights || []), ...(j.other_flights || [])].filter((o) => o.price);
+      const raw = applyAllianceFilter([...(j.best_flights || []), ...(j.other_flights || [])].filter((o) => o.price), trip.alliance);
       if (!raw.length) continue;
       searched++;
       const cheapest = raw.reduce((m, o) => (o.price < m.price ? o : m), raw[0]);
-      const carrier = ((cheapest.flights || [])[0] || {}).airline || "";
+      // An alliance watch shows every airline on the winning itinerary,
+      // because the carrier can change between checks; a plain watch keeps
+      // showing the first airline, as before.
+      const carrier = trip.alliance ? carrierLabel(cheapest) : (((cheapest.flights || [])[0] || {}).airline || "");
       const stopsSummary = buildStopsSummary(cheapest.flights, cheapest.layovers, legs ? trip.destIata : null);
       trip.checks = trip.checks || [];
       trip.checks.push({

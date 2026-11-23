@@ -19,7 +19,8 @@
 // `npm test`). No live network calls.
 
 import assert from "node:assert/strict";
-import { mergeChecks, buildStopsSummary, isBeyondBookingHorizon, buildWatchLegs } from "../netlify/functions/watch-check.mjs";
+import { isStarAirline, isStarOffer, carrierLabel } from "../netlify/functions/lib/alliances.mjs";
+import { mergeChecks, buildStopsSummary, isBeyondBookingHorizon, buildWatchLegs, applyAllianceFilter } from "../netlify/functions/watch-check.mjs";
 
 let passed = 0;
 function test(name, fn) {
@@ -182,6 +183,37 @@ test("buildWatchLegs: stopover plus open-jaw compose into three legs", () => {
   const legs = buildWatchLegs(trip({ viaIata: "JNB", returnFromIata: "BBK" }));
   assert.equal(legs.length, 3);
   assert.equal(legs[2].departure_id, "BBK");
+});
+
+/* ---------- alliance filter, 2026-11-22 ---------- */
+
+const offer = (price, ...airlines) => ({ price, flights: airlines.map((a) => ({ airline: a })) });
+
+test("isStarAirline: Ethiopian, South African, SWISS and United are Star; BA, Emirates, Airlink, SAS are not", () => {
+  for (const a of ["United", "Ethiopian", "South African", "SWISS", "Lufthansa", "Turkish Airlines"]) assert.ok(isStarAirline(a), a);
+  for (const a of ["British Airways", "Emirates", "Airlink", "CemAir Pty", "FlySafair", "Condor", "Scandinavian Airlines", "", null]) assert.equal(isStarAirline(a), false, String(a));
+});
+
+test("isStarOffer: every flight must be Star, and an empty offer never qualifies", () => {
+  assert.ok(isStarOffer(offer(2069, "United", "Ethiopian")));
+  assert.equal(isStarOffer(offer(2106, "British Airways", "South African")), false);
+  assert.equal(isStarOffer(offer(2691, "Lufthansa", "Airlink")), false);
+  assert.equal(isStarOffer({ price: 1, flights: [] }), false);
+  assert.equal(isStarOffer({ price: 1 }), false);
+});
+
+test("applyAllianceFilter: no alliance returns everything; Star keeps only Star offers; carrier can change", () => {
+  const all = [offer(1900, "British Airways", "South African"), offer(2069, "United", "Ethiopian"), offer(2601, "SWISS", "South African")];
+  assert.equal(applyAllianceFilter(all, null).length, 3);
+  const star = applyAllianceFilter(all, "Star Alliance");
+  assert.deepEqual(star.map((o) => o.price), [2069, 2601]);
+  assert.equal(star.reduce((m, o) => (o.price < m.price ? o : m)).price, 2069);
+  assert.equal(carrierLabel(star[0]), "United + Ethiopian");
+  assert.equal(carrierLabel(star[1]), "SWISS + South African");
+});
+
+test("applyAllianceFilter: when nothing qualifies the result is empty, so the check is skipped, not faked", () => {
+  assert.equal(applyAllianceFilter([offer(1900, "British Airways")], "Star Alliance").length, 0);
 });
 
 console.log(`\n${passed} passed`);

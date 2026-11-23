@@ -1315,6 +1315,7 @@
         </div>
         <div style="display:flex;gap:8px;align-items:flex-end;flex-wrap:wrap;">
           <button type="button" class="ti-toggle" id="watch-btn" onclick="tiWatchTrip(this)">⭑ Watch this trip</button>
+          <button type="button" class="ti-toggle" id="watch-star-btn" onclick="tiWatchTrip(this, 'Star Alliance')">⭑ Watch (Star Alliance only)</button>
           <button type="button" class="ti-toggle" onclick="tiExportIcs()">Upgrade plan → calendar (.ics)</button>
         </div>
         <p class="form-hint" style="flex:2;min-width:200px;margin-bottom:6px;"><strong>Live fares</strong> retrieved ${window.__tiLastLive && window.__tiLastLive.retrievedAt ? new Date(window.__tiLastLive.retrievedAt).toLocaleString("en-US", { month: "short", day: "numeric", hour: "numeric", minute: "2-digit" }) : "just now"} via ${window.__tiLastLive && window.__tiLastLive.provider ? window.__tiLastLive.provider : "the live backend"}: real prices, scored by the same engine. Same shortlist, different lens: switching recomputes every weight and re-ranks instantly, no re-run needed. ${trav > 1 ? `Pricing shown per person; totals for ${trav} travelers alongside.` : ""}</p>
@@ -1529,7 +1530,11 @@
     try { localStorage.removeItem(TI_EDIT_KEY); } catch (e) {}
   }
 
-  window.tiWatchTrip = async function (btn) {
+  // 2026-11-22: second argument is an optional alliance; the watch then
+  // tracks the cheapest fare whose every flight is in it (Star Alliance
+  // only for now), whichever airline that is on the day.
+  window.tiWatchTrip = async function (btn, alliance) {
+    const idleLabel = alliance ? "⭑ Watch (Star Alliance only)" : "⭑ Watch this trip";
     const inputs = window.__tiLastInputs;
     const T = window.TravelIntel;
     if (!inputs) return;
@@ -1558,7 +1563,7 @@
       if (viaIata === o || viaIata === d) { btn.textContent = "Can't watch: stopover matches origin or destination"; return; }
     }
     const editKey = getEditSecret();
-    if (!editKey) { btn.textContent = "⭑ Watch this trip"; return; }
+    if (!editKey) { btn.textContent = idleLabel; return; }
     const best = window.__tiLastBest;
     btn.textContent = "Saving…";
     try {
@@ -1571,10 +1576,13 @@
           travelers: inputs.travelers || 1,
           returnFromIata, returnFromCity: returnFromIata ? inputs.returnFromCity : null,
           ...(viaIata ? { viaIata, viaCity: inputs.viaCity, viaNights: inputs.viaStopoverNights || 0 } : {}),
+          ...(alliance ? { alliance } : {}),
           // The nightly watcher records the cheapest offer, so the baseline must be the
           // cheapest feed offer too. The engine's winner can cost more, and comparing the
           // two would show a drop that never happened.
-          baseline: (() => {
+          // An alliance watch has no baseline: the feed's cheapest offer may
+          // be outside the alliance, and comparing the two would invent a drop.
+          baseline: alliance ? null : (() => {
             const offers = ((window.__tiLastLive && window.__tiLastLive.offers) || []).filter((o) => !o.src && o.priceTotal > 0);
             if (!offers.length) return null;
             const floor = offers.reduce((m, o) => (o.priceTotal < m.priceTotal ? o : m), offers[0]);
@@ -1720,7 +1728,7 @@
       return `<div class="watched-item" data-id="${safeId}">
         <div class="watched-route-card">
           <span class="watched-route-main">${safeOrigin} → ${safeDest}${codeChip}</span>
-          <span class="watched-route-meta">${fmtWatchRange(t.departDate, t.returnDate)} · ${safeCabin} · ${travLabel}${safeVia ? ` · via ${safeVia}` : ""}${safeReturnFrom ? ` · returns from ${safeReturnFrom}` : ""}</span>
+          <span class="watched-route-meta">${fmtWatchRange(t.departDate, t.returnDate)} · ${safeCabin} · ${travLabel}${safeVia ? ` · via ${safeVia}` : ""}${t.alliance === "Star Alliance" ? " · Star Alliance only" : ""}${safeReturnFrom ? ` · returns from ${safeReturnFrom}` : ""}</span>
           ${stopsRow}
         </div>
         <div class="watched-side" style="display:flex;align-items:center;gap:12px;">
@@ -1920,6 +1928,8 @@
     renderWatched(j.trips);
     const btn = document.getElementById("watch-btn");
     if (btn) btn.textContent = "⭑ Watch this trip";
+    const starBtn = document.getElementById("watch-star-btn");
+    if (starBtn) starBtn.textContent = "⭑ Watch (Star Alliance only)";
   };
 
   (async function loadWatched() {

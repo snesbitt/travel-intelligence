@@ -229,4 +229,27 @@ test("planAddTrip: a via trip and a plain trip on the same route are separate wa
   assert.equal(planAddTrip(second.trips, trip({ viaIata: "JNB" })).action, "duplicate");
 });
 
+/* ---------- alliance filter, 2026-11-22 ---------- */
+
+test("buildWatchId: no alliance keeps the old id; Star Alliance adds |al:star and composes with via", () => {
+  assert.equal(buildWatchId(trip()), "SFO|NRT|2026-09-01|Economy|2026-09-10|1|-");
+  assert.equal(buildWatchId(trip({ alliance: "Star Alliance" })), "SFO|NRT|2026-09-01|Economy|2026-09-10|1|-|al:star");
+  assert.equal(buildWatchId(trip({ alliance: "Star Alliance", viaIata: "JNB" })), "SFO|NRT|2026-09-01|Economy|2026-09-10|1|-|via:JNB:0|al:star");
+});
+
+test("validateTripInput: accepts Star Alliance or none, rejects any other alliance", () => {
+  assert.ok(validateTripInput(trip({ alliance: "Star Alliance" })).ok);
+  assert.ok(validateTripInput(trip({ alliance: "" })).ok);
+  assert.ok(validateTripInput(trip({ alliance: "Oneworld" })).error);
+});
+
+test("planAddTrip: stores alliance only when set; the open and the Star watch are separate", () => {
+  const open = planAddTrip([], trip());
+  assert.equal("alliance" in open.trips[0], false);
+  const star = planAddTrip(open.trips, trip({ alliance: "Star Alliance" }));
+  assert.equal(star.action, "add");
+  assert.equal(star.trips[1].alliance, "Star Alliance");
+  assert.equal(planAddTrip(star.trips, trip({ alliance: "Star Alliance" })).action, "duplicate");
+});
+
 console.log(`\n${passed} passed`);
