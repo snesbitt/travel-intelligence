@@ -1549,6 +1549,14 @@
       if (!returnFromIata) { btn.textContent = "Can't watch: unknown return-from city"; return; }
       if (!inputs.returnDate) { btn.textContent = "Can't watch: open-jaw return needs a return date"; return; }
     }
+    // Stopover (2026-11-22): same rule, a watch must price the itinerary
+    // that was searched, so the via city travels with the trip.
+    let viaIata = null;
+    if (inputs.viaCity) {
+      viaIata = T.toIATA(inputs.viaCity);
+      if (!viaIata) { btn.textContent = "Can't watch: unknown stopover city"; return; }
+      if (viaIata === o || viaIata === d) { btn.textContent = "Can't watch: stopover matches origin or destination"; return; }
+    }
     const editKey = getEditSecret();
     if (!editKey) { btn.textContent = "⭑ Watch this trip"; return; }
     const best = window.__tiLastBest;
@@ -1562,6 +1570,7 @@
           departDate: inputs.departDate, returnDate: inputs.returnDate, cabin: inputs.cabin,
           travelers: inputs.travelers || 1,
           returnFromIata, returnFromCity: returnFromIata ? inputs.returnFromCity : null,
+          ...(viaIata ? { viaIata, viaCity: inputs.viaCity, viaNights: inputs.viaStopoverNights || 0 } : {}),
           // The nightly watcher records the cheapest offer, so the baseline must be the
           // cheapest feed offer too. The engine's winner can cost more, and comparing the
           // two would show a drop that never happened.
@@ -1651,7 +1660,11 @@
       // 2026-08-11: open-jaw trips carry a returnFromIata (validated
       // server-side, see watch.mjs); shown as a second O-D pair so the
       // card doesn't imply a plain round trip back through dCode.
-      const codeChip = oCode && dCode ? ` <span class="watched-codes">${oCode}–${dCode}${t.returnFromIata ? ` / ${t.returnFromIata}–${oCode}` : ""}</span>` : "";
+      // 2026-11-22: a stopover trip shows the via airport inside the chip
+      // (SFO–JNB–VFA). t.viaIata is server-validated to 3 capitals, but is
+      // escaped anyway, same rule as every other stored field here.
+      const viaCode = /^[A-Z]{3}$/.test(t.viaIata || "") ? t.viaIata : "";
+      const codeChip = oCode && dCode ? ` <span class="watched-codes">${oCode}–${viaCode ? viaCode + "–" : ""}${dCode}${t.returnFromIata ? ` / ${t.returnFromIata}–${oCode}` : ""}</span>` : "";
       // 2026-09-21: stops/layover summary, added because the code pill above
       // only ever shows the two endpoints -- a route like SFO-VFA reads as
       // if it might be nonstop when it almost never is. Comes from
@@ -1701,10 +1714,13 @@
       // stored-XSS rule as origin/destination/cabin/id above: escaped
       // before it's interpolated into markup (2026-08-11).
       const safeReturnFrom = t.returnFromCity ? escapeHtml(T.displayCityName(t.returnFromCity)) : "";
+      // 2026-11-22: stopover text, escaped like the other stored city fields.
+      const viaNightsN = Number.isInteger(t.viaNights) ? t.viaNights : 0;
+      const safeVia = t.viaCity ? escapeHtml(T.displayCityName(t.viaCity)) + (viaNightsN > 0 ? ` (${viaNightsN} night${viaNightsN === 1 ? "" : "s"})` : "") : "";
       return `<div class="watched-item" data-id="${safeId}">
         <div class="watched-route-card">
           <span class="watched-route-main">${safeOrigin} → ${safeDest}${codeChip}</span>
-          <span class="watched-route-meta">${fmtWatchRange(t.departDate, t.returnDate)} · ${safeCabin} · ${travLabel}${safeReturnFrom ? ` · returns from ${safeReturnFrom}` : ""}</span>
+          <span class="watched-route-meta">${fmtWatchRange(t.departDate, t.returnDate)} · ${safeCabin} · ${travLabel}${safeVia ? ` · via ${safeVia}` : ""}${safeReturnFrom ? ` · returns from ${safeReturnFrom}` : ""}</span>
           ${stopsRow}
         </div>
         <div class="watched-side" style="display:flex;align-items:center;gap:12px;">

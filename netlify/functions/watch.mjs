@@ -1,5 +1,11 @@
 // netlify/functions/watch.mjs
-// version: 4 (2026-08-08)
+// version: 5 (2026-11-22: a watched trip can now store a stopover city,
+// viaIata/viaCity/viaNights, so the every-other-day re-check prices the
+// same multi-city itinerary that was searched. Before this, watching a
+// "via" search silently watched the plain route. Same non-breaking
+// migration approach as the open-jaw field: plain trips keep their exact
+// old id and stored shape; see buildWatchId below.)
+// version 4 was (2026-08-08)
 // The fare watcher's storage API, the audit's "one big bet." Watched
 // trips persist in a Netlify Blobs store; watch-check.mjs re-searches
 // them on an every-other-day schedule. Capped at MAX_TRIPS=6 because
@@ -44,6 +50,7 @@
 // and watched-trips.mjs both access the Blobs store directly (getStore),
 // never through this HTTP handler, so neither is affected by this gate.
 import { getStore } from "@netlify/blobs";
+import { addDaysIso } from "./lib/date-utils.mjs";
 
 export const MAX_TRIPS = 6; // see quota math in the header comment above before changing this
 
@@ -95,7 +102,32 @@ export function validateTripInput(t) {
       return { error: "an open-jaw return (returnFromIata) needs a real returnDate" };
     }
   }
+  // 2026-11-22: stopover (via) support. A real multi-city search, the same
+  // origin->via->destination shape fares.mjs's `legs` path and
+  // watch-check.mjs's buildWatchLegs both use. Rejected loudly here rather
+  // than stored as a trip whose id implies a search it doesn't run.
+  if (t.viaIata) {
+    if (!/^[A-Z]{3}$/.test(t.viaIata)) {
+      return { error: "viaIata must be a 3-letter airport code" };
+    }
+    if (t.viaIata === t.originIata || t.viaIata === t.destIata) {
+      return { error: "the stopover can't be the same airport as the origin or destination" };
+    }
+    const n = t.viaNights === undefined || t.viaNights === null || t.viaNights === "" ? 0 : Number(t.viaNights);
+    if (!Number.isInteger(n) || n < 0 || n > 30) {
+      return { error: "viaNights must be a whole number from 0 to 30" };
+    }
+    if (/^\d{4}-\d{2}-\d{2}$/.test(t.returnDate || "") && addDaysIso(t.departDate, n) > t.returnDate) {
+      return { error: "the stopover runs past the return date: a watch with an impossible itinerary can never search real fares" };
+    }
+  }
   return { ok: true };
+}
+
+// 2026-11-22: whole nights at the stopover, 0 to 30, anything else is 0.
+export function normalizeViaNights(v) {
+  const n = Number(v);
+  return Number.isInteger(n) && n >= 0 && n <= 30 ? n : 0;
 }
 
 // 2026-08-05: id used to be [origin, dest, departDate, cabin] only, 
@@ -122,7 +154,14 @@ export function buildWatchId(t) {
   const returnDate = /^\d{4}-\d{2}-\d{2}$/.test(t.returnDate || "") ? t.returnDate : null;
   const travelers = Math.min(9, Math.max(1, parseInt(t.travelers, 10) || 1));
   const returnFrom = /^[A-Z]{3}$/.test(t.returnFromIata || "") ? t.returnFromIata : "-";
-  return [t.originIata, t.destIata, t.departDate, t.cabin || "Economy", returnDate || "-", travelers, returnFrom].join("|");
+  const base = [t.originIata, t.destIata, t.departDate, t.cabin || "Economy", returnDate || "-", travelers, returnFrom].join("|");
+  // 2026-11-22: a stopover trip appends "|via:<IATA>:<nights>". A trip with
+  // no stopover gets EXACTLY the id it always had, so nothing already
+  // watching is affected, and a plain request for a route watched before
+  // this change still dedupes against it. A via trip and a plain trip on
+  // the same route/dates are different searches, so different watches.
+  if (/^[A-Z]{3}$/.test(t.viaIata || "")) return base + "|via:" + t.viaIata + ":" + normalizeViaNights(t.viaNights);
+  return base;
 }
 
 function normalizeTrip(t, id) {
@@ -133,6 +172,9 @@ function normalizeTrip(t, id) {
   // returnDate here); a falsy/malformed value normalizes to null, same
   // "never guess" convention as returnDate above.
   const returnFromIata = /^[A-Z]{3}$/.test(t.returnFromIata || "") ? t.returnFromIata : null;
+  // 2026-11-22: stopover. Fields are only added to the stored trip when a
+  // stopover is set, so every plain trip keeps its exact old stored shape.
+  const viaIata = /^[A-Z]{3}$/.test(t.viaIata || "") ? t.viaIata : null;
   return {
     id,
     originIata: t.originIata, destIata: t.destIata,
@@ -140,6 +182,7 @@ function normalizeTrip(t, id) {
     departDate: t.departDate, returnDate,
     returnFromIata,
     returnFromCity: returnFromIata ? String(t.returnFromCity || t.returnFromIata).slice(0, 60) : null,
+    ...(viaIata ? { viaIata, viaCity: String(t.viaCity || viaIata).slice(0, 60), viaNights: normalizeViaNights(t.viaNights) } : {}),
     cabin: ["Economy", "Premium Economy", "Business", "First", "Best Value"].includes(t.cabin) ? t.cabin : "Economy",
     travelers,
     createdAt: new Date().toISOString(),

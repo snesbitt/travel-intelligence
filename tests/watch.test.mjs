@@ -183,4 +183,50 @@ test("planRemoveTrip: removing an id that isn't present is a no-op (and callers 
   assert.deepEqual(plan.trips.map((t) => t.id), ["keep"]);
 });
 
+/* ---------- stopover (via), 2026-11-22 ---------- */
+
+test("buildWatchId: a plain trip keeps its exact old id (no via suffix)", () => {
+  assert.equal(buildWatchId(trip()), "SFO|NRT|2026-09-01|Economy|2026-09-10|1|-");
+});
+
+test("buildWatchId: a via trip gets a distinct id with the via suffix", () => {
+  const id = buildWatchId(trip({ viaIata: "JNB", viaNights: 0 }));
+  assert.equal(id, "SFO|NRT|2026-09-01|Economy|2026-09-10|1|-|via:JNB:0");
+  assert.notEqual(id, buildWatchId(trip()));
+  assert.notEqual(id, buildWatchId(trip({ viaIata: "JNB", viaNights: 2 })));
+});
+
+test("validateTripInput: accepts a valid stopover", () => {
+  assert.ok(validateTripInput(trip({ viaIata: "JNB", viaCity: "Johannesburg", viaNights: 1 })).ok);
+});
+
+test("validateTripInput: rejects a bad via code, a via equal to origin or destination, bad nights, and a stopover past the return date", () => {
+  assert.ok(validateTripInput(trip({ viaIata: "jnb" })).error);
+  assert.ok(validateTripInput(trip({ viaIata: "SFO" })).error);
+  assert.ok(validateTripInput(trip({ viaIata: "NRT" })).error);
+  assert.ok(validateTripInput(trip({ viaIata: "JNB", viaNights: -1 })).error);
+  assert.ok(validateTripInput(trip({ viaIata: "JNB", viaNights: 31 })).error);
+  assert.ok(validateTripInput(trip({ viaIata: "JNB", viaNights: 1.5 })).error);
+  assert.ok(validateTripInput(trip({ viaIata: "JNB", viaNights: 20 })).error);
+});
+
+test("planAddTrip: stores via fields for a stopover trip, and none for a plain trip", () => {
+  const withVia = planAddTrip([], trip({ viaIata: "JNB", viaCity: "Johannesburg", viaNights: 0 }));
+  assert.equal(withVia.action, "add");
+  const t = withVia.trips[0];
+  assert.equal(t.viaIata, "JNB");
+  assert.equal(t.viaCity, "Johannesburg");
+  assert.equal(t.viaNights, 0);
+  const plain = planAddTrip([], trip()).trips[0];
+  assert.equal("viaIata" in plain, false);
+  assert.equal("viaNights" in plain, false);
+});
+
+test("planAddTrip: a via trip and a plain trip on the same route are separate watches; repeating the via trip is a duplicate", () => {
+  const first = planAddTrip([], trip());
+  const second = planAddTrip(first.trips, trip({ viaIata: "JNB" }));
+  assert.equal(second.action, "add");
+  assert.equal(planAddTrip(second.trips, trip({ viaIata: "JNB" })).action, "duplicate");
+});
+
 console.log(`\n${passed} passed`);

@@ -19,7 +19,7 @@
 // `npm test`). No live network calls.
 
 import assert from "node:assert/strict";
-import { mergeChecks, buildStopsSummary, isBeyondBookingHorizon } from "../netlify/functions/watch-check.mjs";
+import { mergeChecks, buildStopsSummary, isBeyondBookingHorizon, buildWatchLegs } from "../netlify/functions/watch-check.mjs";
 
 let passed = 0;
 function test(name, fn) {
@@ -145,6 +145,43 @@ test("isBeyondBookingHorizon: a trip 400 days out is skipped, one 100 days out i
   assert.equal(isBeyondBookingHorizon("2027-12-04", now), true);
   assert.equal(isBeyondBookingHorizon("2027-02-07", now), false);
   assert.equal(isBeyondBookingHorizon("garbage", now), false);
+});
+
+/* ---------- buildWatchLegs (stopover + open-jaw), 2026-11-22 ---------- */
+
+test("buildWatchLegs: a plain trip returns null (keeps its single-route request)", () => {
+  assert.equal(buildWatchLegs(trip()), null);
+});
+
+test("buildWatchLegs: a stopover round trip is origin>via, via>dest, return", () => {
+  const legs = buildWatchLegs(trip({ viaIata: "JNB", viaNights: 0 }));
+  assert.deepEqual(legs, [
+    { departure_id: "SFO", arrival_id: "JNB", date: "2026-11-01" },
+    { departure_id: "JNB", arrival_id: "GBE", date: "2026-11-01" },
+    { departure_id: "GBE", arrival_id: "SFO", date: "2026-11-15" },
+  ]);
+});
+
+test("buildWatchLegs: stopover nights push the onward leg date, including across a month end", () => {
+  const legs = buildWatchLegs(trip({ viaIata: "JNB", viaNights: 2, departDate: "2026-10-30" }));
+  assert.equal(legs[1].date, "2026-11-01");
+});
+
+test("buildWatchLegs: a one-way stopover has two legs", () => {
+  assert.equal(buildWatchLegs(trip({ viaIata: "JNB", returnDate: null })).length, 2);
+});
+
+test("buildWatchLegs: open-jaw alone keeps its original two legs", () => {
+  assert.deepEqual(buildWatchLegs(trip({ returnFromIata: "BBK" })), [
+    { departure_id: "SFO", arrival_id: "GBE", date: "2026-11-01" },
+    { departure_id: "BBK", arrival_id: "SFO", date: "2026-11-15" },
+  ]);
+});
+
+test("buildWatchLegs: stopover plus open-jaw compose into three legs", () => {
+  const legs = buildWatchLegs(trip({ viaIata: "JNB", returnFromIata: "BBK" }));
+  assert.equal(legs.length, 3);
+  assert.equal(legs[2].departure_id, "BBK");
 });
 
 console.log(`\n${passed} passed`);

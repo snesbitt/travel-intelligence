@@ -1,5 +1,7 @@
 // netlify/functions/watch-check.mjs
-// version: 4 (2026-09-21: each check now also records a stops/layover
+// version: 5 (2026-11-22: a watched trip with a stopover (viaIata) is now
+// re-searched as the real multi-city itinerary, see buildWatchLegs below;
+// every other trip's request is unchanged. Version 4 was 2026-09-21: each check now also records a stops/layover
 // summary -- see buildStopsSummary below -- so the Watched Trips card can
 // show whether the fare floor is nonstop or hides a connection, which the
 // route pill alone never revealed. Version 3, 2026-08-11, open-jaw support
@@ -33,8 +35,36 @@ import { getStore } from "@netlify/blobs";
 // here and in fares.mjs), same shared-lib pattern city-coords.mjs already
 // established.
 import { CABIN_CLASS } from "./lib/cabin-class.mjs";
+import { addDaysIso } from "./lib/date-utils.mjs";
 
 export const config = { schedule: "0 14 * * *" };
+
+// 2026-11-22: pure, exported per the same "export the logic for
+// testability" pattern mergeChecks and buildStopsSummary use. Returns the
+// SerpApi multi_city_json legs for a watched trip, or null when the trip is
+// a plain one-way/round-trip (the common case, which keeps its single-route
+// request exactly as before). Covers the two shapes that need a real
+// multi-city search, and they compose, same as the Optimize form:
+//   - stopover (viaIata): origin->via on departDate, via->destination on
+//     departDate + viaNights, then the return leg if there is a returnDate.
+//   - open-jaw (returnFromIata): the return leg departs returnFromIata.
+export function buildWatchLegs(trip) {
+  const hasVia = /^[A-Z]{3}$/.test((trip && trip.viaIata) || "");
+  const hasOpenJaw = Boolean(trip && trip.returnFromIata);
+  if (!hasVia && !hasOpenJaw) return null;
+  const legs = [];
+  if (hasVia) {
+    const nights = Number.isInteger(trip.viaNights) && trip.viaNights >= 0 ? trip.viaNights : 0;
+    legs.push({ departure_id: trip.originIata, arrival_id: trip.viaIata, date: trip.departDate });
+    legs.push({ departure_id: trip.viaIata, arrival_id: trip.destIata, date: addDaysIso(trip.departDate, nights) });
+  } else {
+    legs.push({ departure_id: trip.originIata, arrival_id: trip.destIata, date: trip.departDate });
+  }
+  if (trip.returnDate) {
+    legs.push({ departure_id: trip.returnFromIata || trip.destIata, arrival_id: trip.originIata, date: trip.returnDate });
+  }
+  return legs;
+}
 
 // Small bounded retry around a single external fetch: up to 3 attempts
 // total, short fixed backoff between them (not exponential -- 3
@@ -218,12 +248,11 @@ export default async () => {
     // request format, just this trip's own fields mapped onto it. Every
     // other trip (returnFromIata unset, by far the common case) is
     // completely unaffected: same single-route request as always.
+    // 2026-11-22: the same multi-city request now also covers a stopover
+    // (viaIata), see buildWatchLegs above.
     let q;
-    if (trip.returnFromIata) {
-      const legs = [
-        { departure_id: trip.originIata, arrival_id: trip.destIata, date: trip.departDate },
-        { departure_id: trip.returnFromIata, arrival_id: trip.originIata, date: trip.returnDate },
-      ];
+    const legs = buildWatchLegs(trip);
+    if (legs) {
       q = new URLSearchParams({
         engine: "google_flights",
         type: "3",
@@ -252,7 +281,7 @@ export default async () => {
       searched++;
       const cheapest = raw.reduce((m, o) => (o.price < m.price ? o : m), raw[0]);
       const carrier = ((cheapest.flights || [])[0] || {}).airline || "";
-      const stopsSummary = buildStopsSummary(cheapest.flights, cheapest.layovers, trip.returnFromIata ? trip.destIata : null);
+      const stopsSummary = buildStopsSummary(cheapest.flights, cheapest.layovers, legs ? trip.destIata : null);
       trip.checks = trip.checks || [];
       trip.checks.push({
         at: new Date().toISOString(),
