@@ -1,14 +1,20 @@
 {
-  "SFO|VFA|2027-05-21|Economy|2027-06-01|1|BBK": {
-    "lastMatches": [],
-    "firstSeenAt": {},
-    "newThisWeek": [],
-    "lastCheckedAt": "2026-11-17T01:50:08.447Z"
-  },
   "SFO|VFA|2027-05-21|Economy|2027-06-01|1|-": {
     "lastMatches": [],
     "firstSeenAt": {},
     "newThisWeek": [],
-    "lastCheckedAt": "2026-11-17T01:50:08.447Z"
+    "lastCheckedAt": "2026-11-24T03:56:18.484Z"
+  },
+  "SFO|JNB|2027-05-21|Economy|2027-05-31|1|-": {
+    "lastMatches": [],
+    "firstSeenAt": {},
+    "newThisWeek": [],
+    "lastCheckedAt": "2026-11-24T03:56:18.484Z"
+  },
+  "SFO|VFA|2027-05-21|Economy|2027-06-01|1|-|al:star": {
+    "lastMatches": [],
+    "firstSeenAt": {},
+    "newThisWeek": [],
+    "lastCheckedAt": "2026-11-24T03:56:18.484Z"
   }
 }
