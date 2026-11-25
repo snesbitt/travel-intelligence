@@ -52,7 +52,7 @@
 const BASE_URL = (process.env.INTEGRITY_BASE_URL || "https://travelintelligence.org").replace(/\/+$/, "");
 const JSON_OUT = process.argv.includes("--json");
 
-// Health should be written once per day (watch-check.mjs, 14:00 UTC
+// Health should be written once per day (watch-check.mjs, 18:00 UTC
 // cron); 30h gives a full extra cycle of slack before calling it stale,
 // same order-of-magnitude slack check-deploy-fresh.mjs's own --wait
 // window uses for "give the pipeline a beat before crying wolf."

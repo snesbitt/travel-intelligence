@@ -13,8 +13,8 @@
 // cadence/cap change, same day, is unchanged.)
 // Scheduled re-search for watched trips, the half of the fare watcher
 // that "does the watching" the Purchase Strategy used to outsource to
-// the user. The function itself still fires daily at 14:00 UTC (morning
-// US, cron unchanged), but each trip is only actually re-searched at
+// the user. The function itself still fires daily at 18:00 UTC (10 am
+// PST, 11 am PDT; was 14:00 UTC until 2026-11-25), but each trip is only actually re-searched at
 // most once every ~44h (an every-other-day cadence in practice), spends
 // AT MOST one SerpApi search per watched trip per re-search cycle, skips
 // trips checked more recently than that (idempotent on retries) and
@@ -41,7 +41,11 @@ import { CABIN_CLASS } from "./lib/cabin-class.mjs";
 import { addDaysIso } from "./lib/date-utils.mjs";
 import { isStarOffer, carrierLabel } from "./lib/alliances.mjs";
 
-export const config = { schedule: "0 14 * * *" };
+// 2026-11-25: moved from 14:00 UTC (7 am PDT, 6 am PST) to 18:00 UTC at
+// Susan's request, so no scheduled run starts before 10 am Pacific all year
+// (18:00 UTC is 10:00 PST and 11:00 PDT). The ~44h per-trip floor is
+// unchanged, so SerpApi usage is unchanged.
+export const config = { schedule: "0 18 * * *" };
 
 // 2026-11-22: pure and exported for tests. Narrows the raw SerpApi offers
 // to those a watch's alliance allows. No alliance (the common case) returns
