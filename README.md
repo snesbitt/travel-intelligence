@@ -62,7 +62,7 @@ they do.
   rows with explicit "Show all N" toggles.
 - The fare watcher: "Watch this trip" saves a route (up to 6, stored in
   Netlify Blobs via `/api/watch`); a scheduled function
-  (`watch-check.mjs`, daily 14:00 UTC) re-searches each watched trip
+  (`watch-check.mjs`, daily 18:00 UTC) re-searches each watched trip
   roughly every other day (skipping any trip checked more recently than
   ~44h ago), keeping usage at ~90 SerpApi searches/month at the cap even
   with double the trips (raised from 3 on 2026-08-11, see CLAUDE.md), and
