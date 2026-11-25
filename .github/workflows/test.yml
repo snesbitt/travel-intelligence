@@ -110,14 +110,23 @@ jobs:
           Run: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
           EXISTING=$(gh issue list --repo "$GITHUB_REPOSITORY" --state open --json number,title \
             --jq '[.[] | select(.title == "'"$TITLE"'")] | .[0].number // empty')
-          if [ -n "$EXISTING" ]; then
+          # 2026-11-25: a due valuation refresh on its own adds no daily comment
+          # once the issue is open, so it does not send a notice every day.
+          ONLY_VALUATIONS=${{ steps.deploy_fresh.outcome != 'failure' && steps.integrity.outcome != 'failure' && steps.smoke.outcome != 'failure' }}
+          if [ -n "$EXISTING" ] && [ "$ONLY_VALUATIONS" = "true" ]; then
+            echo "Issue #$EXISTING is already open for the valuation refresh; no new comment."
+          elif [ -n "$EXISTING" ]; then
             gh issue comment "$EXISTING" --repo "$GITHUB_REPOSITORY" --body "$BODY"
           else
             gh issue create --repo "$GITHUB_REPOSITORY" --title "$TITLE" --body "$BODY"
           fi
 
+      # 2026-11-25, at Susan's request: a due TPG valuation refresh opens the
+      # tracking issue above but no longer fails the job, so it does not send
+      # a "run failed" email every day from the 1st of the month. The hard
+      # 45-day stop in npm test (check-content-drift.mjs) still fails the run.
       - name: Fail the job if a scheduled site check failed
         if: >-
           github.event_name == 'schedule' &&
-          (steps.deploy_fresh.outcome == 'failure' || steps.integrity.outcome == 'failure' || steps.smoke.outcome == 'failure' || steps.valuations_due.outcome == 'failure')
+          (steps.deploy_fresh.outcome == 'failure' || steps.integrity.outcome == 'failure' || steps.smoke.outcome == 'failure')
         run: exit 1
